@@ -101,7 +101,9 @@ testastic: assertion failed
 JSON mismatches show git-style inline diff:
 
 ```diff
-JSON mismatch:
+testastic: assertion failed
+
+  AssertJSON (testdata/user.expected.json)
   {
 -   "name": "Alice",
 +   "name": "Bob",
