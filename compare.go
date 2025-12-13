@@ -9,6 +9,8 @@ import (
 
 // compare compares expected (from expected file) with actual JSON data.
 // Returns a list of differences found.
+//
+//nolint:funlen // Complex type dispatch is clearer in one function.
 func compare(expected, actual any, path string, cfg *Config) []Difference {
 	// Check if field should be ignored
 	if cfg.isFieldIgnored(path) {
@@ -20,6 +22,7 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 		if IsIgnore(m) {
 			return nil
 		}
+
 		if !m.Match(actual) {
 			return []Difference{{
 				Path:     path,
@@ -28,6 +31,7 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 				Type:     DiffMatcherFailed,
 			}}
 		}
+
 		return nil
 	}
 
@@ -35,6 +39,7 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 	if expected == nil && actual == nil {
 		return nil
 	}
+
 	if expected == nil {
 		return []Difference{{
 			Path:     path,
@@ -43,6 +48,7 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 			Type:     DiffAdded,
 		}}
 	}
+
 	if actual == nil {
 		return []Difference{{
 			Path:     path,
@@ -70,8 +76,10 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 					Type:     DiffChanged,
 				}}
 			}
+
 			return nil
 		}
+
 		return []Difference{{
 			Path:     path,
 			Expected: exp,
@@ -92,8 +100,10 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 					Type:     DiffChanged,
 				}}
 			}
+
 			return nil
 		}
+
 		return []Difference{{
 			Path:     path,
 			Expected: exp,
@@ -111,6 +121,7 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 				Type:     DiffChanged,
 			}}
 		}
+
 		return nil
 	}
 }
@@ -160,6 +171,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *Confi
 		if cfg.isFieldIgnored(childPath) {
 			continue
 		}
+
 		if _, exists := expected[key]; !exists {
 			diffs = append(diffs, Difference{
 				Path:     childPath,
@@ -202,24 +214,25 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *Config) []Di
 		maxLen = len(actual)
 	}
 
-	for i := 0; i < maxLen; i++ {
+	for i := range maxLen {
 		childPath := fmt.Sprintf("%s[%d]", path, i)
 
-		if i >= len(expected) {
+		switch {
+		case i >= len(expected):
 			diffs = append(diffs, Difference{
 				Path:     childPath,
 				Expected: nil,
 				Actual:   actual[i],
 				Type:     DiffAdded,
 			})
-		} else if i >= len(actual) {
+		case i >= len(actual):
 			diffs = append(diffs, Difference{
 				Path:     childPath,
 				Expected: expected[i],
 				Actual:   nil,
 				Type:     DiffRemoved,
 			})
-		} else {
+		default:
 			diffs = append(diffs, compare(expected[i], actual[i], childPath, cfg)...)
 		}
 	}
@@ -228,6 +241,8 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *Config) []Di
 }
 
 // compareArraysUnordered compares arrays where order doesn't matter.
+//
+//nolint:funlen // Unordered comparison requires explicit matching logic.
 func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []Difference {
 	if len(expected) != len(actual) {
 		return []Difference{{
@@ -240,20 +255,25 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 
 	// Try to find a matching element for each expected element
 	used := make([]bool, len(actual))
+
 	var unmatched []int
 
 	for i, exp := range expected {
 		found := false
+
 		for j, act := range actual {
 			if used[j] {
 				continue
 			}
+
 			if len(compare(exp, act, path, cfg)) == 0 {
 				used[j] = true
 				found = true
+
 				break
 			}
 		}
+
 		if !found {
 			unmatched = append(unmatched, i)
 		}
@@ -262,6 +282,7 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 	if len(unmatched) > 0 {
 		// Find which actual elements weren't matched
 		var unusedActual []int
+
 		for i, u := range used {
 			if !u {
 				unusedActual = append(unusedActual, i)
@@ -269,12 +290,15 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 		}
 
 		var diffs []Difference
+
 		for i, idx := range unmatched {
 			childPath := fmt.Sprintf("%s[%d]", path, idx)
+
 			var actualVal any
 			if i < len(unusedActual) {
 				actualVal = actual[unusedActual[i]]
 			}
+
 			diffs = append(diffs, Difference{
 				Path:     childPath,
 				Expected: expected[idx],
@@ -282,6 +306,7 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 				Type:     DiffChanged,
 			})
 		}
+
 		return diffs
 	}
 
@@ -291,6 +316,7 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 // compareNumbers compares numeric values, handling JSON number quirks.
 func compareNumbers(expected float64, actual any, path string) []Difference {
 	var actNum float64
+
 	switch v := actual.(type) {
 	case float64:
 		actNum = v
@@ -319,15 +345,19 @@ func compareNumbers(expected float64, actual any, path string) []Difference {
 			Type:     DiffChanged,
 		}}
 	}
+
 	return nil
 }
 
 // parseActualJSON converts the actual value to a comparable JSON structure.
 func parseActualJSON(data []byte) (any, error) {
 	var result any
-	if err := json.Unmarshal(data, &result); err != nil {
+
+	err := json.Unmarshal(data, &result)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse actual JSON: %w", err)
 	}
+
 	return result, nil
 }
 

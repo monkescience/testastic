@@ -51,9 +51,11 @@ func newConfig(opts ...Option) *Config {
 	cfg := &Config{
 		Update: shouldUpdate(),
 	}
+
 	for _, opt := range opts {
 		opt(cfg)
 	}
+
 	return cfg
 }
 
@@ -85,11 +87,13 @@ func (c *Config) shouldIgnoreArrayOrder(path string) bool {
 	if c.IgnoreArrayOrder {
 		return true
 	}
+
 	for _, p := range c.IgnoreArrayOrderPaths {
 		if p == path || strings.HasPrefix(path, p+".") || strings.HasPrefix(path, p+"[") {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -106,5 +110,6 @@ func (c *Config) isFieldIgnored(path string) bool {
 			return true
 		}
 	}
+
 	return false
 }

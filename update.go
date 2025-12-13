@@ -14,8 +14,10 @@ import (
 func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) error {
 	// Parse actual JSON
 	var actualData any
-	if err := json.Unmarshal(actual, &actualData); err != nil {
-		return fmt.Errorf("failed to parse actual JSON for update: %w", err)
+
+	unmarshalErr := json.Unmarshal(actual, &actualData)
+	if unmarshalErr != nil {
+		return fmt.Errorf("failed to parse actual JSON for update: %w", unmarshalErr)
 	}
 
 	// Get matcher positions from original expected file
@@ -29,13 +31,16 @@ func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) erro
 
 	// Ensure directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+
+	mkdirErr := os.MkdirAll(dir, 0o755) //nolint:gosec // Test data dirs need 755.
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
 	// Write to file
-	if err := os.WriteFile(path, []byte(updatedJSON), 0644); err != nil {
-		return fmt.Errorf("failed to write expected file: %w", err)
+	writeErr := os.WriteFile(path, []byte(updatedJSON), 0o644) //nolint:gosec // Test data files need 644.
+	if writeErr != nil {
+		return fmt.Errorf("failed to write expected file: %w", writeErr)
 	}
 
 	return nil
@@ -45,8 +50,10 @@ func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) erro
 func createExpectedFile(path string, actual []byte) error {
 	// Pretty-print the JSON
 	var data any
-	if err := json.Unmarshal(actual, &data); err != nil {
-		return fmt.Errorf("failed to parse actual JSON: %w", err)
+
+	unmarshalErr := json.Unmarshal(actual, &data)
+	if unmarshalErr != nil {
+		return fmt.Errorf("failed to parse actual JSON: %w", unmarshalErr)
 	}
 
 	prettyJSON, err := json.MarshalIndent(data, "", "  ")
@@ -56,13 +63,16 @@ func createExpectedFile(path string, actual []byte) error {
 
 	// Ensure directory exists
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+
+	mkdirErr := os.MkdirAll(dir, 0o755) //nolint:gosec // Test data dirs need 755.
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
 	// Write to file
-	if err := os.WriteFile(path, append(prettyJSON, '\n'), 0644); err != nil {
-		return fmt.Errorf("failed to write expected file: %w", err)
+	writeErr := os.WriteFile(path, append(prettyJSON, '\n'), 0o644) //nolint:gosec // Test data files need 644.
+	if writeErr != nil {
+		return fmt.Errorf("failed to write expected file: %w", writeErr)
 	}
 
 	return nil
@@ -98,6 +108,7 @@ func replaceValueAtPath(jsonStr, path, matcherExpr string) string {
 	if len(parts) == 0 {
 		return jsonStr
 	}
+
 	key := parts[len(parts)-1]
 
 	// Handle array index in key
@@ -117,19 +128,22 @@ func replaceValueAtPath(jsonStr, path, matcherExpr string) string {
 		if colonIdx < 0 {
 			return match
 		}
+
 		prefix := match[:colonIdx+1]
 		// Preserve whitespace after colon
 		rest := match[colonIdx+1:]
-		whitespace := ""
-		for i, c := range rest {
-			if c == ' ' || c == '\t' {
-				whitespace += string(c)
-			} else {
-				rest = rest[i:]
+
+		var whitespace strings.Builder
+
+		for _, c := range rest {
+			if c != ' ' && c != '\t' {
 				break
 			}
+
+			whitespace.WriteRune(c)
 		}
-		return prefix + whitespace + `"` + matcherExpr + `"`
+
+		return prefix + whitespace.String() + `"` + matcherExpr + `"`
 	})
 
 	return result

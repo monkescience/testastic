@@ -3,6 +3,7 @@ package testastic
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -82,11 +83,7 @@ func FormatDiff(diffs []Difference) string {
 			sb.WriteString(fmt.Sprintf("    expected: %s (%s)\n", formatValue(d.Expected), typeOf(d.Expected)))
 			sb.WriteString(fmt.Sprintf("    actual:   %s (%s)\n", formatValue(d.Actual), typeOf(d.Actual)))
 
-		case DiffMatcherFailed:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", formatValue(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", formatValue(d.Actual)))
-
-		default:
+		case DiffChanged, DiffMatcherFailed:
 			sb.WriteString(fmt.Sprintf("    expected: %s\n", formatValue(d.Expected)))
 			sb.WriteString(fmt.Sprintf("    actual:   %s\n", formatValue(d.Actual)))
 		}
@@ -107,6 +104,7 @@ func FormatDiffInline(expected, actual any) string {
 	if err != nil {
 		return fmt.Sprintf("error formatting expected: %v", err)
 	}
+
 	actJSON, err := json.MarshalIndent(actClean, "", "  ")
 	if err != nil {
 		return fmt.Sprintf("error formatting actual: %v", err)
@@ -130,7 +128,7 @@ func FormatDiffInline(expected, actual any) string {
 	return sb.String()
 }
 
-// diffLine represents a line in the diff output
+// diffOp represents a diff operation type.
 type diffOp int
 
 const (
@@ -141,9 +139,12 @@ const (
 
 // computeDiff generates a unified diff between two sets of lines.
 // Uses a simple LCS-based algorithm for readability.
+//
+//nolint:funlen // LCS algorithm requires sequential steps.
 func computeDiff(expected, actual []string) []string {
 	// Compute the longest common subsequence matrix
 	m, n := len(expected), len(actual)
+
 	dp := make([][]int, m+1)
 	for i := range dp {
 		dp[i] = make([]int, n+1)
@@ -161,6 +162,7 @@ func computeDiff(expected, actual []string) []string {
 
 	// Backtrack to build the diff
 	var result []string
+
 	i, j := m, n
 
 	// Collect operations in reverse order
@@ -170,20 +172,21 @@ func computeDiff(expected, actual []string) []string {
 	}
 
 	for i > 0 || j > 0 {
-		if i > 0 && j > 0 && expected[i-1] == actual[j-1] {
+		switch {
+		case i > 0 && j > 0 && expected[i-1] == actual[j-1]:
 			ops = append(ops, struct {
 				op   diffOp
 				line string
 			}{diffEqual, expected[i-1]})
 			i--
 			j--
-		} else if j > 0 && (i == 0 || dp[i][j-1] >= dp[i-1][j]) {
+		case j > 0 && (i == 0 || dp[i][j-1] >= dp[i-1][j]):
 			ops = append(ops, struct {
 				op   diffOp
 				line string
 			}{diffInsert, actual[j-1]})
 			j--
-		} else if i > 0 {
+		case i > 0:
 			ops = append(ops, struct {
 				op   diffOp
 				line string
@@ -217,6 +220,7 @@ func cleanMatchersForDisplay(data any) any {
 		for key, val := range v {
 			result[key] = cleanMatchersForDisplay(val)
 		}
+
 		return result
 
 	case []any:
@@ -224,6 +228,7 @@ func cleanMatchersForDisplay(data any) any {
 		for i, val := range v {
 			result[i] = cleanMatchersForDisplay(val)
 		}
+
 		return result
 
 	case Matcher:
@@ -247,12 +252,13 @@ func formatValue(v any) string {
 	case float64:
 		// Check if it's an integer
 		if val == float64(int64(val)) {
-			return fmt.Sprintf("%d", int64(val))
+			return strconv.FormatInt(int64(val), 10)
 		}
+
 		return fmt.Sprintf("%g", val)
 
 	case bool:
-		return fmt.Sprintf("%t", val)
+		return strconv.FormatBool(val)
 
 	case map[string]any, []any:
 		// Compact JSON for objects and arrays
@@ -260,11 +266,13 @@ func formatValue(v any) string {
 		if err != nil {
 			return fmt.Sprintf("%v", val)
 		}
+
 		s := string(data)
 		// Truncate if too long
 		if len(s) > 80 {
 			return s[:77] + "..."
 		}
+
 		return s
 
 	case Matcher:

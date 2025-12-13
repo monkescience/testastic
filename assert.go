@@ -10,200 +10,264 @@ import (
 	"testing"
 )
 
+// fail reports an assertion failure with expected and actual values.
+func fail(t testing.TB, name, expected, actual string) {
+	t.Helper()
+	t.Errorf(
+		"testastic: assertion failed\n\n  %s\n    expected: %s\n    actual:   %s",
+		name, red(expected), green(actual),
+	)
+}
+
 // Equal asserts that expected and actual are equal.
 func Equal[T comparable](t testing.TB, expected, actual T) {
 	t.Helper()
+
 	if expected != actual {
-		t.Errorf("testastic: assertion failed\n\n  Equal\n    expected: %s\n    actual:   %s", red(formatVal(expected)), green(formatVal(actual)))
+		fail(t, "Equal", formatVal(expected), formatVal(actual))
 	}
 }
 
 // NotEqual asserts that expected and actual are not equal.
 func NotEqual[T comparable](t testing.TB, unexpected, actual T) {
 	t.Helper()
+
 	if unexpected == actual {
-		t.Errorf("testastic: assertion failed\n\n  NotEqual\n    unexpected: %s\n    actual:     %s", red(formatVal(unexpected)), green(formatVal(actual)))
+		t.Errorf(
+			"testastic: assertion failed\n\n  NotEqual\n    unexpected: %s\n    actual:     %s",
+			red(formatVal(unexpected)), green(formatVal(actual)),
+		)
 	}
 }
 
 // DeepEqual asserts that expected and actual are deeply equal using reflect.DeepEqual.
 func DeepEqual[T any](t testing.TB, expected, actual T) {
 	t.Helper()
+
 	if !reflect.DeepEqual(expected, actual) {
-		t.Errorf("testastic: assertion failed\n\n  DeepEqual\n    expected: %s\n    actual:   %s", red(formatVal(expected)), green(formatVal(actual)))
+		fail(t, "DeepEqual", formatVal(expected), formatVal(actual))
 	}
 }
 
 // Nil asserts that value is nil.
 func Nil(t testing.TB, value any) {
 	t.Helper()
+
 	if !isNil(value) {
-		t.Errorf("testastic: assertion failed\n\n  Nil\n    expected: %s\n    actual:   %s", red("nil"), green(formatVal(value)))
+		fail(t, "Nil", "nil", formatVal(value))
 	}
 }
 
 // NotNil asserts that value is not nil.
 func NotNil(t testing.TB, value any) {
 	t.Helper()
+
 	if isNil(value) {
-		t.Errorf("testastic: assertion failed\n\n  NotNil\n    expected: %s\n    actual:   %s", red("not nil"), green("nil"))
+		fail(t, "NotNil", "not nil", "nil")
 	}
 }
 
 // True asserts that value is true.
 func True(t testing.TB, value bool) {
 	t.Helper()
+
 	if !value {
-		t.Errorf("testastic: assertion failed\n\n  True\n    expected: %s\n    actual:   %s", red("true"), green("false"))
+		fail(t, "True", "true", "false")
 	}
 }
 
 // False asserts that value is false.
 func False(t testing.TB, value bool) {
 	t.Helper()
+
 	if value {
-		t.Errorf("testastic: assertion failed\n\n  False\n    expected: %s\n    actual:   %s", red("false"), green("true"))
+		fail(t, "False", "false", "true")
 	}
 }
 
 // NoError asserts that err is nil.
 func NoError(t testing.TB, err error) {
 	t.Helper()
+
 	if err != nil {
-		t.Errorf("testastic: assertion failed\n\n  NoError\n    expected: %s\n    actual:   %s", red("no error"), green(err.Error()))
+		fail(t, "NoError", "no error", err.Error())
 	}
 }
 
 // Error asserts that err is not nil.
 func Error(t testing.TB, err error) {
 	t.Helper()
+
 	if err == nil {
-		t.Errorf("testastic: assertion failed\n\n  Error\n    expected: %s\n    actual:   %s", red("an error"), green("nil"))
+		fail(t, "Error", "an error", "nil")
 	}
 }
 
 // ErrorIs asserts that err matches target using errors.Is.
 func ErrorIs(t testing.TB, err, target error) {
 	t.Helper()
+
 	if !errors.Is(err, target) {
 		errStr := "nil"
 		if err != nil {
 			errStr = err.Error()
 		}
-		t.Errorf("testastic: assertion failed\n\n  ErrorIs\n    expected: %s\n    actual:   %s", red(target.Error()), green(errStr))
+
+		fail(t, "ErrorIs", target.Error(), errStr)
 	}
 }
 
 // ErrorContains asserts that err contains the given substring.
 func ErrorContains(t testing.TB, err error, substring string) {
 	t.Helper()
+
+	wantMsg := "error containing " + fmt.Sprintf("%q", substring)
+
 	if err == nil {
-		t.Errorf("testastic: assertion failed\n\n  ErrorContains\n    expected: %s\n    actual:   %s", red("error containing "+fmt.Sprintf("%q", substring)), green("nil"))
+		fail(t, "ErrorContains", wantMsg, "nil")
+
 		return
 	}
+
 	if !strings.Contains(err.Error(), substring) {
-		t.Errorf("testastic: assertion failed\n\n  ErrorContains\n    expected: %s\n    actual:   %s", red("error containing "+fmt.Sprintf("%q", substring)), green(err.Error()))
+		fail(t, "ErrorContains", wantMsg, err.Error())
 	}
+}
+
+// failCmp reports a comparison assertion failure.
+func failCmp(t testing.TB, name, expectOp, actualOp, a, b string) {
+	t.Helper()
+	t.Errorf(
+		"testastic: assertion failed\n\n  %s\n    expected: %s %s %s\n    actual:   %s %s %s",
+		name, red(a), expectOp, red(b), green(a), actualOp, green(b),
+	)
 }
 
 // Greater asserts that a > b.
 func Greater[T cmp.Ordered](t testing.TB, a, b T) {
 	t.Helper()
-	if !(a > b) {
-		t.Errorf("testastic: assertion failed\n\n  Greater\n    expected: %s > %s\n    actual:   %s <= %s", red(formatVal(a)), red(formatVal(b)), green(formatVal(a)), green(formatVal(b)))
+
+	if a <= b {
+		failCmp(t, "Greater", ">", "<=", formatVal(a), formatVal(b))
 	}
 }
 
 // GreaterOrEqual asserts that a >= b.
 func GreaterOrEqual[T cmp.Ordered](t testing.TB, a, b T) {
 	t.Helper()
-	if !(a >= b) {
-		t.Errorf("testastic: assertion failed\n\n  GreaterOrEqual\n    expected: %s >= %s\n    actual:   %s < %s", red(formatVal(a)), red(formatVal(b)), green(formatVal(a)), green(formatVal(b)))
+
+	if a < b {
+		failCmp(t, "GreaterOrEqual", ">=", "<", formatVal(a), formatVal(b))
 	}
 }
 
 // Less asserts that a < b.
 func Less[T cmp.Ordered](t testing.TB, a, b T) {
 	t.Helper()
-	if !(a < b) {
-		t.Errorf("testastic: assertion failed\n\n  Less\n    expected: %s < %s\n    actual:   %s >= %s", red(formatVal(a)), red(formatVal(b)), green(formatVal(a)), green(formatVal(b)))
+
+	if a >= b {
+		failCmp(t, "Less", "<", ">=", formatVal(a), formatVal(b))
 	}
 }
 
 // LessOrEqual asserts that a <= b.
 func LessOrEqual[T cmp.Ordered](t testing.TB, a, b T) {
 	t.Helper()
-	if !(a <= b) {
-		t.Errorf("testastic: assertion failed\n\n  LessOrEqual\n    expected: %s <= %s\n    actual:   %s > %s", red(formatVal(a)), red(formatVal(b)), green(formatVal(a)), green(formatVal(b)))
+
+	if a > b {
+		failCmp(t, "LessOrEqual", "<=", ">", formatVal(a), formatVal(b))
 	}
 }
 
-// Between asserts that min <= value <= max.
-func Between[T cmp.Ordered](t testing.TB, value, min, max T) {
+// Between asserts that minVal <= value <= maxVal.
+func Between[T cmp.Ordered](t testing.TB, value, minVal, maxVal T) {
 	t.Helper()
-	if value < min || value > max {
-		t.Errorf("testastic: assertion failed\n\n  Between\n    expected: %s\n    actual:   %s", red(formatVal(min)+" <= value <= "+formatVal(max)), green(formatVal(value)))
+
+	if value < minVal || value > maxVal {
+		expected := formatVal(minVal) + " <= value <= " + formatVal(maxVal)
+		fail(t, "Between", expected, formatVal(value))
 	}
+}
+
+// failStr reports a string assertion failure.
+func failStr(t testing.TB, name, label, s, search, status string) {
+	t.Helper()
+	t.Errorf(
+		"testastic: assertion failed\n\n  %s\n    string: %s\n    %s: %s (%s)",
+		name, green(formatVal(s)), label, red(formatVal(search)), status,
+	)
 }
 
 // Contains asserts that s contains substring.
 func Contains(t testing.TB, s, substring string) {
 	t.Helper()
+
 	if !strings.Contains(s, substring) {
-		t.Errorf("testastic: assertion failed\n\n  Contains\n    string:    %s\n    substring: %s (not found)", green(formatVal(s)), red(formatVal(substring)))
+		failStr(t, "Contains", "substring", s, substring, "not found")
 	}
 }
 
 // NotContains asserts that s does not contain substring.
 func NotContains(t testing.TB, s, substring string) {
 	t.Helper()
+
 	if strings.Contains(s, substring) {
-		t.Errorf("testastic: assertion failed\n\n  NotContains\n    string:    %s\n    substring: %s (found)", green(formatVal(s)), red(formatVal(substring)))
+		failStr(t, "NotContains", "substring", s, substring, "found")
 	}
 }
 
 // HasPrefix asserts that s has the given prefix.
 func HasPrefix(t testing.TB, s, prefix string) {
 	t.Helper()
+
 	if !strings.HasPrefix(s, prefix) {
-		t.Errorf("testastic: assertion failed\n\n  HasPrefix\n    string: %s\n    prefix: %s (not found)", green(formatVal(s)), red(formatVal(prefix)))
+		failStr(t, "HasPrefix", "prefix", s, prefix, "not found")
 	}
 }
 
 // HasSuffix asserts that s has the given suffix.
 func HasSuffix(t testing.TB, s, suffix string) {
 	t.Helper()
+
 	if !strings.HasSuffix(s, suffix) {
-		t.Errorf("testastic: assertion failed\n\n  HasSuffix\n    string: %s\n    suffix: %s (not found)", green(formatVal(s)), red(formatVal(suffix)))
+		failStr(t, "HasSuffix", "suffix", s, suffix, "not found")
 	}
 }
 
 // Matches asserts that s matches the given regular expression pattern.
 func Matches(t testing.TB, s, pattern string) {
 	t.Helper()
+
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		t.Errorf("testastic: assertion failed\n\n  Matches\n    error: invalid pattern %q: %v", pattern, err)
+		t.Errorf(
+			"testastic: assertion failed\n\n  Matches\n    error: invalid pattern %q: %v",
+			pattern, err,
+		)
+
 		return
 	}
+
 	if !re.MatchString(s) {
-		t.Errorf("testastic: assertion failed\n\n  Matches\n    string:  %s\n    pattern: %s (no match)", green(formatVal(s)), red(formatVal(pattern)))
+		failStr(t, "Matches", "pattern", s, pattern, "no match")
 	}
 }
 
 // StringEmpty asserts that s is an empty string.
 func StringEmpty(t testing.TB, s string) {
 	t.Helper()
+
 	if s != "" {
-		t.Errorf("testastic: assertion failed\n\n  StringEmpty\n    expected: %s\n    actual:   %s", red(`""`), green(formatVal(s)))
+		fail(t, "StringEmpty", `""`, formatVal(s))
 	}
 }
 
 // StringNotEmpty asserts that s is not an empty string.
 func StringNotEmpty(t testing.TB, s string) {
 	t.Helper()
+
 	if s == "" {
-		t.Errorf("testastic: assertion failed\n\n  StringNotEmpty\n    expected: %s\n    actual:   %s", red("non-empty string"), green(`""`))
+		fail(t, "StringNotEmpty", "non-empty string", `""`)
 	}
 }
 
@@ -212,11 +276,13 @@ func isNil(value any) bool {
 	if value == nil {
 		return true
 	}
+
 	v := reflect.ValueOf(value)
-	switch v.Kind() {
+	switch v.Kind() { //nolint:exhaustive // Only nil-able types need checking.
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
 		return v.IsNil()
 	}
+
 	return false
 }
 
@@ -225,6 +291,7 @@ func formatVal(v any) string {
 	if v == nil {
 		return "nil"
 	}
+
 	switch val := v.(type) {
 	case string:
 		return fmt.Sprintf("%q", val)

@@ -20,6 +20,7 @@ type anyStringMatcher struct{}
 
 func (m anyStringMatcher) Match(actual any) bool {
 	_, ok := actual.(string)
+
 	return ok
 }
 
@@ -41,6 +42,7 @@ func (m anyIntMatcher) Match(actual any) bool {
 	case float32:
 		return v == float32(int32(v))
 	}
+
 	return false
 }
 
@@ -56,6 +58,7 @@ func (m anyFloatMatcher) Match(actual any) bool {
 	case float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 		return true
 	}
+
 	return false
 }
 
@@ -68,6 +71,7 @@ type anyBoolMatcher struct{}
 
 func (m anyBoolMatcher) Match(actual any) bool {
 	_, ok := actual.(bool)
+
 	return ok
 }
 
@@ -100,6 +104,7 @@ func (m ignoreMatcher) String() string {
 // IsIgnore returns true if the matcher is an ignore matcher.
 func IsIgnore(m Matcher) bool {
 	_, ok := m.(ignoreMatcher)
+
 	return ok
 }
 
@@ -114,6 +119,7 @@ func (m *regexMatcher) Match(actual any) bool {
 	if !ok {
 		return false
 	}
+
 	return m.re.MatchString(s)
 }
 
@@ -132,6 +138,7 @@ func (m *oneOfMatcher) Match(actual any) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
@@ -178,6 +185,7 @@ func Regex(pattern string) (Matcher, error) {
 	if err != nil {
 		return nil, fmt.Errorf("invalid regex pattern %q: %w", pattern, err)
 	}
+
 	return &regexMatcher{pattern: pattern, re: re}, nil
 }
 
@@ -186,9 +194,9 @@ func OneOf(values ...any) Matcher {
 	return &oneOfMatcher{values: values}
 }
 
-// parseMatcher creates a Matcher from a template expression.
+// ParseMatcher creates a Matcher from a template expression.
 // The expression is the content between {{ and }}.
-func parseMatcher(expr string) (Matcher, error) {
+func ParseMatcher(expr string) (Matcher, error) {
 	switch expr {
 	case "anyString":
 		return AnyString(), nil
@@ -215,6 +223,7 @@ func parseMatcher(expr string) (Matcher, error) {
 		if pattern != "" {
 			return Regex(pattern)
 		}
+
 		return nil, fmt.Errorf("invalid regex syntax: %s", expr)
 	}
 
@@ -224,13 +233,14 @@ func parseMatcher(expr string) (Matcher, error) {
 		if len(values) > 0 {
 			return OneOf(values...), nil
 		}
+
 		return nil, fmt.Errorf("invalid oneOf syntax: %s", expr)
 	}
 
 	return nil, fmt.Errorf("unknown matcher: %s", expr)
 }
 
-// extractBacktickArg extracts content from backticks: `content`
+// extractBacktickArg extracts content from backticks.
 func extractBacktickArg(s string) string {
 	s = trimSpace(s)
 	if len(s) >= 2 && s[0] == '`' {
@@ -239,10 +249,11 @@ func extractBacktickArg(s string) string {
 			return s[1 : end+1]
 		}
 	}
+
 	return ""
 }
 
-// extractQuotedArg extracts content from quotes: "content"
+// extractQuotedArg extracts content from quotes.
 func extractQuotedArg(s string) string {
 	s = trimSpace(s)
 	if len(s) >= 2 && s[0] == '"' {
@@ -252,9 +263,11 @@ func extractQuotedArg(s string) string {
 			if err == nil {
 				return unquoted
 			}
+
 			return s[1 : end+1]
 		}
 	}
+
 	return ""
 }
 
@@ -262,6 +275,7 @@ func extractQuotedArg(s string) string {
 // Handles both regular quotes and JSON-escaped quotes (\" or \\").
 func extractQuotedArgs(s string) []any {
 	var result []any
+
 	s = trimSpace(s)
 
 	// Handle JSON-escaped quotes: \" or \\"
@@ -271,44 +285,46 @@ func extractQuotedArgs(s string) []any {
 		s = strings.ReplaceAll(s, `\"`, `"`)
 	}
 
-	for len(s) > 0 {
-		if s[0] == '"' {
-			end := indexOf(s[1:], '"')
-			if end >= 0 {
-				unquoted, err := strconv.Unquote(s[:end+2])
-				if err == nil {
-					result = append(result, unquoted)
-				} else {
-					result = append(result, s[1:end+1])
-				}
-				s = trimSpace(s[end+2:])
-			} else {
-				break
-			}
-		} else {
+	for len(s) > 0 && s[0] == '"' {
+		end := indexOf(s[1:], '"')
+		if end < 0 {
 			break
 		}
+
+		unquoted, err := strconv.Unquote(s[:end+2])
+		if err == nil {
+			result = append(result, unquoted)
+		} else {
+			result = append(result, s[1:end+1])
+		}
+
+		s = trimSpace(s[end+2:])
 	}
+
 	return result
 }
 
 func trimSpace(s string) string {
 	start := 0
+
 	for start < len(s) && (s[start] == ' ' || s[start] == '\t') {
 		start++
 	}
+
 	end := len(s)
 	for end > start && (s[end-1] == ' ' || s[end-1] == '\t') {
 		end--
 	}
+
 	return s[start:end]
 }
 
 func indexOf(s string, c byte) int {
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		if s[i] == c {
 			return i
 		}
 	}
+
 	return -1
 }

@@ -19,6 +19,8 @@ import (
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", myUser)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", jsonBytes)
+//
+//nolint:funlen // Main assertion function needs sequential validation steps.
 func AssertJSON[T any](t testing.TB, expectedFile string, actual T, opts ...Option) {
 	t.Helper()
 
@@ -26,6 +28,7 @@ func AssertJSON[T any](t testing.TB, expectedFile string, actual T, opts ...Opti
 	actualBytes, err := toBytes(actual)
 	if err != nil {
 		t.Fatalf("testastic: failed to convert actual to bytes: %v", err)
+
 		return
 	}
 
@@ -33,15 +36,24 @@ func AssertJSON[T any](t testing.TB, expectedFile string, actual T, opts ...Opti
 	cfg := newConfig(opts...)
 
 	// Check if expected file exists
-	if _, err := os.Stat(expectedFile); os.IsNotExist(err) {
+	_, statErr := os.Stat(expectedFile)
+	if os.IsNotExist(statErr) {
 		if cfg.Update {
-			if err := createExpectedFile(expectedFile, actualBytes); err != nil {
-				t.Fatalf("testastic: failed to create expected file: %v", err)
+			createErr := createExpectedFile(expectedFile, actualBytes)
+			if createErr != nil {
+				t.Fatalf("testastic: failed to create expected file: %v", createErr)
 			}
+
 			t.Logf("testastic: created expected file %s", expectedFile)
+
 			return
 		}
-		t.Fatalf("testastic: expected file does not exist: %s (run with -update to create)", expectedFile)
+
+		t.Fatalf(
+			"testastic: expected file does not exist: %s (run with -update to create)",
+			expectedFile,
+		)
+
 		return
 	}
 
@@ -49,6 +61,7 @@ func AssertJSON[T any](t testing.TB, expectedFile string, actual T, opts ...Opti
 	expected, err := ParseExpectedFile(expectedFile)
 	if err != nil {
 		t.Fatalf("testastic: %v", err)
+
 		return
 	}
 
@@ -56,6 +69,7 @@ func AssertJSON[T any](t testing.TB, expectedFile string, actual T, opts ...Opti
 	actualData, err := parseActualJSON(actualBytes)
 	if err != nil {
 		t.Fatalf("testastic: %v", err)
+
 		return
 	}
 
@@ -64,17 +78,23 @@ func AssertJSON[T any](t testing.TB, expectedFile string, actual T, opts ...Opti
 
 	// If update mode and there are differences, update the file
 	if cfg.Update && len(diffs) > 0 {
-		if err := updateExpectedFile(expectedFile, actualBytes, expected); err != nil {
-			t.Fatalf("testastic: failed to update expected file: %v", err)
+		updateErr := updateExpectedFile(expectedFile, actualBytes, expected)
+		if updateErr != nil {
+			t.Fatalf("testastic: failed to update expected file: %v", updateErr)
 		}
+
 		t.Logf("testastic: updated expected file %s", expectedFile)
+
 		return
 	}
 
 	// Report differences
 	if len(diffs) > 0 {
 		sortDiffs(diffs)
-		t.Errorf("testastic: assertion failed\n\n  AssertJSON (%s)\n%s", expectedFile, FormatDiffInline(expected.Data, actualData))
+		t.Errorf(
+			"testastic: assertion failed\n\n  AssertJSON (%s)\n%s",
+			expectedFile, FormatDiffInline(expected.Data, actualData),
+		)
 	}
 }
 
@@ -92,6 +112,7 @@ func toBytes[T any](v T) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to read from io.Reader: %w", err)
 		}
+
 		return data, nil
 
 	default:
@@ -100,6 +121,7 @@ func toBytes[T any](v T) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal to JSON: %w", err)
 		}
+
 		return data, nil
 	}
 }

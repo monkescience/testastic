@@ -23,7 +23,7 @@ var templateExprRegex = regexp.MustCompile(`"?\{\{([^}]+)\}\}"?`)
 
 // ParseExpectedFile reads and parses an expected file, replacing template expressions with matchers.
 func ParseExpectedFile(path string) (*ExpectedJSON, error) {
-	content, err := os.ReadFile(path)
+	content, err := os.ReadFile(path) //nolint:gosec // Path is controlled by test code.
 	if err != nil {
 		return nil, fmt.Errorf("failed to read expected file: %w", err)
 	}
@@ -47,6 +47,7 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 		if strings.HasPrefix(expr, `"{{`) {
 			expr = strings.TrimPrefix(expr, `"`)
 		}
+
 		if strings.HasSuffix(expr, `}}"`) {
 			expr = strings.TrimSuffix(expr, `"`)
 		}
@@ -58,12 +59,15 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 		placeholder := fmt.Sprintf(`"%s%d__"`, matcherPlaceholderPrefix, matcherIndex)
 		expected.Matchers[fmt.Sprintf("%s%d__", matcherPlaceholderPrefix, matcherIndex)] = expr
 		matcherIndex++
+
 		return placeholder
 	})
 
 	// Parse as standard JSON
 	var data any
-	if err := json.Unmarshal([]byte(processedContent), &data); err != nil {
+
+	err := json.Unmarshal([]byte(processedContent), &data)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
 
@@ -74,6 +78,7 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 	}
 
 	expected.Data = replaced
+
 	return expected, nil
 }
 
@@ -87,8 +92,10 @@ func replacePlaceholders(data any, matchers map[string]string) (any, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			result[key] = replaced
 		}
+
 		return result, nil
 
 	case []any:
@@ -98,8 +105,10 @@ func replacePlaceholders(data any, matchers map[string]string) (any, error) {
 			if err != nil {
 				return nil, err
 			}
+
 			result[i] = replaced
 		}
+
 		return result, nil
 
 	case string:
@@ -108,12 +117,15 @@ func replacePlaceholders(data any, matchers map[string]string) (any, error) {
 			if !ok {
 				return nil, fmt.Errorf("unknown placeholder: %s", v)
 			}
-			matcher, err := parseMatcher(expr)
+
+			matcher, err := ParseMatcher(expr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
 			}
+
 			return matcher, nil
 		}
+
 		return v, nil
 
 	default:
@@ -126,6 +138,7 @@ func replacePlaceholders(data any, matchers map[string]string) (any, error) {
 func (e *ExpectedJSON) ExtractMatcherPositions() map[string]string {
 	positions := make(map[string]string)
 	extractMatcherPaths(e.Data, "$", positions)
+
 	return positions
 }
 

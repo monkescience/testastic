@@ -6,22 +6,20 @@ import (
 	"golang.org/x/term"
 )
 
-// ANSI color codes
+// ANSI color codes.
 const (
 	colorRed   = "\033[31m"
 	colorGreen = "\033[32m"
 	colorReset = "\033[0m"
 )
 
-// colorsEnabled caches the color detection result
+// colorsEnabled caches the color detection result.
 var colorsEnabled *bool
 
 // useColors returns true if colored output should be used.
-// Colors are enabled when:
-// - stdout is a terminal (not piped)
-// - NO_COLOR env var is not set
-// - CI env var is not set
-// - TERM is not "dumb"
+// Colors are enabled when stdout is a terminal (not piped),
+// NO_COLOR env var is not set, CI env var is not set,
+// and TERM is not "dumb".
 func useColors() bool {
 	if colorsEnabled != nil {
 		return *colorsEnabled
@@ -29,6 +27,7 @@ func useColors() bool {
 
 	result := detectColors()
 	colorsEnabled = &result
+
 	return result
 }
 
@@ -62,6 +61,7 @@ func colorize(text, color string) string {
 	if !useColors() {
 		return text
 	}
+
 	return color + text + colorReset
 }
 
