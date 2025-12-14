@@ -54,6 +54,8 @@ type Difference struct {
 
 // FormatDiff formats a slice of differences into a human-readable string.
 // This is the simple format showing paths and values.
+//
+//nolint:dupl // Similar structure to FormatHTMLDiff is intentional for consistency.
 func FormatDiff(diffs []Difference) string {
 	if len(diffs) == 0 {
 		return ""
@@ -61,14 +63,12 @@ func FormatDiff(diffs []Difference) string {
 
 	var sb strings.Builder
 
-	// Header
 	if len(diffs) == 1 {
 		sb.WriteString("JSON mismatch at 1 path:\n")
 	} else {
 		sb.WriteString(fmt.Sprintf("JSON mismatch at %d paths:\n", len(diffs)))
 	}
 
-	// Each difference
 	for _, d := range diffs {
 		sb.WriteString("\n")
 		sb.WriteString(fmt.Sprintf("  %s\n", d.Path))
@@ -98,11 +98,9 @@ func FormatDiff(diffs []Difference) string {
 // FormatDiffInline generates a git-style inline diff between expected and actual JSON.
 // Shows the full JSON with - prefix for removed lines and + prefix for added lines.
 func FormatDiffInline(expected, actual any) string {
-	// Convert matchers to their string representation for display
 	expClean := cleanMatchersForDisplay(expected)
 	actClean := cleanMatchersForDisplay(actual)
 
-	// Marshal both to pretty JSON
 	expJSON, err := json.MarshalIndent(expClean, "", "  ")
 	if err != nil {
 		return fmt.Sprintf("error formatting expected: %v", err)
@@ -113,14 +111,10 @@ func FormatDiffInline(expected, actual any) string {
 		return fmt.Sprintf("error formatting actual: %v", err)
 	}
 
-	// Split into lines
 	expLines := strings.Split(string(expJSON), "\n")
 	actLines := strings.Split(string(actJSON), "\n")
-
-	// Generate unified diff
 	diff := computeDiff(expLines, actLines)
 
-	// Format output
 	var sb strings.Builder
 
 	for _, line := range diff {
@@ -145,7 +139,7 @@ const (
 //
 //nolint:funlen // LCS algorithm requires sequential steps.
 func computeDiff(expected, actual []string) []string {
-	// Compute the longest common subsequence matrix
+	// Build the longest common subsequence (LCS) matrix.
 	m, n := len(expected), len(actual)
 
 	dp := make([][]int, m+1)
@@ -163,12 +157,11 @@ func computeDiff(expected, actual []string) []string {
 		}
 	}
 
-	// Backtrack to build the diff
+	// Backtrack through LCS matrix to build diff operations.
 	var result []string
 
 	i, j := m, n
 
-	// Collect operations in reverse order
 	var ops []struct {
 		op   diffOp
 		line string
@@ -198,7 +191,6 @@ func computeDiff(expected, actual []string) []string {
 		}
 	}
 
-	// Reverse the operations
 	for k := len(ops) - 1; k >= 0; k-- {
 		op := ops[k]
 		switch op.op {
@@ -253,7 +245,7 @@ func formatValue(v any) string {
 		return fmt.Sprintf("%q", val)
 
 	case float64:
-		// Check if it's an integer
+		// Display integers without decimal point.
 		if val == float64(int64(val)) {
 			return strconv.FormatInt(int64(val), 10)
 		}
@@ -264,14 +256,12 @@ func formatValue(v any) string {
 		return strconv.FormatBool(val)
 
 	case map[string]any, []any:
-		// Compact JSON for objects and arrays
 		data, err := json.Marshal(val)
 		if err != nil {
 			return fmt.Sprintf("%v", val)
 		}
 
 		s := string(data)
-		// Truncate if too long
 		if len(s) > maxDisplayLineLen {
 			return s[:maxDisplayLineLen-3] + "..."
 		}

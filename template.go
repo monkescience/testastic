@@ -42,12 +42,11 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 		Raw:      content,
 	}
 
-	// Find all template expressions and replace with placeholders
 	matcherIndex := 0
 	processedContent := templateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract the expression (remove {{ and }})
 		expr := match
-		// Remove surrounding quotes if present
+
+		// Strip surrounding quotes if the expression was quoted in JSON.
 		if strings.HasPrefix(expr, `"{{`) {
 			expr = strings.TrimPrefix(expr, `"`)
 		}
@@ -55,7 +54,7 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 		if strings.HasSuffix(expr, `}}"`) {
 			expr = strings.TrimSuffix(expr, `"`)
 		}
-		// Remove {{ and }}
+
 		expr = strings.TrimPrefix(expr, "{{")
 		expr = strings.TrimSuffix(expr, "}}")
 		expr = trimSpace(expr)
@@ -67,7 +66,6 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 		return placeholder
 	})
 
-	// Parse as standard JSON
 	var data any
 
 	err := json.Unmarshal([]byte(processedContent), &data)
@@ -75,7 +73,6 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
 
-	// Walk the parsed structure and replace placeholders with Matcher objects
 	replaced, err := replacePlaceholders(data, expected.Matchers)
 	if err != nil {
 		return nil, err

@@ -12,12 +12,10 @@ import (
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
 func compare(expected, actual any, path string, cfg *Config) []Difference {
-	// Check if field should be ignored
 	if cfg.isFieldIgnored(path) {
 		return nil
 	}
 
-	// Handle matchers
 	if m, ok := expected.(Matcher); ok {
 		if IsIgnore(m) {
 			return nil
@@ -35,7 +33,6 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 		return nil
 	}
 
-	// Handle nil/null values
 	if expected == nil && actual == nil {
 		return nil
 	}
@@ -58,7 +55,6 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 		}}
 	}
 
-	// Compare by type
 	switch exp := expected.(type) {
 	case map[string]any:
 		return compareObjects(exp, actual, path, cfg)
@@ -140,14 +136,13 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *Confi
 
 	var diffs []Difference
 
-	// Check for missing and changed keys
+	// First pass: check for missing and changed keys in expected.
 	for key, expVal := range expected {
 		childPath := path + "." + key
 		if cfg.isFieldIgnored(childPath) {
 			continue
 		}
 
-		// Check if expected value is an ignore matcher
 		if m, ok := expVal.(Matcher); ok && IsIgnore(m) {
 			continue
 		}
@@ -165,7 +160,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *Confi
 		}
 	}
 
-	// Check for extra keys in actual
+	// Second pass: check for extra keys in actual.
 	for key, actVal := range actMap {
 		childPath := path + "." + key
 		if cfg.isFieldIgnored(childPath) {
@@ -197,7 +192,6 @@ func compareArrays(expected []any, actual any, path string, cfg *Config) []Diffe
 		}}
 	}
 
-	// Check if order should be ignored for this path
 	if cfg.shouldIgnoreArrayOrder(path) {
 		return compareArraysUnordered(expected, actArr, path, cfg)
 	}
@@ -248,7 +242,6 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 		}}
 	}
 
-	// Try to find a matching element for each expected element
 	used := make([]bool, len(actual))
 
 	var unmatched []int
@@ -275,7 +268,6 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []
 	}
 
 	if len(unmatched) > 0 {
-		// Find which actual elements weren't matched
 		var unusedActual []int
 
 		for i, u := range used {
