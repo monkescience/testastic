@@ -648,6 +648,294 @@ func TestFormatHTMLDiffInline(t *testing.T) {
 	}
 }
 
+func TestAssertHTML_EmbeddedMatcherInAttribute(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded matcher in attribute.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div style="border-left: 6px solid {{anyString}};">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div style="border-left: 6px solid #ff0000;">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded matcher, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedRegexInAttribute(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded regex in attribute.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := "<div style=\"border-left: 6px solid {{regex `#[0-9a-fA-F]{6}`}};\">Content</div>"
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div style="border-left: 6px solid #ff0000;">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded regex, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedMatcherMismatch(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded regex that won't match.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := "<div style=\"border-left: 6px solid {{regex `#[0-9a-fA-F]{6}`}};\">Content</div>"
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div style="border-left: 6px solid red;">Content</div>`
+
+	// WHEN: asserting with non-matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test fails.
+	if !mt.failed {
+		t.Error("expected failure with non-matching embedded regex")
+	}
+}
+
+func TestAssertHTML_MultipleEmbeddedMatchers(t *testing.T) {
+	// GIVEN: an expected HTML file with multiple embedded matchers.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div data-info="user-{{anyString}}-id-{{anyString}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div data-info="user-john-id-12345">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with multiple embedded matchers, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedMatcherInTextContent(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded matcher in text content.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div>Hello {{anyString}}, your ID is {{anyString}}</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div>Hello World, your ID is 12345</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded matcher in text, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedAnyInt(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded anyInt matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div data-count="Total: {{anyInt}} items">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div data-count="Total: 42 items">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded anyInt, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedAnyFloat(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded anyFloat matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div data-price="Price: ${{anyFloat}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div data-price="Price: $19.99">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded anyFloat, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedAnyBool(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded anyBool matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div data-state="enabled={{anyBool}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div data-state="enabled=true">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded anyBool, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedAnyValue(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded anyValue matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div data-info="key={{anyValue}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div data-info="key=anything-here-123">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded anyValue, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedIgnore(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded ignore matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div data-timestamp="created={{ignore}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div data-timestamp="created=2024-01-15T10:30:00Z">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded ignore, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedOneOf(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded oneOf matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div class="btn btn-{{oneOf "primary" "secondary" "danger"}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div class="btn btn-secondary">Content</div>`
+
+	// WHEN: asserting with matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test passes.
+	if mt.failed {
+		t.Errorf("expected no failure with embedded oneOf, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_EmbeddedOneOf_Mismatch(t *testing.T) {
+	// GIVEN: an expected HTML file with embedded oneOf matcher.
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.html")
+
+	expected := `<div class="btn btn-{{oneOf "primary" "secondary"}}">Content</div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("failed to create expected file: %v", err)
+	}
+
+	mt := &htmlMockT{}
+	actual := `<div class="btn btn-danger">Content</div>`
+
+	// WHEN: asserting with non-matching HTML.
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// THEN: the test fails.
+	if !mt.failed {
+		t.Error("expected failure with non-matching oneOf value")
+	}
+}
+
 // htmlMockT is a mock testing.TB for testing HTML assertions.
 type htmlMockT struct {
 	testing.TB

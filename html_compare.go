@@ -57,7 +57,7 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 		return nil
 	}
 
-	// Handle matchers in text content
+	// Handle matchers in text content.
 	if expected.Type == HTMLText { //nolint:nestif // Matcher handling requires nested conditions.
 		if m, ok := expected.Text.(Matcher); ok {
 			if IsIgnore(m) {
@@ -69,6 +69,21 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 				return []HTMLDifference{{
 					Path:     path,
 					Expected: m.String(),
+					Actual:   actualText,
+					Type:     DiffMatcherFailed,
+				}}
+			}
+
+			return nil
+		}
+
+		// Handle template strings in text content.
+		if ts, ok := expected.Text.(TemplateString); ok {
+			actualText := getTextContent(actual)
+			if !ts.Match(actualText) {
+				return []HTMLDifference{{
+					Path:     path,
+					Expected: ts.String(),
 					Actual:   actualText,
 					Type:     DiffMatcherFailed,
 				}}
@@ -189,13 +204,28 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 			continue
 		}
 
-		// Handle matcher in expected attribute value
+		// Handle matcher in expected attribute value.
 		if m, ok := expVal.(Matcher); ok {
 			actStr := getString(actVal)
 			if !m.Match(actStr) {
 				diffs = append(diffs, HTMLDifference{
 					Path:     attrPath,
 					Expected: m.String(),
+					Actual:   actStr,
+					Type:     DiffMatcherFailed,
+				})
+			}
+
+			continue
+		}
+
+		// Handle template string with embedded matchers.
+		if ts, ok := expVal.(TemplateString); ok {
+			actStr := getString(actVal)
+			if !ts.Match(actStr) {
+				diffs = append(diffs, HTMLDifference{
+					Path:     attrPath,
+					Expected: ts.String(),
 					Actual:   actStr,
 					Type:     DiffMatcherFailed,
 				})
@@ -460,6 +490,10 @@ func getTextContent(node *HTMLNode) string {
 		return m.String()
 	}
 
+	if ts, ok := node.Text.(TemplateString); ok {
+		return ts.String()
+	}
+
 	return ""
 }
 
@@ -475,6 +509,10 @@ func getString(v any) string {
 
 	if m, ok := v.(Matcher); ok {
 		return m.String()
+	}
+
+	if ts, ok := v.(TemplateString); ok {
+		return ts.String()
 	}
 
 	return fmt.Sprintf("%v", v)

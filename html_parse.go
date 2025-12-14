@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -40,11 +41,93 @@ type ExpectedHTML struct {
 	Raw      string
 }
 
+// TemplateSegment represents part of a template string.
+type TemplateSegment struct {
+	Literal string  // Literal text (empty if Matcher is set).
+	Matcher Matcher // Matcher (nil if Literal is set).
+}
+
+// TemplateString represents a string with embedded matchers.
+type TemplateString struct {
+	Segments []TemplateSegment
+	Original string // For display: "border-left: 6px solid {{anyString}}".
+}
+
+// Match checks if the actual string matches the template pattern.
+func (t TemplateString) Match(actual string) bool {
+	// Build a regex pattern from segments.
+	var pattern strings.Builder
+
+	pattern.WriteString("^")
+
+	for _, seg := range t.Segments {
+		if seg.Matcher != nil {
+			pattern.WriteString(matcherToRegex(seg.Matcher))
+		} else {
+			pattern.WriteString(regexp.QuoteMeta(seg.Literal))
+		}
+	}
+
+	pattern.WriteString("$")
+
+	re, err := regexp.Compile(pattern.String())
+	if err != nil {
+		return false
+	}
+
+	return re.MatchString(actual)
+}
+
+// String returns the original template representation.
+func (t TemplateString) String() string {
+	return t.Original
+}
+
+// matcherToRegex converts a matcher to its regex equivalent.
+func matcherToRegex(m Matcher) string {
+	switch v := m.(type) {
+	case anyStringMatcher:
+		return ".*"
+	case anyIntMatcher:
+		return "-?\\d+"
+	case anyFloatMatcher:
+		return "-?\\d+\\.?\\d*"
+	case anyBoolMatcher:
+		return "(true|false)"
+	case anyValueMatcher:
+		return ".*"
+	case ignoreMatcher:
+		return ".*"
+	case *regexMatcher:
+		return v.pattern
+	case *oneOfMatcher:
+		return oneOfToRegex(v.values)
+	default:
+		return ".*"
+	}
+}
+
+// oneOfToRegex converts oneOf values to a regex alternation.
+func oneOfToRegex(values []any) string {
+	if len(values) == 0 {
+		return "(?!)" // Match nothing.
+	}
+
+	parts := make([]string, 0, len(values))
+
+	for _, v := range values {
+		parts = append(parts, regexp.QuoteMeta(fmt.Sprintf("%v", v)))
+	}
+
+	return "(" + strings.Join(parts, "|") + ")"
+}
+
 // htmlMatcherPlaceholderPrefix is the prefix used for HTML matcher placeholders.
 const htmlMatcherPlaceholderPrefix = "__TESTASTIC_HTML_MATCHER_"
 
 // htmlTemplateExprRegex matches {{...}} expressions in HTML.
-var htmlTemplateExprRegex = regexp.MustCompile(`\{\{([^}]+)\}\}`)
+// Handles backtick-quoted content that may contain } characters.
+var htmlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
 
 // ParseExpectedHTMLFile reads and parses an expected HTML file, replacing template expressions with matchers.
 func ParseExpectedHTMLFile(path string) (*ExpectedHTML, error) {
@@ -285,33 +368,147 @@ func resolveHTMLMatcherInValue(value string, matchers map[string]string) any {
 		return value
 	}
 
-	// Check if the entire value is a single matcher placeholder
-	if strings.HasPrefix(value, htmlMatcherPlaceholderPrefix) && strings.HasSuffix(value, "__") {
-		if expr, ok := matchers[value]; ok {
-			matcher, err := ParseMatcher(expr)
-			if err == nil {
-				return matcher
-			}
+	// Check if the entire value is a single matcher placeholder.
+	if m := tryParseSingleMatcher(value, matchers); m != nil {
+		return m
+	}
+
+	// Check if value contains any matcher placeholders (partial match).
+	hasPlaceholder := false
+
+	for placeholder := range matchers {
+		if !strings.Contains(value, placeholder) {
+			continue
+		}
+
+		hasPlaceholder = true
+
+		// If the entire trimmed value is the placeholder, return single matcher.
+		if m := tryParseSingleMatcher(strings.TrimSpace(value), matchers); m != nil {
+			return m
 		}
 	}
 
-	// Check if value contains any matcher placeholders (partial match)
-	for placeholder, expr := range matchers {
-		if strings.Contains(value, placeholder) {
-			// For partial matches, we need to handle it as a pattern
-			// For now, if the entire trimmed value is the placeholder, return matcher
-			if strings.TrimSpace(value) == placeholder {
-				matcher, err := ParseMatcher(expr)
-				if err == nil {
-					return matcher
-				}
-			}
-			// Otherwise, replace placeholder back with original expression for display
-			value = strings.ReplaceAll(value, placeholder, "{{"+expr+"}}")
-		}
+	// If value contains embedded matchers, parse as TemplateString.
+	if hasPlaceholder {
+		return parseTemplateString(value, matchers)
 	}
 
 	return value
+}
+
+// tryParseSingleMatcher attempts to parse a value as a single matcher placeholder.
+func tryParseSingleMatcher(value string, matchers map[string]string) Matcher {
+	if !strings.HasPrefix(value, htmlMatcherPlaceholderPrefix) || !strings.HasSuffix(value, "__") {
+		return nil
+	}
+
+	expr, ok := matchers[value]
+	if !ok {
+		return nil
+	}
+
+	matcher, err := ParseMatcher(expr)
+	if err != nil {
+		return nil
+	}
+
+	return matcher
+}
+
+// placeholderPos represents a placeholder position in a template string.
+type placeholderPos struct {
+	start int
+	end   int
+	expr  string
+}
+
+// parseTemplateString parses a value with embedded matcher placeholders into a TemplateString.
+func parseTemplateString(value string, matchers map[string]string) TemplateString {
+	original := buildOriginalDisplay(value, matchers)
+	positions := findPlaceholderPositions(value, matchers)
+	segments := buildSegments(value, positions)
+
+	return TemplateString{
+		Segments: segments,
+		Original: original,
+	}
+}
+
+// buildOriginalDisplay creates the display string with {{expr}} format.
+func buildOriginalDisplay(value string, matchers map[string]string) string {
+	original := value
+	for placeholder, expr := range matchers {
+		original = strings.ReplaceAll(original, placeholder, "{{"+expr+"}}")
+	}
+
+	return original
+}
+
+// findPlaceholderPositions finds all placeholder positions in a value.
+func findPlaceholderPositions(value string, matchers map[string]string) []placeholderPos {
+	var positions []placeholderPos
+
+	for placeholder, expr := range matchers {
+		idx := 0
+
+		for {
+			pos := strings.Index(value[idx:], placeholder)
+			if pos == -1 {
+				break
+			}
+
+			absPos := idx + pos
+			positions = append(positions, placeholderPos{
+				start: absPos,
+				end:   absPos + len(placeholder),
+				expr:  expr,
+			})
+			idx = absPos + len(placeholder)
+		}
+	}
+
+	// Sort positions by start index.
+	sort.Slice(positions, func(i, j int) bool {
+		return positions[i].start < positions[j].start
+	})
+
+	return positions
+}
+
+// buildSegments creates template segments from placeholder positions.
+func buildSegments(value string, positions []placeholderPos) []TemplateSegment {
+	var segments []TemplateSegment
+
+	lastEnd := 0
+
+	for _, pos := range positions {
+		// Add literal segment before this placeholder.
+		if pos.start > lastEnd {
+			segments = append(segments, TemplateSegment{
+				Literal: value[lastEnd:pos.start],
+			})
+		}
+
+		// Add matcher segment.
+		matcher, err := ParseMatcher(pos.expr)
+		if err == nil {
+			segments = append(segments, TemplateSegment{
+				Matcher: matcher,
+			})
+		}
+
+		lastEnd = pos.end
+	}
+
+	// Add trailing literal if any.
+	if lastEnd < len(value) {
+		segments = append(segments, TemplateSegment{
+			Literal: value[lastEnd:],
+		})
+	}
+
+	return segments
 }
 
 // ExtractMatcherPositions returns a map of HTML paths to their original template expressions.
@@ -328,19 +525,27 @@ func extractHTMLMatcherPaths(node *HTMLNode, positions map[string]string) {
 		return
 	}
 
-	// Check text content
+	// Check text content.
 	if m, ok := node.Text.(Matcher); ok {
 		positions[node.Path] = m.String()
 	}
 
-	// Check attributes
+	if ts, ok := node.Text.(TemplateString); ok {
+		positions[node.Path] = ts.String()
+	}
+
+	// Check attributes.
 	for attr, val := range node.Attributes {
 		if m, ok := val.(Matcher); ok {
 			positions[node.Path+"@"+attr] = m.String()
 		}
+
+		if ts, ok := val.(TemplateString); ok {
+			positions[node.Path+"@"+attr] = ts.String()
+		}
 	}
 
-	// Recurse into children
+	// Recurse into children.
 	for _, child := range node.Children {
 		extractHTMLMatcherPaths(child, positions)
 	}
