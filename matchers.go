@@ -1,10 +1,18 @@
 package testastic
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
+)
+
+// Matcher parsing errors.
+var (
+	ErrInvalidRegexSyntax = errors.New("invalid regex syntax")
+	ErrInvalidOneOfSyntax = errors.New("invalid oneOf syntax")
+	ErrUnknownMatcher     = errors.New("unknown matcher")
 )
 
 // Matcher defines the interface for custom value matching.
@@ -224,7 +232,7 @@ func ParseMatcher(expr string) (Matcher, error) {
 			return Regex(pattern)
 		}
 
-		return nil, fmt.Errorf("invalid regex syntax: %s", expr)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidRegexSyntax, expr)
 	}
 
 	// Handle oneOf "a" "b" "c"
@@ -234,10 +242,10 @@ func ParseMatcher(expr string) (Matcher, error) {
 			return OneOf(values...), nil
 		}
 
-		return nil, fmt.Errorf("invalid oneOf syntax: %s", expr)
+		return nil, fmt.Errorf("%w: %s", ErrInvalidOneOfSyntax, expr)
 	}
 
-	return nil, fmt.Errorf("unknown matcher: %s", expr)
+	return nil, fmt.Errorf("%w: %s", ErrUnknownMatcher, expr)
 }
 
 // extractBacktickArg extracts content from backticks.

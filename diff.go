@@ -23,6 +23,9 @@ const (
 	DiffMatcherFailed
 )
 
+// maxDisplayLineLen is the maximum length for displaying values before truncation.
+const maxDisplayLineLen = 80
+
 // String returns a human-readable description of the diff type.
 func (d DiffType) String() string {
 	switch d {
@@ -269,8 +272,8 @@ func formatValue(v any) string {
 
 		s := string(data)
 		// Truncate if too long
-		if len(s) > 80 {
-			return s[:77] + "..."
+		if len(s) > maxDisplayLineLen {
+			return s[:maxDisplayLineLen-3] + "..."
 		}
 
 		return s

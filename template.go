@@ -2,11 +2,15 @@ package testastic
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
 )
+
+// ErrUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
+var ErrUnknownPlaceholder = errors.New("unknown placeholder")
 
 // ExpectedJSON represents a parsed expected file with matchers.
 type ExpectedJSON struct {
@@ -115,7 +119,7 @@ func replacePlaceholders(data any, matchers map[string]string) (any, error) {
 		if strings.HasPrefix(v, matcherPlaceholderPrefix) {
 			expr, ok := matchers[v]
 			if !ok {
-				return nil, fmt.Errorf("unknown placeholder: %s", v)
+				return nil, fmt.Errorf("%w: %s", ErrUnknownPlaceholder, v)
 			}
 
 			matcher, err := ParseMatcher(expr)

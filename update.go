@@ -9,6 +9,12 @@ import (
 	"strings"
 )
 
+// File permission constants for test data files.
+const (
+	dirPerm  = 0o755
+	filePerm = 0o644
+)
+
 // updateExpectedFile updates the expected file with the actual value.
 // It preserves template matchers from the original file.
 func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) error {
@@ -32,13 +38,13 @@ func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) erro
 	// Ensure directory exists
 	dir := filepath.Dir(path)
 
-	mkdirErr := os.MkdirAll(dir, 0o755) //nolint:gosec // Test data dirs need 755.
+	mkdirErr := os.MkdirAll(dir, dirPerm)
 	if mkdirErr != nil {
 		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
 	// Write to file
-	writeErr := os.WriteFile(path, []byte(updatedJSON), 0o644) //nolint:gosec // Test data files need 644.
+	writeErr := os.WriteFile(path, []byte(updatedJSON), filePerm)
 	if writeErr != nil {
 		return fmt.Errorf("failed to write expected file: %w", writeErr)
 	}
@@ -64,13 +70,13 @@ func createExpectedFile(path string, actual []byte) error {
 	// Ensure directory exists
 	dir := filepath.Dir(path)
 
-	mkdirErr := os.MkdirAll(dir, 0o755) //nolint:gosec // Test data dirs need 755.
+	mkdirErr := os.MkdirAll(dir, dirPerm)
 	if mkdirErr != nil {
 		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
 	// Write to file
-	writeErr := os.WriteFile(path, append(prettyJSON, '\n'), 0o644) //nolint:gosec // Test data files need 644.
+	writeErr := os.WriteFile(path, append(prettyJSON, '\n'), filePerm)
 	if writeErr != nil {
 		return fmt.Errorf("failed to write expected file: %w", writeErr)
 	}
@@ -83,7 +89,7 @@ func generateUpdatedJSON(data any, matcherPositions map[string]string) (string, 
 	// First, generate the pretty JSON
 	prettyJSON, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
 	if len(matcherPositions) == 0 {

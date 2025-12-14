@@ -27,9 +27,7 @@ func TestAssertJSON_ExactMatch(t *testing.T) {
   "age": 30,
   "active": true
 }`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	// Test exact match
 	testastic.AssertJSON(t, expectedFile, testJSONAliceAge30Full)
@@ -39,9 +37,7 @@ func TestAssertJSON_Mismatch(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "mismatch.expected.json")
 
-	if err := os.WriteFile(expectedFile, []byte(testJSONAliceAge30), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, testJSONAliceAge30)
 
 	// Use a mock testing.T to capture the error
 	mt := &mockT{}
@@ -69,9 +65,7 @@ func TestAssertJSON_WithAnyStringMatcher(t *testing.T) {
   "id": "{{anyString}}",
   "name": "Alice"
 }`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o600); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	// Should match any string for id
 	actual := `{"id": "abc-123-xyz", "name": "Alice"}`
@@ -86,9 +80,7 @@ func TestAssertJSON_WithAnyIntMatcher(t *testing.T) {
   "count": "{{anyInt}}",
   "name": "test"
 }`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"count": 42, "name": "test"}`
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -103,9 +95,7 @@ func TestAssertJSON_WithIgnoreMatcher(t *testing.T) {
   "timestamp": "{{ignore}}",
   "name": "Alice"
 }`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"id": 12345, "timestamp": "2024-01-15T10:30:00Z", "name": "Alice"}`
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -116,9 +106,7 @@ func TestAssertJSON_WithRegexMatcher(t *testing.T) {
 	expectedFile := filepath.Join(dir, "regex.expected.json")
 
 	expected := "{\"email\": \"{{regex `^[a-z]+@example\\.com$`}}\"}"
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"email": "alice@example.com"}`
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -130,9 +118,7 @@ func TestAssertJSON_WithOneOfMatcher(t *testing.T) {
 
 	// Use regular string with escaped quotes to get actual quote characters in file
 	expected := "{\"status\": \"{{oneOf \\\"pending\\\" \\\"active\\\" \\\"completed\\\"}}\"}"
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"status": "active"}`
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -151,9 +137,7 @@ func TestAssertJSON_NestedObjects(t *testing.T) {
     }
   }
 }`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"user": {"id": "usr-123", "profile": {"name": "Alice", "age": 30}}}`
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -169,9 +153,7 @@ func TestAssertJSON_Arrays(t *testing.T) {
     {"id": 2, "name": "second"}
   ]
 }`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"items": [{"id": 1, "name": "first"}, {"id": 2, "name": "second"}]}`
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -182,9 +164,7 @@ func TestAssertJSON_IgnoreArrayOrder(t *testing.T) {
 	expectedFile := filepath.Join(dir, "array_order.expected.json")
 
 	expected := `{"tags": ["a", "b", "c"]}`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	// Different order
 	actual := `{"tags": ["c", "a", "b"]}`
@@ -196,9 +176,7 @@ func TestAssertJSON_IgnoreArrayOrderAt(t *testing.T) {
 	expectedFile := filepath.Join(dir, "array_order_at.expected.json")
 
 	expected := `{"ordered": [1, 2, 3], "unordered": ["a", "b", "c"]}`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	actual := `{"ordered": [1, 2, 3], "unordered": ["c", "a", "b"]}`
 	testastic.AssertJSON(t, expectedFile, actual, testastic.IgnoreArrayOrderAt("$.unordered"))
@@ -209,9 +187,7 @@ func TestAssertJSON_IgnoreFields(t *testing.T) {
 	expectedFile := filepath.Join(dir, "ignore_fields.expected.json")
 
 	expected := `{"id": "fixed", "name": "Alice", "timestamp": "2024-01-01"}`
-	if err := os.WriteFile(expectedFile, []byte(expected), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, expected)
 
 	// id and timestamp are different but ignored
 	actual := `{"id": "different", "name": "Alice", "timestamp": "2024-12-15"}`
@@ -222,9 +198,7 @@ func TestAssertJSON_FromStruct(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "struct.expected.json")
 
-	if err := os.WriteFile(expectedFile, []byte(testJSONAliceAge30), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, testJSONAliceAge30)
 
 	type User struct {
 		Name string `json:"name"`
@@ -239,9 +213,7 @@ func TestAssertJSON_FromReader(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "reader.expected.json")
 
-	if err := os.WriteFile(expectedFile, []byte(testJSONAliceOnly), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, testJSONAliceOnly)
 
 	actual := bytes.NewReader([]byte(testJSONAliceOnly))
 	testastic.AssertJSON(t, expectedFile, actual)
@@ -251,9 +223,7 @@ func TestAssertJSON_ExtraField(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "extra.expected.json")
 
-	if err := os.WriteFile(expectedFile, []byte(testJSONAliceOnly), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, testJSONAliceOnly)
 
 	mt := &mockT{}
 	actual := `{"name": "Alice", "extra": "field"}`
@@ -272,9 +242,7 @@ func TestAssertJSON_MissingField(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "missing.expected.json")
 
-	if err := os.WriteFile(expectedFile, []byte(testJSONAliceAge30), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeTestFile(t, expectedFile, testJSONAliceAge30)
 
 	mt := &mockT{}
 	testastic.AssertJSON(mt, expectedFile, testJSONAliceOnly)
@@ -434,6 +402,16 @@ func TestFormatDiff(t *testing.T) {
 
 	if !strings.Contains(output, "(missing)") {
 		t.Error("expected output to contain (missing)")
+	}
+}
+
+// writeTestFile writes content to a file, failing the test on error.
+func writeTestFile(t *testing.T, path, content string) {
+	t.Helper()
+
+	err := os.WriteFile(path, []byte(content), 0o600)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
 

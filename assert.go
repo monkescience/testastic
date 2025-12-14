@@ -11,29 +11,29 @@ import (
 )
 
 // fail reports an assertion failure with expected and actual values.
-func fail(t testing.TB, name, expected, actual string) {
-	t.Helper()
-	t.Errorf(
+func fail(tb testing.TB, name, expected, actual string) {
+	tb.Helper()
+	tb.Errorf(
 		"testastic: assertion failed\n\n  %s\n    expected: %s\n    actual:   %s",
 		name, red(expected), green(actual),
 	)
 }
 
 // Equal asserts that expected and actual are equal.
-func Equal[T comparable](t testing.TB, expected, actual T) {
-	t.Helper()
+func Equal[T comparable](tb testing.TB, expected, actual T) {
+	tb.Helper()
 
 	if expected != actual {
-		fail(t, "Equal", formatVal(expected), formatVal(actual))
+		fail(tb, "Equal", formatVal(expected), formatVal(actual))
 	}
 }
 
 // NotEqual asserts that expected and actual are not equal.
-func NotEqual[T comparable](t testing.TB, unexpected, actual T) {
-	t.Helper()
+func NotEqual[T comparable](tb testing.TB, unexpected, actual T) {
+	tb.Helper()
 
 	if unexpected == actual {
-		t.Errorf(
+		tb.Errorf(
 			"testastic: assertion failed\n\n  NotEqual\n    unexpected: %s\n    actual:     %s",
 			red(formatVal(unexpected)), green(formatVal(actual)),
 		)
@@ -41,71 +41,71 @@ func NotEqual[T comparable](t testing.TB, unexpected, actual T) {
 }
 
 // DeepEqual asserts that expected and actual are deeply equal using reflect.DeepEqual.
-func DeepEqual[T any](t testing.TB, expected, actual T) {
-	t.Helper()
+func DeepEqual[T any](tb testing.TB, expected, actual T) {
+	tb.Helper()
 
 	if !reflect.DeepEqual(expected, actual) {
-		fail(t, "DeepEqual", formatVal(expected), formatVal(actual))
+		fail(tb, "DeepEqual", formatVal(expected), formatVal(actual))
 	}
 }
 
 // Nil asserts that value is nil.
-func Nil(t testing.TB, value any) {
-	t.Helper()
+func Nil(tb testing.TB, value any) {
+	tb.Helper()
 
 	if !isNil(value) {
-		fail(t, "Nil", "nil", formatVal(value))
+		fail(tb, "Nil", "nil", formatVal(value))
 	}
 }
 
 // NotNil asserts that value is not nil.
-func NotNil(t testing.TB, value any) {
-	t.Helper()
+func NotNil(tb testing.TB, value any) {
+	tb.Helper()
 
 	if isNil(value) {
-		fail(t, "NotNil", "not nil", "nil")
+		fail(tb, "NotNil", "not nil", "nil")
 	}
 }
 
 // True asserts that value is true.
-func True(t testing.TB, value bool) {
-	t.Helper()
+func True(tb testing.TB, value bool) {
+	tb.Helper()
 
 	if !value {
-		fail(t, "True", "true", "false")
+		fail(tb, "True", "true", "false")
 	}
 }
 
 // False asserts that value is false.
-func False(t testing.TB, value bool) {
-	t.Helper()
+func False(tb testing.TB, value bool) {
+	tb.Helper()
 
 	if value {
-		fail(t, "False", "false", "true")
+		fail(tb, "False", "false", "true")
 	}
 }
 
 // NoError asserts that err is nil.
-func NoError(t testing.TB, err error) {
-	t.Helper()
+func NoError(tb testing.TB, err error) {
+	tb.Helper()
 
 	if err != nil {
-		fail(t, "NoError", "no error", err.Error())
+		fail(tb, "NoError", "no error", err.Error())
 	}
 }
 
 // Error asserts that err is not nil.
-func Error(t testing.TB, err error) {
-	t.Helper()
+func Error(tb testing.TB, err error) {
+	tb.Helper()
 
 	if err == nil {
-		fail(t, "Error", "an error", "nil")
+		fail(tb, "Error", "an error", "nil")
 	}
 }
 
 // ErrorIs asserts that err matches target using errors.Is.
-func ErrorIs(t testing.TB, err, target error) {
-	t.Helper()
+func ErrorIs(tb testing.TB, err, target error) {
+	tb.Helper()
 
 	if !errors.Is(err, target) {
 		errStr := "nil"
@@ -113,134 +113,134 @@ func ErrorIs(t testing.TB, err, target error) {
 			errStr = err.Error()
 		}
 
-		fail(t, "ErrorIs", target.Error(), errStr)
+		fail(tb, "ErrorIs", target.Error(), errStr)
 	}
 }
 
 // ErrorContains asserts that err contains the given substring.
-func ErrorContains(t testing.TB, err error, substring string) {
-	t.Helper()
+func ErrorContains(tb testing.TB, err error, substring string) {
+	tb.Helper()
 
 	wantMsg := "error containing " + fmt.Sprintf("%q", substring)
 
 	if err == nil {
-		fail(t, "ErrorContains", wantMsg, "nil")
+		fail(tb, "ErrorContains", wantMsg, "nil")
 
 		return
 	}
 
 	if !strings.Contains(err.Error(), substring) {
-		fail(t, "ErrorContains", wantMsg, err.Error())
+		fail(tb, "ErrorContains", wantMsg, err.Error())
 	}
 }
 
 // failCmp reports a comparison assertion failure.
-func failCmp(t testing.TB, name, expectOp, actualOp, a, b string) {
-	t.Helper()
-	t.Errorf(
+func failCmp(tb testing.TB, name, expectOp, actualOp, a, b string) {
+	tb.Helper()
+	tb.Errorf(
 		"testastic: assertion failed\n\n  %s\n    expected: %s %s %s\n    actual:   %s %s %s",
 		name, red(a), expectOp, red(b), green(a), actualOp, green(b),
 	)
 }
 
 // Greater asserts that a > b.
-func Greater[T cmp.Ordered](t testing.TB, a, b T) {
-	t.Helper()
+func Greater[T cmp.Ordered](tb testing.TB, a, b T) {
+	tb.Helper()
 
 	if a <= b {
-		failCmp(t, "Greater", ">", "<=", formatVal(a), formatVal(b))
+		failCmp(tb, "Greater", ">", "<=", formatVal(a), formatVal(b))
 	}
 }
 
 // GreaterOrEqual asserts that a >= b.
-func GreaterOrEqual[T cmp.Ordered](t testing.TB, a, b T) {
-	t.Helper()
+func GreaterOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
+	tb.Helper()
 
 	if a < b {
-		failCmp(t, "GreaterOrEqual", ">=", "<", formatVal(a), formatVal(b))
+		failCmp(tb, "GreaterOrEqual", ">=", "<", formatVal(a), formatVal(b))
 	}
 }
 
 // Less asserts that a < b.
-func Less[T cmp.Ordered](t testing.TB, a, b T) {
-	t.Helper()
+func Less[T cmp.Ordered](tb testing.TB, a, b T) {
+	tb.Helper()
 
 	if a >= b {
-		failCmp(t, "Less", "<", ">=", formatVal(a), formatVal(b))
+		failCmp(tb, "Less", "<", ">=", formatVal(a), formatVal(b))
 	}
 }
 
 // LessOrEqual asserts that a <= b.
-func LessOrEqual[T cmp.Ordered](t testing.TB, a, b T) {
-	t.Helper()
+func LessOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
+	tb.Helper()
 
 	if a > b {
-		failCmp(t, "LessOrEqual", "<=", ">", formatVal(a), formatVal(b))
+		failCmp(tb, "LessOrEqual", "<=", ">", formatVal(a), formatVal(b))
 	}
 }
 
 // Between asserts that minVal <= value <= maxVal.
-func Between[T cmp.Ordered](t testing.TB, value, minVal, maxVal T) {
-	t.Helper()
+func Between[T cmp.Ordered](tb testing.TB, value, minVal, maxVal T) {
+	tb.Helper()
 
 	if value < minVal || value > maxVal {
 		expected := formatVal(minVal) + " <= value <= " + formatVal(maxVal)
-		fail(t, "Between", expected, formatVal(value))
+		fail(tb, "Between", expected, formatVal(value))
 	}
 }
 
 // failStr reports a string assertion failure.
-func failStr(t testing.TB, name, label, s, search, status string) {
-	t.Helper()
-	t.Errorf(
+func failStr(tb testing.TB, name, label, s, search, status string) {
+	tb.Helper()
+	tb.Errorf(
 		"testastic: assertion failed\n\n  %s\n    string: %s\n    %s: %s (%s)",
 		name, green(formatVal(s)), label, red(formatVal(search)), status,
 	)
 }
 
 // Contains asserts that s contains substring.
-func Contains(t testing.TB, s, substring string) {
-	t.Helper()
+func Contains(tb testing.TB, s, substring string) {
+	tb.Helper()
 
 	if !strings.Contains(s, substring) {
-		failStr(t, "Contains", "substring", s, substring, "not found")
+		failStr(tb, "Contains", "substring", s, substring, "not found")
 	}
 }
 
 // NotContains asserts that s does not contain substring.
-func NotContains(t testing.TB, s, substring string) {
-	t.Helper()
+func NotContains(tb testing.TB, s, substring string) {
+	tb.Helper()
 
 	if strings.Contains(s, substring) {
-		failStr(t, "NotContains", "substring", s, substring, "found")
+		failStr(tb, "NotContains", "substring", s, substring, "found")
 	}
 }
 
 // HasPrefix asserts that s has the given prefix.
-func HasPrefix(t testing.TB, s, prefix string) {
-	t.Helper()
+func HasPrefix(tb testing.TB, s, prefix string) {
+	tb.Helper()
 
 	if !strings.HasPrefix(s, prefix) {
-		failStr(t, "HasPrefix", "prefix", s, prefix, "not found")
+		failStr(tb, "HasPrefix", "prefix", s, prefix, "not found")
 	}
 }
 
 // HasSuffix asserts that s has the given suffix.
-func HasSuffix(t testing.TB, s, suffix string) {
-	t.Helper()
+func HasSuffix(tb testing.TB, s, suffix string) {
+	tb.Helper()
 
 	if !strings.HasSuffix(s, suffix) {
-		failStr(t, "HasSuffix", "suffix", s, suffix, "not found")
+		failStr(tb, "HasSuffix", "suffix", s, suffix, "not found")
 	}
 }
 
 // Matches asserts that s matches the given regular expression pattern.
-func Matches(t testing.TB, s, pattern string) {
-	t.Helper()
+func Matches(tb testing.TB, s, pattern string) {
+	tb.Helper()
 
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		t.Errorf(
+		tb.Errorf(
 			"testastic: assertion failed\n\n  Matches\n    error: invalid pattern %q: %v",
 			pattern, err,
 		)
@@ -249,25 +249,25 @@ func Matches(t testing.TB, s, pattern string) {
 	}
 
 	if !re.MatchString(s) {
-		failStr(t, "Matches", "pattern", s, pattern, "no match")
+		failStr(tb, "Matches", "pattern", s, pattern, "no match")
 	}
 }
 
 // StringEmpty asserts that s is an empty string.
-func StringEmpty(t testing.TB, s string) {
-	t.Helper()
+func StringEmpty(tb testing.TB, s string) {
+	tb.Helper()
 
 	if s != "" {
-		fail(t, "StringEmpty", `""`, formatVal(s))
+		fail(tb, "StringEmpty", `""`, formatVal(s))
 	}
 }
 
 // StringNotEmpty asserts that s is not an empty string.
-func StringNotEmpty(t testing.TB, s string) {
-	t.Helper()
+func StringNotEmpty(tb testing.TB, s string) {
+	tb.Helper()
 
 	if s == "" {
-		fail(t, "StringNotEmpty", "non-empty string", `""`)
+		fail(tb, "StringNotEmpty", "non-empty string", `""`)
 	}
 }
 
