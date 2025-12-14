@@ -57,7 +57,6 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 		return nil
 	}
 
-	// Handle matchers in text content.
 	if expected.Type == HTMLText { //nolint:nestif // Matcher handling requires nested conditions.
 		if m, ok := expected.Text.(Matcher); ok {
 			if IsIgnore(m) {
@@ -77,7 +76,6 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 			return nil
 		}
 
-		// Handle template strings in text content.
 		if ts, ok := expected.Text.(TemplateString); ok {
 			actualText := getTextContent(actual)
 			if !ts.Match(actualText) {
@@ -204,7 +202,6 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 			continue
 		}
 
-		// Handle matcher in expected attribute value.
 		if m, ok := expVal.(Matcher); ok {
 			actStr := getString(actVal)
 			if !m.Match(actStr) {
@@ -219,7 +216,6 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 			continue
 		}
 
-		// Handle template string with embedded matchers.
 		if ts, ok := expVal.(TemplateString); ok {
 			actStr := getString(actVal)
 			if !ts.Match(actStr) {
@@ -234,7 +230,6 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 			continue
 		}
 
-		// Direct comparison
 		expStr := getString(expVal)
 		actStr := getString(actVal)
 

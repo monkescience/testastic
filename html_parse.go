@@ -55,7 +55,6 @@ type TemplateString struct {
 
 // Match checks if the actual string matches the template pattern.
 func (t TemplateString) Match(actual string) bool {
-	// Build a regex pattern from segments.
 	var pattern strings.Builder
 
 	pattern.WriteString("^")
@@ -368,12 +367,10 @@ func resolveHTMLMatcherInValue(value string, matchers map[string]string) any {
 		return value
 	}
 
-	// Check if the entire value is a single matcher placeholder.
 	if m := tryParseSingleMatcher(value, matchers); m != nil {
 		return m
 	}
 
-	// Check if value contains any matcher placeholders (partial match).
 	hasPlaceholder := false
 
 	for placeholder := range matchers {
@@ -383,13 +380,12 @@ func resolveHTMLMatcherInValue(value string, matchers map[string]string) any {
 
 		hasPlaceholder = true
 
-		// If the entire trimmed value is the placeholder, return single matcher.
+		// Handle whitespace around placeholder: "  {{anyString}}  " should match as single matcher.
 		if m := tryParseSingleMatcher(strings.TrimSpace(value), matchers); m != nil {
 			return m
 		}
 	}
 
-	// If value contains embedded matchers, parse as TemplateString.
 	if hasPlaceholder {
 		return parseTemplateString(value, matchers)
 	}
@@ -445,7 +441,7 @@ func buildOriginalDisplay(value string, matchers map[string]string) string {
 	return original
 }
 
-// findPlaceholderPositions finds all placeholder positions in a value.
+// findPlaceholderPositions finds all placeholder positions in a value, sorted by start index.
 func findPlaceholderPositions(value string, matchers map[string]string) []placeholderPos {
 	var positions []placeholderPos
 
@@ -468,7 +464,6 @@ func findPlaceholderPositions(value string, matchers map[string]string) []placeh
 		}
 	}
 
-	// Sort positions by start index.
 	sort.Slice(positions, func(i, j int) bool {
 		return positions[i].start < positions[j].start
 	})
@@ -483,14 +478,12 @@ func buildSegments(value string, positions []placeholderPos) []TemplateSegment {
 	lastEnd := 0
 
 	for _, pos := range positions {
-		// Add literal segment before this placeholder.
 		if pos.start > lastEnd {
 			segments = append(segments, TemplateSegment{
 				Literal: value[lastEnd:pos.start],
 			})
 		}
 
-		// Add matcher segment.
 		matcher, err := ParseMatcher(pos.expr)
 		if err == nil {
 			segments = append(segments, TemplateSegment{
@@ -501,7 +494,6 @@ func buildSegments(value string, positions []placeholderPos) []TemplateSegment {
 		lastEnd = pos.end
 	}
 
-	// Add trailing literal if any.
 	if lastEnd < len(value) {
 		segments = append(segments, TemplateSegment{
 			Literal: value[lastEnd:],
@@ -525,7 +517,6 @@ func extractHTMLMatcherPaths(node *HTMLNode, positions map[string]string) {
 		return
 	}
 
-	// Check text content.
 	if m, ok := node.Text.(Matcher); ok {
 		positions[node.Path] = m.String()
 	}
@@ -534,7 +525,6 @@ func extractHTMLMatcherPaths(node *HTMLNode, positions map[string]string) {
 		positions[node.Path] = ts.String()
 	}
 
-	// Check attributes.
 	for attr, val := range node.Attributes {
 		if m, ok := val.(Matcher); ok {
 			positions[node.Path+"@"+attr] = m.String()
@@ -545,7 +535,6 @@ func extractHTMLMatcherPaths(node *HTMLNode, positions map[string]string) {
 		}
 	}
 
-	// Recurse into children.
 	for _, child := range node.Children {
 		extractHTMLMatcherPaths(child, positions)
 	}
