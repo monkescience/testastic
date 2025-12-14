@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -141,13 +142,7 @@ type oneOfMatcher struct {
 }
 
 func (m *oneOfMatcher) Match(actual any) bool {
-	for _, v := range m.values {
-		if actual == v {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(m.values, actual)
 }
 
 func (m *oneOfMatcher) String() string {

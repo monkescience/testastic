@@ -3,6 +3,7 @@ package testastic
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"testing"
 )
@@ -86,10 +87,8 @@ func NotEmpty(tb testing.TB, collection any) {
 func SliceContains[T comparable](tb testing.TB, slice []T, element T) {
 	tb.Helper()
 
-	for _, v := range slice {
-		if v == element {
-			return
-		}
+	if slices.Contains(slice, element) {
+		return
 	}
 
 	tb.Errorf(
@@ -102,15 +101,11 @@ func SliceContains[T comparable](tb testing.TB, slice []T, element T) {
 func SliceNotContains[T comparable](tb testing.TB, slice []T, element T) {
 	tb.Helper()
 
-	for _, v := range slice {
-		if v == element {
-			tb.Errorf(
-				"testastic: assertion failed\n\n  SliceNotContains\n    slice:   %s\n    element: %s (found)",
-				green(formatSlice(slice)), red(formatVal(element)),
-			)
-
-			return
-		}
+	if slices.Contains(slice, element) {
+		tb.Errorf(
+			"testastic: assertion failed\n\n  SliceNotContains\n    slice:   %s\n    element: %s (found)",
+			green(formatSlice(slice)), red(formatVal(element)),
+		)
 	}
 }
 
@@ -205,12 +200,13 @@ func getLen(collection any) int {
 	}
 
 	v := reflect.ValueOf(collection)
-	switch v.Kind() { //nolint:exhaustive // Only collection types have length.
+	//nolint:exhaustive // Only collection types have length.
+	switch v.Kind() {
 	case reflect.Slice, reflect.Map, reflect.String, reflect.Array, reflect.Chan:
 		return v.Len()
+	default:
+		return -1
 	}
-
-	return -1
 }
 
 // formatSlice formats a slice for display, truncating if too long.

@@ -278,12 +278,13 @@ func isNil(value any) bool {
 	}
 
 	v := reflect.ValueOf(value)
-	switch v.Kind() { //nolint:exhaustive // Only nil-able types need checking.
+	//nolint:exhaustive // Only nil-able types need checking.
+	switch v.Kind() {
 	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice:
 		return v.IsNil()
+	default:
+		return false
 	}
-
-	return false
 }
 
 // formatVal formats a value for display in error messages.

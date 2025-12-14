@@ -1,3 +1,4 @@
+# golangci-lint v2.7.2 (2025-12-14)
 version: "2"
 
 run:
@@ -50,6 +51,12 @@ linters:
     - wastedassign
     - forcetypeassert
     - noinlineerr
+    - iotamixing
+    - gochecksumtype
+    - musttag
+    - sqlclosecheck
+    - rowserrcheck
+    - unqueryvet
 
     # Security
     - gosec
@@ -69,6 +76,8 @@ linters:
     - decorder
     - grouper
     - importas
+    - modernize
+    - iface
 
     # Style
     - misspell
@@ -89,6 +98,9 @@ linters:
     - tagalign
     - nlreturn
     - wsl_v5
+    - godoclint
+    - godox
+    - funcorder
 
     # Strict error handling
     - err113
@@ -101,6 +113,8 @@ linters:
     - thelper
     - testpackage
     - testableexamples
+    - tparallel
+    - usetesting
 
     # Logging
     - sloglint
@@ -131,6 +145,44 @@ linters:
     - dupl
     - recvcheck
     - exptostd
+    - forbidigo
+    - protogetter
+
+    # --- Disabled linters (with reasons) ---
+
+    # Too strict / noisy
+    # - exhaustruct          # requires ALL struct fields initialized - extremely noisy
+    # - varnamelen           # opinionated variable name length rules - often annoying
+    # - gochecknoglobals     # forbids all globals - too restrictive, many legitimate uses
+    # - paralleltest         # requires t.Parallel() everywhere - can be noisy
+
+    # Redundant with existing linters
+    # - cyclop               # cyclomatic complexity - already have gocognit
+    # - gocyclo              # cyclomatic complexity - already have gocognit
+    # - maintidx             # maintainability index - arbitrary metric, gocognit is better
+    # - revive               # golint replacement - gocritic covers similar rules
+
+    # Framework/library specific (enable if using)
+    # - arangolint           # ArangoDB client best practices
+    # - ginkgolinter         # Ginkgo/Gomega test framework
+    # - zerologlint          # zerolog logger
+    # - testifylint          # testify assertions - enable if using testify
+    # - loggercheck          # kitlog/klog/logr/zap - already have sloglint for slog
+
+    # Needs configuration / project-specific
+    # - depguard             # block/allow package imports - needs allowlist config
+    # - gomodguard           # block/allow module dependencies - needs config
+    # - goheader             # file header checks - only for license boilerplate
+
+    # Opinionated / often wrong
+    # - ireturn              # "return concrete types" - often incorrect for interfaces
+    # - embeddedstructfieldcheck  # strict embedded field ordering - too pedantic
+
+    # i18n / niche
+    # - gosmopolitan         # i18n/l10n anti-patterns - very niche use case
+
+    # Deprecated
+    # - wsl                  # deprecated - using wsl_v5 instead
 
 formatters:
   enable:

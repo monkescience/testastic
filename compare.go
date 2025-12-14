@@ -209,12 +209,7 @@ func compareArrays(expected []any, actual any, path string, cfg *Config) []Diffe
 func compareArraysOrdered(expected, actual []any, path string, cfg *Config) []Difference {
 	var diffs []Difference
 
-	maxLen := len(expected)
-	if len(actual) > maxLen {
-		maxLen = len(actual)
-	}
-
-	for i := range maxLen {
+	for i := range max(len(expected), len(actual)) {
 		childPath := fmt.Sprintf("%s[%d]", path, i)
 
 		switch {
