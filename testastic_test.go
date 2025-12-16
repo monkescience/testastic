@@ -131,6 +131,21 @@ func TestAssertJSON_WithRegexMatcher(t *testing.T) {
 	testastic.AssertJSON(t, expectedFile, actual)
 }
 
+func TestAssertJSON_WithRegexMatcherContainingBraces(t *testing.T) {
+	// GIVEN: an expected JSON file with regex containing braces
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "regex_braces.expected.json")
+
+	expected := "{\"date\": \"{{regex `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`}}\"}"
+	writeTestFile(t, expectedFile, expected)
+
+	// WHEN: asserting with a value matching the regex pattern
+	actual := `{"date": "2024-01-15"}`
+
+	// THEN: the test passes (value matches regex with quantifiers)
+	testastic.AssertJSON(t, expectedFile, actual)
+}
+
 func TestAssertJSON_WithOneOfMatcher(t *testing.T) {
 	// GIVEN: an expected JSON file with oneOf matcher
 	dir := t.TempDir()
