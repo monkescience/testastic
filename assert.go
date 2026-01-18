@@ -108,7 +108,7 @@ func ErrorIs(tb testing.TB, err, target error) {
 	tb.Helper()
 
 	if !errors.Is(err, target) {
-		errStr := "nil"
+		errStr := nilTypeName
 		if err != nil {
 			errStr = err.Error()
 		}
