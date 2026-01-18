@@ -50,11 +50,26 @@ type TemplateSegment struct {
 // TemplateString represents a string with embedded matchers.
 type TemplateString struct {
 	Segments []TemplateSegment
-	Original string // For display: "border-left: 6px solid {{anyString}}".
+	Original string         // For display: "border-left: 6px solid {{anyString}}".
+	regex    *regexp.Regexp // Pre-compiled regex for matching.
 }
 
 // Match checks if the actual string matches the template pattern.
-func (t TemplateString) Match(actual string) bool {
+func (t *TemplateString) Match(actual string) bool {
+	if t.regex == nil {
+		return false
+	}
+
+	return t.regex.MatchString(actual)
+}
+
+// String returns the original template representation.
+func (t *TemplateString) String() string {
+	return t.Original
+}
+
+// buildRegex compiles the regex pattern from segments.
+func (t *TemplateString) buildRegex() error {
 	var pattern strings.Builder
 
 	pattern.WriteString("^")
@@ -71,15 +86,12 @@ func (t TemplateString) Match(actual string) bool {
 
 	re, err := regexp.Compile(pattern.String())
 	if err != nil {
-		return false
+		return fmt.Errorf("failed to compile template regex: %w", err)
 	}
 
-	return re.MatchString(actual)
-}
+	t.regex = re
 
-// String returns the original template representation.
-func (t TemplateString) String() string {
-	return t.Original
+	return nil
 }
 
 // matcherToRegex converts a matcher to its regex equivalent.
@@ -425,10 +437,15 @@ func parseTemplateString(value string, matchers map[string]string) TemplateStrin
 	positions := findPlaceholderPositions(value, matchers)
 	segments := buildSegments(value, positions)
 
-	return TemplateString{
+	ts := TemplateString{
 		Segments: segments,
 		Original: original,
 	}
+
+	// Pre-compile regex for performance.
+	_ = ts.buildRegex()
+
+	return ts
 }
 
 // buildOriginalDisplay creates the display string with {{expr}} format.
