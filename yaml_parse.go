@@ -1,0 +1,163 @@
+package testastic
+
+import (
+	"fmt"
+	"os"
+	"regexp"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+// ExpectedYAML represents a parsed expected YAML file with matchers.
+type ExpectedYAML struct {
+	Data     any               // Parsed YAML with Matcher objects in place of template expressions
+	Matchers map[string]string // Map of placeholder to original template expression
+	Raw      string            // Original file content for update operations
+}
+
+// yamlMatcherPlaceholderPrefix is the prefix used for YAML matcher placeholders.
+const yamlMatcherPlaceholderPrefix = "__TESTASTIC_YAML_MATCHER_"
+
+// yamlTemplateExprRegex matches {{...}} expressions in YAML.
+var yamlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
+
+// ParseExpectedYAMLFile reads and parses an expected YAML file, replacing template expressions with matchers.
+func ParseExpectedYAMLFile(path string) (*ExpectedYAML, error) {
+	content, err := os.ReadFile(path) //nolint:gosec // Path is controlled by test code.
+	if err != nil {
+		return nil, fmt.Errorf("failed to read expected YAML file: %w", err)
+	}
+
+	return ParseExpectedYAMLString(string(content))
+}
+
+// ParseExpectedYAMLString parses an expected YAML string with template expressions.
+func ParseExpectedYAMLString(content string) (*ExpectedYAML, error) {
+	expected := &ExpectedYAML{
+		Matchers: make(map[string]string),
+		Raw:      content,
+	}
+
+	// Find all template expressions and replace with placeholders
+	matcherIndex := 0
+	processedContent := yamlTemplateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
+		// Extract the expression (remove {{ and }})
+		expr := match
+		expr = strings.TrimPrefix(expr, "{{")
+		expr = strings.TrimSuffix(expr, "}}")
+		expr = trimSpace(expr)
+
+		placeholder := fmt.Sprintf("%s%d__", yamlMatcherPlaceholderPrefix, matcherIndex)
+		expected.Matchers[placeholder] = expr
+		matcherIndex++
+
+		return placeholder
+	})
+
+	// Parse YAML
+	var data any
+
+	err := yaml.Unmarshal([]byte(processedContent), &data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
+	}
+
+	// Normalize and replace placeholders with matchers
+	normalized := normalizeYAMLData(data)
+
+	replaced, err := replaceYAMLPlaceholders(normalized, expected.Matchers)
+	if err != nil {
+		return nil, err
+	}
+
+	expected.Data = replaced
+
+	return expected, nil
+}
+
+// replaceYAMLPlaceholders walks the parsed YAML and replaces placeholder strings with Matcher objects.
+//
+//nolint:dupl // Similar to JSON version but uses different placeholder prefix.
+func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) {
+	switch v := data.(type) {
+	case map[string]any:
+		result := make(map[string]any, len(v))
+		for key, val := range v {
+			replaced, err := replaceYAMLPlaceholders(val, matchers)
+			if err != nil {
+				return nil, err
+			}
+
+			result[key] = replaced
+		}
+
+		return result, nil
+
+	case []any:
+		result := make([]any, len(v))
+		for i, val := range v {
+			replaced, err := replaceYAMLPlaceholders(val, matchers)
+			if err != nil {
+				return nil, err
+			}
+
+			result[i] = replaced
+		}
+
+		return result, nil
+
+	case string:
+		if strings.HasPrefix(v, yamlMatcherPlaceholderPrefix) {
+			expr, ok := matchers[v]
+			if !ok {
+				return nil, fmt.Errorf("%w: %s", ErrUnknownPlaceholder, v)
+			}
+
+			matcher, err := ParseMatcher(expr)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
+			}
+
+			return matcher, nil
+		}
+
+		return v, nil
+
+	default:
+		return v, nil
+	}
+}
+
+// ExtractMatcherPositions returns a map of YAML paths to their original template expressions.
+func (e *ExpectedYAML) ExtractMatcherPositions() map[string]string {
+	positions := make(map[string]string)
+	extractYAMLMatcherPaths(e.Data, "$", positions)
+
+	return positions
+}
+
+// extractYAMLMatcherPaths recursively finds all Matcher positions in the data structure.
+func extractYAMLMatcherPaths(data any, path string, positions map[string]string) {
+	switch v := data.(type) {
+	case map[string]any:
+		for key, val := range v {
+			childPath := path + "." + key
+			if m, ok := val.(Matcher); ok {
+				positions[childPath] = m.String()
+			} else {
+				extractYAMLMatcherPaths(val, childPath, positions)
+			}
+		}
+
+	case []any:
+		for i, val := range v {
+			childPath := fmt.Sprintf("%s[%d]", path, i)
+			if m, ok := val.(Matcher); ok {
+				positions[childPath] = m.String()
+			} else {
+				extractYAMLMatcherPaths(val, childPath, positions)
+			}
+		}
+	}
+}

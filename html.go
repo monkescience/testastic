@@ -3,7 +3,6 @@ package testastic
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"testing"
 )
@@ -21,7 +20,7 @@ var ErrUnsupportedHTMLType = errors.New("unsupported type for HTML comparison")
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlString)
 //
 //nolint:funlen // Main assertion function needs sequential validation steps.
-func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...HTMLOption) {
+func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...interface{}) {
 	tb.Helper()
 
 	// Convert actual to []byte
@@ -33,7 +32,21 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...HTM
 	}
 
 	// Build config
-	cfg := newHTMLConfig(opts...)
+	cfg := &HTMLConfig{
+		BaseConfig: BaseConfig{
+			Update: shouldUpdate(),
+		},
+	}
+	for _, opt := range opts {
+		switch o := opt.(type) {
+		case AssertionOption:
+			o.applyToHTMLConfig(cfg)
+		case HTMLOption:
+			o(cfg)
+		default:
+			tb.Fatalf("testastic: invalid option type: %T", opt)
+		}
+	}
 
 	// Check if expected file exists
 	_, statErr := os.Stat(expectedFile)
@@ -91,36 +104,25 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...HTM
 	// Report differences
 	if len(diffs) > 0 {
 		sortHTMLDiffs(diffs)
+		msg := formatAssertionMessage("AssertHTML", expectedFile, cfg.Message)
 		tb.Errorf(
-			"testastic: assertion failed\n\n  AssertHTML (%s)\n%s",
-			expectedFile, FormatHTMLDiffInline(expected.Root, actualNode),
+			"testastic: assertion failed\n\n  %s\n%s",
+			msg, FormatHTMLDiffInline(expected.Root, actualNode),
 		)
 	}
 }
 
 // toHTMLBytes converts various input types to []byte.
 func toHTMLBytes[T any](v T) ([]byte, error) {
-	switch val := any(v).(type) {
-	case []byte:
-		return val, nil
-
-	case string:
-		return []byte(val), nil
-
-	case io.Reader:
-		data, err := io.ReadAll(val)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read from io.Reader: %w", err)
-		}
-
-		return data, nil
-
-	case fmt.Stringer:
-		return []byte(val.String()), nil
-
-	default:
-		return nil, fmt.Errorf("%w: %T (expected []byte, string, io.Reader, or fmt.Stringer)", ErrUnsupportedHTMLType, v)
+	if data, handled, err := bytesFromCommonInput(v); handled {
+		return data, err
 	}
+
+	if stringer, ok := any(v).(fmt.Stringer); ok {
+		return []byte(stringer.String()), nil
+	}
+
+	return nil, fmt.Errorf("%w: %T (expected []byte, string, io.Reader, or fmt.Stringer)", ErrUnsupportedHTMLType, v)
 }
 
 // createExpectedHTMLFile creates a new expected HTML file with formatted content.

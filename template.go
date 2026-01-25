@@ -84,6 +84,8 @@ func ParseExpectedString(content string) (*ExpectedJSON, error) {
 }
 
 // replacePlaceholders walks the parsed JSON and replaces placeholder strings with Matcher objects.
+//
+//nolint:dupl // Similar to YAML version but uses different placeholder prefix.
 func replacePlaceholders(data any, matchers map[string]string) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:

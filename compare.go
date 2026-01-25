@@ -11,8 +11,8 @@ import (
 // Returns a list of differences found.
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
-func compare(expected, actual any, path string, cfg *Config) []Difference {
-	if cfg.isFieldIgnored(path) {
+func compare(expected, actual any, path string, cfg CompareConfig) []Difference {
+	if cfg.IsFieldIgnored(path) {
 		return nil
 	}
 
@@ -123,7 +123,7 @@ func compare(expected, actual any, path string, cfg *Config) []Difference {
 }
 
 // compareObjects compares two JSON objects (maps).
-func compareObjects(expected map[string]any, actual any, path string, cfg *Config) []Difference {
+func compareObjects(expected map[string]any, actual any, path string, cfg CompareConfig) []Difference {
 	actMap, ok := actual.(map[string]any)
 	if !ok {
 		return []Difference{{
@@ -139,7 +139,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *Confi
 	// First pass: check for missing and changed keys in expected.
 	for key, expVal := range expected {
 		childPath := path + "." + key
-		if cfg.isFieldIgnored(childPath) {
+		if cfg.IsFieldIgnored(childPath) {
 			continue
 		}
 
@@ -163,7 +163,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *Confi
 	// Second pass: check for extra keys in actual.
 	for key, actVal := range actMap {
 		childPath := path + "." + key
-		if cfg.isFieldIgnored(childPath) {
+		if cfg.IsFieldIgnored(childPath) {
 			continue
 		}
 
@@ -181,7 +181,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *Confi
 }
 
 // compareArrays compares two JSON arrays.
-func compareArrays(expected []any, actual any, path string, cfg *Config) []Difference {
+func compareArrays(expected []any, actual any, path string, cfg CompareConfig) []Difference {
 	actArr, ok := actual.([]any)
 	if !ok {
 		return []Difference{{
@@ -192,7 +192,7 @@ func compareArrays(expected []any, actual any, path string, cfg *Config) []Diffe
 		}}
 	}
 
-	if cfg.shouldIgnoreArrayOrder(path) {
+	if cfg.ShouldIgnoreArrayOrder(path) {
 		return compareArraysUnordered(expected, actArr, path, cfg)
 	}
 
@@ -200,7 +200,7 @@ func compareArrays(expected []any, actual any, path string, cfg *Config) []Diffe
 }
 
 // compareArraysOrdered compares arrays where order matters.
-func compareArraysOrdered(expected, actual []any, path string, cfg *Config) []Difference {
+func compareArraysOrdered(expected, actual []any, path string, cfg CompareConfig) []Difference {
 	var diffs []Difference
 
 	for i := range max(len(expected), len(actual)) {
@@ -231,8 +231,8 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *Config) []Di
 
 // compareArraysUnordered compares arrays where order doesn't matter.
 //
-//nolint:funlen // Unordered comparison requires explicit matching logic.
-func compareArraysUnordered(expected, actual []any, path string, cfg *Config) []Difference {
+//nolint:funlen,dupl // Unordered comparison requires explicit matching logic. Similar to YAML version.
+func compareArraysUnordered(expected, actual []any, path string, cfg CompareConfig) []Difference {
 	if len(expected) != len(actual) {
 		return []Difference{{
 			Path:     path,

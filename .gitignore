@@ -3,3 +3,9 @@
 *.iml
 *.ipr
 *.iws
+
+# Test coverage
+coverage.out
+
+# Sisyphus
+.sisyphus/

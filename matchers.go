@@ -149,6 +149,60 @@ func (m *oneOfMatcher) String() string {
 	return fmt.Sprintf("{{oneOf %v}}", m.values)
 }
 
+// anyUUIDMatcher matches UUID strings (RFC 4122).
+type anyUUIDMatcher struct {
+	re *regexp.Regexp
+}
+
+func (m *anyUUIDMatcher) Match(actual any) bool {
+	s, ok := actual.(string)
+	if !ok {
+		return false
+	}
+
+	return m.re.MatchString(strings.ToLower(s))
+}
+
+func (m *anyUUIDMatcher) String() string {
+	return "{{anyUUID}}"
+}
+
+// anyDateTimeMatcher matches ISO 8601 datetime strings.
+type anyDateTimeMatcher struct {
+	re *regexp.Regexp
+}
+
+func (m *anyDateTimeMatcher) Match(actual any) bool {
+	s, ok := actual.(string)
+	if !ok {
+		return false
+	}
+
+	return m.re.MatchString(s)
+}
+
+func (m *anyDateTimeMatcher) String() string {
+	return "{{anyDateTime}}"
+}
+
+// anyURLMatcher matches URL strings.
+type anyURLMatcher struct {
+	re *regexp.Regexp
+}
+
+func (m *anyURLMatcher) Match(actual any) bool {
+	s, ok := actual.(string)
+	if !ok {
+		return false
+	}
+
+	return m.re.MatchString(s)
+}
+
+func (m *anyURLMatcher) String() string {
+	return "{{anyURL}}"
+}
+
 // Template function constructors for creating matchers.
 // These are used by the template parser.
 
@@ -197,6 +251,37 @@ func OneOf(values ...any) Matcher {
 	return &oneOfMatcher{values: values}
 }
 
+var (
+	uuidRegex     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	dateTimeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$`)
+	urlRegex      = regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
+)
+
+// AnyUUID returns a matcher that matches UUID strings (RFC 4122).
+func AnyUUID() Matcher {
+	return &anyUUIDMatcher{re: uuidRegex}
+}
+
+// AnyDateTime returns a matcher that matches ISO 8601 datetime strings.
+func AnyDateTime() Matcher {
+	return &anyDateTimeMatcher{re: dateTimeRegex}
+}
+
+// AnyURL returns a matcher that matches URL strings.
+func AnyURL() Matcher {
+	return &anyURLMatcher{re: urlRegex}
+}
+
+// MatcherFactory creates a Matcher from arguments extracted from template expression.
+type MatcherFactory func(args string) (Matcher, error)
+
+var customMatchers = make(map[string]MatcherFactory)
+
+// RegisterMatcher registers a custom matcher factory with the given name.
+func RegisterMatcher(name string, factory MatcherFactory) {
+	customMatchers[name] = factory
+}
+
 // ParseMatcher creates a Matcher from a template expression.
 // The expression is the content between {{ and }}.
 func ParseMatcher(expr string) (Matcher, error) {
@@ -213,6 +298,23 @@ func ParseMatcher(expr string) (Matcher, error) {
 		return AnyValue(), nil
 	case "ignore":
 		return Ignore(), nil
+	case "anyUUID":
+		return AnyUUID(), nil
+	case "anyDateTime":
+		return AnyDateTime(), nil
+	case "anyURL":
+		return AnyURL(), nil
+	}
+
+	if factory, ok := customMatchers[expr]; ok {
+		return factory("")
+	}
+
+	parts := strings.SplitN(expr, " ", 2)
+	if len(parts) == 2 {
+		if factory, ok := customMatchers[parts[0]]; ok {
+			return factory(parts[1])
+		}
 	}
 
 	// Handle regex `pattern`

@@ -21,7 +21,7 @@ import (
 //	testastic.AssertJSON(t, "testdata/user.expected.json", jsonBytes)
 //
 //nolint:funlen // Main assertion function needs sequential validation steps.
-func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
+func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...interface{}) {
 	tb.Helper()
 
 	// Convert actual to []byte
@@ -33,7 +33,21 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	}
 
 	// Build config
-	cfg := newConfig(opts...)
+	cfg := &Config{
+		BaseConfig: BaseConfig{
+			Update: shouldUpdate(),
+		},
+	}
+	for _, opt := range opts {
+		switch o := opt.(type) {
+		case AssertionOption:
+			o.applyToConfig(cfg)
+		case Option:
+			o(cfg)
+		default:
+			tb.Fatalf("testastic: invalid option type: %T", opt)
+		}
+	}
 
 	// Check if expected file exists
 	_, statErr := os.Stat(expectedFile)
@@ -91,37 +105,55 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	// Report differences
 	if len(diffs) > 0 {
 		sortDiffs(diffs)
+		msg := formatAssertionMessage("AssertJSON", expectedFile, cfg.Message)
 		tb.Errorf(
-			"testastic: assertion failed\n\n  AssertJSON (%s)\n%s",
-			expectedFile, FormatDiffInline(expected.Data, actualData),
+			"testastic: assertion failed\n\n  %s\n%s",
+			msg, FormatDiffInline(expected.Data, actualData),
 		)
+	}
+}
+
+// formatAssertionMessage creates the assertion header with optional custom message.
+func formatAssertionMessage(assertType, file, customMsg string) string {
+	if customMsg != "" {
+		return assertType + " (" + file + "): " + customMsg
+	}
+	return assertType + " (" + file + ")"
+}
+
+// bytesFromCommonInput handles common input types ([]byte, string, io.Reader).
+// Returns (bytes, handled, error). If handled is false, caller should handle the type.
+func bytesFromCommonInput[T any](v T) ([]byte, bool, error) {
+	switch val := any(v).(type) {
+	case []byte:
+		return val, true, nil
+
+	case string:
+		return []byte(val), true, nil
+
+	case io.Reader:
+		data, err := io.ReadAll(val)
+		if err != nil {
+			return nil, true, fmt.Errorf("failed to read from io.Reader: %w", err)
+		}
+
+		return data, true, nil
+
+	default:
+		return nil, false, nil
 	}
 }
 
 // toBytes converts various input types to []byte of JSON.
 func toBytes[T any](v T) ([]byte, error) {
-	switch val := any(v).(type) {
-	case []byte:
-		return val, nil
-
-	case string:
-		return []byte(val), nil
-
-	case io.Reader:
-		data, err := io.ReadAll(val)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read from io.Reader: %w", err)
-		}
-
-		return data, nil
-
-	default:
-		// Marshal struct or other types to JSON
-		data, err := json.Marshal(val)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal to JSON: %w", err)
-		}
-
-		return data, nil
+	if data, handled, err := bytesFromCommonInput(v); handled {
+		return data, err
 	}
+
+	data, err := json.Marshal(v)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal to JSON: %w", err)
+	}
+
+	return data, nil
 }

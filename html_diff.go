@@ -12,46 +12,17 @@ const nilValueDisplay = "(nil)"
 // nilTypeName is the type name for nil values.
 const nilTypeName = "nil"
 
-// FormatHTMLDiff formats a slice of HTML differences into a human-readable string.
-//
-//nolint:dupl // Similar structure to FormatDiff is intentional for consistency.
 func FormatHTMLDiff(diffs []HTMLDifference) string {
-	if len(diffs) == 0 {
-		return ""
-	}
-
-	var sb strings.Builder
-
-	if len(diffs) == 1 {
-		sb.WriteString("HTML mismatch at 1 path:\n")
-	} else {
-		sb.WriteString(fmt.Sprintf("HTML mismatch at %d paths:\n", len(diffs)))
-	}
-
-	for _, d := range diffs {
-		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf("  %s\n", d.Path))
-
-		switch d.Type {
-		case DiffAdded:
-			sb.WriteString("    expected: (missing)\n")
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", formatHTMLValue(d.Actual)))
-
-		case DiffRemoved:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", formatHTMLValue(d.Expected)))
-			sb.WriteString("    actual:   (missing)\n")
-
-		case DiffTypeMismatch:
-			sb.WriteString(fmt.Sprintf("    expected: %s (type: %s)\n", formatHTMLValue(d.Expected), typeOfHTML(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s (type: %s)\n", formatHTMLValue(d.Actual), typeOfHTML(d.Actual)))
-
-		case DiffChanged, DiffMatcherFailed:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", formatHTMLValue(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", formatHTMLValue(d.Actual)))
+	converted := make([]Difference, len(diffs))
+	for i, d := range diffs {
+		converted[i] = Difference{
+			Path:     d.Path,
+			Expected: d.Expected,
+			Actual:   d.Actual,
+			Type:     d.Type,
 		}
 	}
-
-	return sb.String()
+	return formatDiffList(converted, "HTML", formatHTMLValue, typeOfHTML)
 }
 
 // FormatHTMLDiffInline generates a git-style inline diff between expected and actual HTML.

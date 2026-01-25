@@ -52,11 +52,10 @@ type Difference struct {
 	Type     DiffType // Type of difference
 }
 
-// FormatDiff formats a slice of differences into a human-readable string.
-// This is the simple format showing paths and values.
-//
-//nolint:dupl // Similar structure to FormatHTMLDiff is intentional for consistency.
-func FormatDiff(diffs []Difference) string {
+type valueFormatter func(any) string
+type typeFormatter func(any) string
+
+func formatDiffList(diffs []Difference, formatName string, fmtValue valueFormatter, fmtType typeFormatter) string {
 	if len(diffs) == 0 {
 		return ""
 	}
@@ -64,9 +63,9 @@ func FormatDiff(diffs []Difference) string {
 	var sb strings.Builder
 
 	if len(diffs) == 1 {
-		sb.WriteString("JSON mismatch at 1 path:\n")
+		sb.WriteString(fmt.Sprintf("%s mismatch at 1 path:\n", formatName))
 	} else {
-		sb.WriteString(fmt.Sprintf("JSON mismatch at %d paths:\n", len(diffs)))
+		sb.WriteString(fmt.Sprintf("%s mismatch at %d paths:\n", formatName, len(diffs)))
 	}
 
 	for _, d := range diffs {
@@ -76,23 +75,29 @@ func FormatDiff(diffs []Difference) string {
 		switch d.Type {
 		case DiffAdded:
 			sb.WriteString("    expected: (missing)\n")
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", formatValue(d.Actual)))
+			sb.WriteString(fmt.Sprintf("    actual:   %s\n", fmtValue(d.Actual)))
 
 		case DiffRemoved:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", formatValue(d.Expected)))
+			sb.WriteString(fmt.Sprintf("    expected: %s\n", fmtValue(d.Expected)))
 			sb.WriteString("    actual:   (missing)\n")
 
 		case DiffTypeMismatch:
-			sb.WriteString(fmt.Sprintf("    expected: %s (%s)\n", formatValue(d.Expected), typeOf(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s (%s)\n", formatValue(d.Actual), typeOf(d.Actual)))
+			sb.WriteString(fmt.Sprintf("    expected: %s (%s)\n", fmtValue(d.Expected), fmtType(d.Expected)))
+			sb.WriteString(fmt.Sprintf("    actual:   %s (%s)\n", fmtValue(d.Actual), fmtType(d.Actual)))
 
 		case DiffChanged, DiffMatcherFailed:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", formatValue(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", formatValue(d.Actual)))
+			sb.WriteString(fmt.Sprintf("    expected: %s\n", fmtValue(d.Expected)))
+			sb.WriteString(fmt.Sprintf("    actual:   %s\n", fmtValue(d.Actual)))
 		}
 	}
 
 	return sb.String()
+}
+
+// FormatDiff formats a slice of differences into a human-readable string.
+// This is the simple format showing paths and values.
+func FormatDiff(diffs []Difference) string {
+	return formatDiffList(diffs, "JSON", formatValue, typeOf)
 }
 
 // FormatDiffInline generates a git-style inline diff between expected and actual JSON.

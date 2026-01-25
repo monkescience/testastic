@@ -6,50 +6,101 @@ import (
 	"strings"
 )
 
-// Config holds the configuration for JSON comparison.
-type Config struct {
+// BaseConfig holds common configuration shared across all assertion types.
+type BaseConfig struct {
 	IgnoreArrayOrder      bool
 	IgnoreArrayOrderPaths []string
 	IgnoredFields         []string
 	Update                bool
+	Message               string
+}
+
+// CompareConfig is the interface for comparison configuration.
+type CompareConfig interface {
+	ShouldIgnoreArrayOrder(path string) bool
+	IsFieldIgnored(path string) bool
+}
+
+// ShouldIgnoreArrayOrder checks if array order should be ignored at the given path.
+func (c *BaseConfig) ShouldIgnoreArrayOrder(path string) bool {
+	if c.IgnoreArrayOrder {
+		return true
+	}
+
+	for _, p := range c.IgnoreArrayOrderPaths {
+		if p == path || strings.HasPrefix(path, p+".") || strings.HasPrefix(path, p+"[") {
+			return true
+		}
+	}
+
+	return false
+}
+
+// IsFieldIgnored checks if a field at the given path should be ignored.
+func (c *BaseConfig) IsFieldIgnored(path string) bool {
+	for _, f := range c.IgnoredFields {
+		if f == path {
+			return true
+		}
+		parts := strings.Split(path, ".")
+		if len(parts) > 0 && parts[len(parts)-1] == f {
+			return true
+		}
+	}
+
+	return false
+}
+
+// Config holds the configuration for JSON comparison.
+type Config struct {
+	BaseConfig
 }
 
 // Option is a functional option for configuring JSON comparison.
 type Option func(*Config)
 
-// IgnoreFields excludes the specified fields from comparison.
+// JSONIgnoreFields excludes the specified fields from comparison in JSON.
 // Fields can be simple names or JSON paths (e.g., "$.user.id").
-func IgnoreFields(fields ...string) Option {
+func JSONIgnoreFields(fields ...string) Option {
 	return func(c *Config) {
-		c.IgnoredFields = append(c.IgnoredFields, fields...)
+		c.BaseConfig.IgnoredFields = append(c.BaseConfig.IgnoredFields, fields...)
 	}
 }
 
-// IgnoreArrayOrder makes array comparison order-insensitive globally.
-func IgnoreArrayOrder() Option {
+// JSONIgnoreArrayOrder makes array comparison order-insensitive globally in JSON.
+func JSONIgnoreArrayOrder() Option {
 	return func(c *Config) {
-		c.IgnoreArrayOrder = true
+		c.BaseConfig.IgnoreArrayOrder = true
 	}
 }
 
-// IgnoreArrayOrderAt makes array comparison order-insensitive at the specified JSON path.
-func IgnoreArrayOrderAt(path string) Option {
+// JSONIgnoreArrayOrderAt makes array comparison order-insensitive at the specified JSON path.
+func JSONIgnoreArrayOrderAt(path string) Option {
 	return func(c *Config) {
-		c.IgnoreArrayOrderPaths = append(c.IgnoreArrayOrderPaths, path)
+		c.BaseConfig.IgnoreArrayOrderPaths = append(c.BaseConfig.IgnoreArrayOrderPaths, path)
 	}
 }
 
-// Update forces updating the expected file with the actual value.
-func Update() Option {
+// JSONUpdate forces updating the expected file with the actual value in JSON.
+func JSONUpdate() Option {
 	return func(c *Config) {
-		c.Update = true
+		c.BaseConfig.Update = true
+	}
+}
+
+// JSONMessage adds a custom message to the assertion failure output in JSON.
+func JSONMessage(msg string) Option {
+	return func(c *Config) {
+		c.BaseConfig.Message = msg
 	}
 }
 
 // newConfig creates a new Config with default values and applies options.
 func newConfig(opts ...Option) *Config {
 	cfg := &Config{
-		Update: shouldUpdate(),
+		BaseConfig: BaseConfig{
+			Update: shouldUpdate(),
+		},
 	}
 
 	for _, opt := range opts {

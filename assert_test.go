@@ -23,6 +23,13 @@ func (m *assertMockT) Errorf(format string, args ...any) {
 	m.message = fmt.Sprintf(format, args...)
 }
 
+func (m *assertMockT) Fatalf(format string, args ...any) {
+	m.failed = true
+	m.message = fmt.Sprintf(format, args...)
+}
+
+func (m *assertMockT) Logf(_ string, _ ...any) {}
+
 func newMockT() *assertMockT {
 	return &assertMockT{}
 }
