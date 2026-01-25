@@ -18,12 +18,9 @@ var ErrUnsupportedHTMLType = errors.New("unsupported type for HTML comparison")
 //	testastic.AssertHTML(t, "testdata/user.expected.html", resp.Body)
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlBytes)
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlString)
-//
-//nolint:funlen // Main assertion function needs sequential validation steps.
-func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...interface{}) {
+func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...any) {
 	tb.Helper()
 
-	// Convert actual to []byte
 	actualBytes, err := toHTMLBytes(actual)
 	if err != nil {
 		tb.Fatalf("testastic: failed to convert actual to bytes: %v", err)
@@ -31,12 +28,39 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...int
 		return
 	}
 
-	// Build config
-	cfg := &HTMLConfig{
-		BaseConfig: BaseConfig{
-			Update: shouldUpdate(),
-		},
+	cfg := buildHTMLConfig(tb, opts)
+
+	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedHTMLFile) {
+		return
 	}
+
+	expected, err := ParseExpectedHTMLFile(expectedFile)
+	if err != nil {
+		tb.Fatalf("testastic: %v", err)
+
+		return
+	}
+
+	actualNode, err := parseActualHTMLBytes(actualBytes)
+	if err != nil {
+		tb.Fatalf("testastic: %v", err)
+
+		return
+	}
+
+	diffs := compareHTML(expected.Root, actualNode, cfg)
+
+	if handleHTMLDiffs(tb, expectedFile, actualBytes, expected.Root, actualNode, diffs, cfg) {
+		return
+	}
+}
+
+// buildHTMLConfig creates an HTML config from the provided options.
+func buildHTMLConfig(tb testing.TB, opts []any) *HTMLConfig {
+	tb.Helper()
+
+	cfg := &HTMLConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case AssertionOption:
@@ -48,68 +72,38 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...int
 		}
 	}
 
-	// Check if expected file exists
-	_, statErr := os.Stat(expectedFile)
-	if os.IsNotExist(statErr) {
-		if cfg.Update {
-			createErr := createExpectedHTMLFile(expectedFile, actualBytes)
-			if createErr != nil {
-				tb.Fatalf("testastic: failed to create expected HTML file: %v", createErr)
-			}
+	return cfg
+}
 
-			tb.Logf("testastic: created expected HTML file %s", expectedFile)
+// handleHTMLDiffs handles update mode and error reporting for HTML.
+// Returns true if the assertion should stop.
+func handleHTMLDiffs(
+	tb testing.TB, path string, actualBytes []byte, expectedRoot, actualNode *HTMLNode,
+	diffs []HTMLDifference, cfg *HTMLConfig,
+) bool {
+	tb.Helper()
 
-			return
-		}
-
-		tb.Fatalf(
-			"testastic: expected HTML file does not exist: %s (run with -update to create)",
-			expectedFile,
-		)
-
-		return
+	if len(diffs) == 0 {
+		return false
 	}
 
-	// Parse expected file
-	expected, err := ParseExpectedHTMLFile(expectedFile)
-	if err != nil {
-		tb.Fatalf("testastic: %v", err)
-
-		return
-	}
-
-	// Parse actual HTML
-	actualNode, err := parseActualHTMLBytes(actualBytes)
-	if err != nil {
-		tb.Fatalf("testastic: %v", err)
-
-		return
-	}
-
-	// Compare
-	diffs := compareHTML(expected.Root, actualNode, cfg)
-
-	// If update mode and there are differences, update the file
-	if cfg.Update && len(diffs) > 0 {
-		updateErr := updateExpectedHTMLFile(expectedFile, actualBytes)
+	if cfg.Update {
+		updateErr := updateExpectedHTMLFile(path, actualBytes)
 		if updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected HTML file: %v", updateErr)
 		}
 
-		tb.Logf("testastic: updated expected HTML file %s", expectedFile)
+		tb.Logf("testastic: updated expected HTML file %s", path)
 
-		return
+		return true
 	}
 
-	// Report differences
-	if len(diffs) > 0 {
-		sortHTMLDiffs(diffs)
-		msg := formatAssertionMessage("AssertHTML", expectedFile, cfg.Message)
-		tb.Errorf(
-			"testastic: assertion failed\n\n  %s\n%s",
-			msg, FormatHTMLDiffInline(expected.Root, actualNode),
-		)
-	}
+	sortHTMLDiffs(diffs)
+
+	msg := formatAssertionMessage("AssertHTML", path, cfg.Message)
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatHTMLDiffInline(expectedRoot, actualNode))
+
+	return false
 }
 
 // toHTMLBytes converts various input types to []byte.

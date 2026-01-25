@@ -310,8 +310,10 @@ func ParseMatcher(expr string) (Matcher, error) {
 		return factory("")
 	}
 
-	parts := strings.SplitN(expr, " ", 2)
-	if len(parts) == 2 {
+	const matcherArgParts = 2
+
+	parts := strings.SplitN(expr, " ", matcherArgParts)
+	if len(parts) == matcherArgParts {
 		if factory, ok := customMatchers[parts[0]]; ok {
 			return factory(parts[1])
 		}

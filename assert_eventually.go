@@ -53,8 +53,31 @@ func eventually(
 ) {
 	tb.Helper()
 
+	eventuallyWithValue(tb, name, condition, func(v bool) bool { return v }, func(bool) string { return "" }, timeout, cfg)
+}
+
+// eventuallyWithValue is a generic retry helper that captures the last value for error formatting.
+func eventuallyWithValue[T any](
+	tb testing.TB,
+	name string,
+	getValue func() T,
+	condition func(T) bool,
+	formatFailure func(lastValue T) string,
+	timeout time.Duration,
+	cfg *eventuallyConfig,
+) {
+	tb.Helper()
+
+	var lastValue T
+
+	check := func() bool {
+		lastValue = getValue()
+
+		return condition(lastValue)
+	}
+
 	// Check immediately first.
-	if condition() {
+	if check() {
 		return
 	}
 
@@ -66,7 +89,7 @@ func eventually(
 	for {
 		<-ticker.C
 
-		if condition() {
+		if check() {
 			return
 		}
 
@@ -77,8 +100,8 @@ func eventually(
 			}
 
 			tb.Errorf(
-				"testastic: assertion failed\n\n  %s\n    timed out after %v%s",
-				name, timeout, msg,
+				"testastic: assertion failed\n\n  %s%s\n    timed out after %v%s",
+				name, formatFailure(lastValue), timeout, msg,
 			)
 
 			return
@@ -147,45 +170,17 @@ func EventuallyEqual[T comparable](
 
 	cfg := newEventuallyConfig(opts...)
 
-	var lastValue T
-
-	condition := func() bool {
-		lastValue = getValue()
-
-		return lastValue == expected
-	}
-
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(cfg.Interval)
-
-	defer ticker.Stop()
-
-	// Check immediately first.
-	if condition() {
-		return
-	}
-
-	for {
-		<-ticker.C
-
-		if condition() {
-			return
-		}
-
-		if time.Now().After(deadline) {
-			msg := ""
-			if cfg.Message != "" {
-				msg = "\n    message:  " + cfg.Message
-			}
-
-			tb.Errorf(
-				"testastic: assertion failed\n\n  EventuallyEqual\n    expected: %s\n    actual:   %s\n    timed out after %v%s",
-				red(formatVal(expected)), green(formatVal(lastValue)), timeout, msg,
-			)
-
-			return
-		}
-	}
+	eventuallyWithValue(
+		tb,
+		"EventuallyEqual",
+		getValue,
+		func(v T) bool { return v == expected },
+		func(lastValue T) string {
+			return "\n    expected: " + red(formatVal(expected)) + "\n    actual:   " + green(formatVal(lastValue))
+		},
+		timeout,
+		cfg,
+	)
 }
 
 // EventuallyNil retries until getValue returns nil.
@@ -229,50 +224,22 @@ func EventuallyNoError(tb testing.TB, getErr func() error, timeout time.Duration
 
 	cfg := newEventuallyConfig(opts...)
 
-	var lastErr error
-
-	condition := func() bool {
-		lastErr = getErr()
-
-		return lastErr == nil
-	}
-
-	deadline := time.Now().Add(timeout)
-	ticker := time.NewTicker(cfg.Interval)
-
-	defer ticker.Stop()
-
-	// Check immediately first.
-	if condition() {
-		return
-	}
-
-	for {
-		<-ticker.C
-
-		if condition() {
-			return
-		}
-
-		if time.Now().After(deadline) {
-			msg := ""
-			if cfg.Message != "" {
-				msg = "\n    message:    " + cfg.Message
-			}
-
+	eventuallyWithValue(
+		tb,
+		"EventuallyNoError",
+		getErr,
+		func(err error) bool { return err == nil },
+		func(lastErr error) string {
 			errStr := "nil"
 			if lastErr != nil {
 				errStr = lastErr.Error()
 			}
 
-			tb.Errorf(
-				"testastic: assertion failed\n\n  EventuallyNoError\n    last error: %s\n    timed out after %v%s",
-				red(errStr), timeout, msg,
-			)
-
-			return
-		}
-	}
+			return "\n    last error: " + red(errStr)
+		},
+		timeout,
+		cfg,
+	)
 }
 
 // EventuallyError retries until getErr returns a non-nil error.

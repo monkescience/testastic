@@ -19,12 +19,9 @@ import (
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", myUser)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", jsonBytes)
-//
-//nolint:funlen // Main assertion function needs sequential validation steps.
-func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...interface{}) {
+func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...any) {
 	tb.Helper()
 
-	// Convert actual to []byte
 	actualBytes, err := toBytes(actual)
 	if err != nil {
 		tb.Fatalf("testastic: failed to convert actual to bytes: %v", err)
@@ -32,12 +29,39 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...int
 		return
 	}
 
-	// Build config
-	cfg := &Config{
-		BaseConfig: BaseConfig{
-			Update: shouldUpdate(),
-		},
+	cfg := buildJSONConfig(tb, opts)
+
+	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedFile) {
+		return
 	}
+
+	expected, err := ParseExpectedFile(expectedFile)
+	if err != nil {
+		tb.Fatalf("testastic: %v", err)
+
+		return
+	}
+
+	actualData, err := parseActualJSON(actualBytes)
+	if err != nil {
+		tb.Fatalf("testastic: %v", err)
+
+		return
+	}
+
+	diffs := compare(expected.Data, actualData, "$", cfg)
+
+	if handleJSONDiffs(tb, expectedFile, actualBytes, expected, actualData, diffs, cfg) {
+		return
+	}
+}
+
+// buildJSONConfig creates a JSON config from the provided options.
+func buildJSONConfig(tb testing.TB, opts []any) *Config {
+	tb.Helper()
+
+	cfg := &Config{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case AssertionOption:
@@ -49,68 +73,66 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...int
 		}
 	}
 
-	// Check if expected file exists
-	_, statErr := os.Stat(expectedFile)
-	if os.IsNotExist(statErr) {
-		if cfg.Update {
-			createErr := createExpectedFile(expectedFile, actualBytes)
-			if createErr != nil {
-				tb.Fatalf("testastic: failed to create expected file: %v", createErr)
-			}
+	return cfg
+}
 
-			tb.Logf("testastic: created expected file %s", expectedFile)
+// handleMissingExpectedFile checks if file exists and creates it in update mode.
+// Returns true if the assertion should stop (file was created or fatal error).
+func handleMissingExpectedFile(
+	tb testing.TB, path string, actualBytes []byte, update bool, createFn func(string, []byte) error,
+) bool {
+	tb.Helper()
 
-			return
+	_, statErr := os.Stat(path)
+	if !os.IsNotExist(statErr) {
+		return false
+	}
+
+	if update {
+		createErr := createFn(path, actualBytes)
+		if createErr != nil {
+			tb.Fatalf("testastic: failed to create expected file: %v", createErr)
 		}
 
-		tb.Fatalf(
-			"testastic: expected file does not exist: %s (run with -update to create)",
-			expectedFile,
-		)
+		tb.Logf("testastic: created expected file %s", path)
 
-		return
+		return true
 	}
 
-	// Parse expected file
-	expected, err := ParseExpectedFile(expectedFile)
-	if err != nil {
-		tb.Fatalf("testastic: %v", err)
+	tb.Fatalf("testastic: expected file does not exist: %s (run with -update to create)", path)
 
-		return
+	return true
+}
+
+// handleJSONDiffs handles update mode and error reporting for JSON.
+// Returns true if the assertion should stop.
+func handleJSONDiffs(
+	tb testing.TB, path string, actualBytes []byte, expected *ExpectedJSON,
+	actualData any, diffs []Difference, cfg *Config,
+) bool {
+	tb.Helper()
+
+	if len(diffs) == 0 {
+		return false
 	}
 
-	// Parse actual JSON
-	actualData, err := parseActualJSON(actualBytes)
-	if err != nil {
-		tb.Fatalf("testastic: %v", err)
-
-		return
-	}
-
-	// Compare
-	diffs := compare(expected.Data, actualData, "$", cfg)
-
-	// If update mode and there are differences, update the file
-	if cfg.Update && len(diffs) > 0 {
-		updateErr := updateExpectedFile(expectedFile, actualBytes, expected)
+	if cfg.Update {
+		updateErr := updateExpectedFile(path, actualBytes, expected)
 		if updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", updateErr)
 		}
 
-		tb.Logf("testastic: updated expected file %s", expectedFile)
+		tb.Logf("testastic: updated expected file %s", path)
 
-		return
+		return true
 	}
 
-	// Report differences
-	if len(diffs) > 0 {
-		sortDiffs(diffs)
-		msg := formatAssertionMessage("AssertJSON", expectedFile, cfg.Message)
-		tb.Errorf(
-			"testastic: assertion failed\n\n  %s\n%s",
-			msg, FormatDiffInline(expected.Data, actualData),
-		)
-	}
+	sortDiffs(diffs)
+
+	msg := formatAssertionMessage("AssertJSON", path, cfg.Message)
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatDiffInline(expected.Data, actualData))
+
+	return false
 }
 
 // formatAssertionMessage creates the assertion header with optional custom message.
@@ -118,6 +140,7 @@ func formatAssertionMessage(assertType, file, customMsg string) string {
 	if customMsg != "" {
 		return assertType + " (" + file + "): " + customMsg
 	}
+
 	return assertType + " (" + file + ")"
 }
 

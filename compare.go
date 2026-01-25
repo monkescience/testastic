@@ -229,9 +229,46 @@ func compareArraysOrdered(expected, actual []any, path string, cfg CompareConfig
 	return diffs
 }
 
+// findUnorderedMatches finds matching indices between expected and actual slices.
+// Returns unmatched expected indices and unused actual indices.
+func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) bool) ([]int, []int) {
+	used := make([]bool, len(actual))
+
+	var unmatchedExp []int
+
+	for i, exp := range expected {
+		found := false
+
+		for j, act := range actual {
+			if used[j] {
+				continue
+			}
+
+			if matches(exp, act) {
+				used[j] = true
+				found = true
+
+				break
+			}
+		}
+
+		if !found {
+			unmatchedExp = append(unmatchedExp, i)
+		}
+	}
+
+	var unusedAct []int
+
+	for i, u := range used {
+		if !u {
+			unusedAct = append(unusedAct, i)
+		}
+	}
+
+	return unmatchedExp, unusedAct
+}
+
 // compareArraysUnordered compares arrays where order doesn't matter.
-//
-//nolint:funlen,dupl // Unordered comparison requires explicit matching logic. Similar to YAML version.
 func compareArraysUnordered(expected, actual []any, path string, cfg CompareConfig) []Difference {
 	if len(expected) != len(actual) {
 		return []Difference{{
@@ -242,62 +279,33 @@ func compareArraysUnordered(expected, actual []any, path string, cfg CompareConf
 		}}
 	}
 
-	used := make([]bool, len(actual))
+	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(exp, act any) bool {
+		return len(compare(exp, act, path, cfg)) == 0
+	})
 
-	var unmatched []int
-
-	for i, exp := range expected {
-		found := false
-
-		for j, act := range actual {
-			if used[j] {
-				continue
-			}
-
-			if len(compare(exp, act, path, cfg)) == 0 {
-				used[j] = true
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
-			unmatched = append(unmatched, i)
-		}
+	if len(unmatched) == 0 {
+		return nil
 	}
 
-	if len(unmatched) > 0 {
-		var unusedActual []int
+	var diffs []Difference
 
-		for i, u := range used {
-			if !u {
-				unusedActual = append(unusedActual, i)
-			}
+	for i, idx := range unmatched {
+		childPath := fmt.Sprintf("%s[%d]", path, idx)
+
+		var actualVal any
+		if i < len(unusedActual) {
+			actualVal = actual[unusedActual[i]]
 		}
 
-		var diffs []Difference
-
-		for i, idx := range unmatched {
-			childPath := fmt.Sprintf("%s[%d]", path, idx)
-
-			var actualVal any
-			if i < len(unusedActual) {
-				actualVal = actual[unusedActual[i]]
-			}
-
-			diffs = append(diffs, Difference{
-				Path:     childPath,
-				Expected: expected[idx],
-				Actual:   actualVal,
-				Type:     DiffChanged,
-			})
-		}
-
-		return diffs
+		diffs = append(diffs, Difference{
+			Path:     childPath,
+			Expected: expected[idx],
+			Actual:   actualVal,
+			Type:     DiffChanged,
+		})
 	}
 
-	return nil
+	return diffs
 }
 
 // compareNumbers compares numeric values, handling JSON number quirks.

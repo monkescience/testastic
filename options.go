@@ -37,13 +37,22 @@ func (c *BaseConfig) ShouldIgnoreArrayOrder(path string) bool {
 }
 
 // IsFieldIgnored checks if a field at the given path should be ignored.
+// Fields can be matched by exact path (e.g., "$.user.id") or by field name only (e.g., "id").
+// When matching by field name, all fields with that name at any depth are ignored.
 func (c *BaseConfig) IsFieldIgnored(path string) bool {
+	if len(c.IgnoredFields) == 0 {
+		return false
+	}
+
+	parts := strings.Split(path, ".")
+
+	lastPart := ""
+	if len(parts) > 0 {
+		lastPart = parts[len(parts)-1]
+	}
+
 	for _, f := range c.IgnoredFields {
-		if f == path {
-			return true
-		}
-		parts := strings.Split(path, ".")
-		if len(parts) > 0 && parts[len(parts)-1] == f {
+		if f == path || f == lastPart {
 			return true
 		}
 	}
@@ -63,51 +72,36 @@ type Option func(*Config)
 // Fields can be simple names or JSON paths (e.g., "$.user.id").
 func JSONIgnoreFields(fields ...string) Option {
 	return func(c *Config) {
-		c.BaseConfig.IgnoredFields = append(c.BaseConfig.IgnoredFields, fields...)
+		c.IgnoredFields = append(c.IgnoredFields, fields...)
 	}
 }
 
 // JSONIgnoreArrayOrder makes array comparison order-insensitive globally in JSON.
 func JSONIgnoreArrayOrder() Option {
 	return func(c *Config) {
-		c.BaseConfig.IgnoreArrayOrder = true
+		c.IgnoreArrayOrder = true
 	}
 }
 
 // JSONIgnoreArrayOrderAt makes array comparison order-insensitive at the specified JSON path.
 func JSONIgnoreArrayOrderAt(path string) Option {
 	return func(c *Config) {
-		c.BaseConfig.IgnoreArrayOrderPaths = append(c.BaseConfig.IgnoreArrayOrderPaths, path)
+		c.IgnoreArrayOrderPaths = append(c.IgnoreArrayOrderPaths, path)
 	}
 }
 
 // JSONUpdate forces updating the expected file with the actual value in JSON.
 func JSONUpdate() Option {
 	return func(c *Config) {
-		c.BaseConfig.Update = true
+		c.Update = true
 	}
 }
 
 // JSONMessage adds a custom message to the assertion failure output in JSON.
 func JSONMessage(msg string) Option {
 	return func(c *Config) {
-		c.BaseConfig.Message = msg
+		c.Message = msg
 	}
-}
-
-// newConfig creates a new Config with default values and applies options.
-func newConfig(opts ...Option) *Config {
-	cfg := &Config{
-		BaseConfig: BaseConfig{
-			Update: shouldUpdate(),
-		},
-	}
-
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	return cfg
 }
 
 // shouldUpdate checks if expected files should be updated.
@@ -128,38 +122,6 @@ func shouldUpdate() bool {
 	// Check if flag is registered and set
 	if f := flag.Lookup("update"); f != nil {
 		return f.Value.String() == "true"
-	}
-
-	return false
-}
-
-// shouldIgnoreArrayOrder checks if array order should be ignored at the given path.
-func (c *Config) shouldIgnoreArrayOrder(path string) bool {
-	if c.IgnoreArrayOrder {
-		return true
-	}
-
-	for _, p := range c.IgnoreArrayOrderPaths {
-		if p == path || strings.HasPrefix(path, p+".") || strings.HasPrefix(path, p+"[") {
-			return true
-		}
-	}
-
-	return false
-}
-
-// isFieldIgnored checks if a field at the given path should be ignored.
-func (c *Config) isFieldIgnored(path string) bool {
-	for _, f := range c.IgnoredFields {
-		// Exact match
-		if f == path {
-			return true
-		}
-		// Match by field name (last segment)
-		parts := strings.Split(path, ".")
-		if len(parts) > 0 && parts[len(parts)-1] == f {
-			return true
-		}
 	}
 
 	return false

@@ -309,8 +309,6 @@ func compareChildrenOrdered(expected, actual []*HTMLNode, path string, cfg *HTML
 }
 
 // compareChildrenUnordered compares children where order doesn't matter.
-//
-//nolint:funlen // Unordered comparison requires explicit matching logic.
 func compareChildrenUnordered(expected, actual []*HTMLNode, path string, cfg *HTMLConfig) []HTMLDifference {
 	if len(expected) != len(actual) {
 		return []HTMLDifference{{
@@ -321,63 +319,33 @@ func compareChildrenUnordered(expected, actual []*HTMLNode, path string, cfg *HT
 		}}
 	}
 
-	// Try to find a matching element for each expected element
-	used := make([]bool, len(actual))
+	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(exp, act *HTMLNode) bool {
+		return len(compareHTMLNodes(exp, act, path, cfg)) == 0
+	})
 
-	var unmatched []int
-
-	for i, exp := range expected {
-		found := false
-
-		for j, act := range actual {
-			if used[j] {
-				continue
-			}
-
-			if len(compareHTMLNodes(exp, act, path, cfg)) == 0 {
-				used[j] = true
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
-			unmatched = append(unmatched, i)
-		}
+	if len(unmatched) == 0 {
+		return nil
 	}
 
-	if len(unmatched) > 0 {
-		var unusedActual []int
+	var diffs []HTMLDifference
 
-		for i, u := range used {
-			if !u {
-				unusedActual = append(unusedActual, i)
-			}
+	for i, idx := range unmatched {
+		childPath := buildChildPath(path, expected[idx], idx)
+
+		var actualDesc any
+		if i < len(unusedActual) {
+			actualDesc = describeNode(actual[unusedActual[i]])
 		}
 
-		var diffs []HTMLDifference
-
-		for i, idx := range unmatched {
-			childPath := buildChildPath(path, expected[idx], idx)
-
-			var actualDesc any
-			if i < len(unusedActual) {
-				actualDesc = describeNode(actual[unusedActual[i]])
-			}
-
-			diffs = append(diffs, HTMLDifference{
-				Path:     childPath,
-				Expected: describeNode(expected[idx]),
-				Actual:   actualDesc,
-				Type:     DiffChanged,
-			})
-		}
-
-		return diffs
+		diffs = append(diffs, HTMLDifference{
+			Path:     childPath,
+			Expected: describeNode(expected[idx]),
+			Actual:   actualDesc,
+			Type:     DiffChanged,
+		})
 	}
 
-	return nil
+	return diffs
 }
 
 // filterSignificantChildren filters out insignificant nodes.

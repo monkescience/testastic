@@ -15,13 +15,9 @@ const nilTypeName = "nil"
 func FormatHTMLDiff(diffs []HTMLDifference) string {
 	converted := make([]Difference, len(diffs))
 	for i, d := range diffs {
-		converted[i] = Difference{
-			Path:     d.Path,
-			Expected: d.Expected,
-			Actual:   d.Actual,
-			Type:     d.Type,
-		}
+		converted[i] = Difference(d)
 	}
+
 	return formatDiffList(converted, "HTML", formatHTMLValue, typeOfHTML)
 }
 

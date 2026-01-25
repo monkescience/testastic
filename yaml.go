@@ -16,12 +16,9 @@ import (
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", myConfig)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", resp.Body)
-//
-//nolint:funlen // Main assertion function needs sequential validation steps.
-func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...interface{}) {
+func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...any) {
 	tb.Helper()
 
-	// Convert actual to []byte
 	actualBytes, err := toYAMLBytes(actual)
 	if err != nil {
 		tb.Fatalf("testastic: failed to convert actual to bytes: %v", err)
@@ -29,12 +26,39 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...int
 		return
 	}
 
-	// Build config
-	cfg := &YAMLConfig{
-		BaseConfig: BaseConfig{
-			Update: shouldUpdate(),
-		},
+	cfg := buildYAMLConfig(tb, opts)
+
+	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedYAMLFile) {
+		return
 	}
+
+	expected, err := ParseExpectedYAMLFile(expectedFile)
+	if err != nil {
+		tb.Fatalf("testastic: %v", err)
+
+		return
+	}
+
+	actualData, err := parseActualYAML(actualBytes)
+	if err != nil {
+		tb.Fatalf("testastic: %v", err)
+
+		return
+	}
+
+	diffs := compare(expected.Data, actualData, "$", cfg)
+
+	if handleYAMLDiffs(tb, expectedFile, actualBytes, expected, actualData, diffs, cfg) {
+		return
+	}
+}
+
+// buildYAMLConfig creates a YAML config from the provided options.
+func buildYAMLConfig(tb testing.TB, opts []any) *YAMLConfig {
+	tb.Helper()
+
+	cfg := &YAMLConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case AssertionOption:
@@ -46,68 +70,38 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...int
 		}
 	}
 
-	// Check if expected file exists
-	_, statErr := os.Stat(expectedFile)
-	if os.IsNotExist(statErr) {
-		if cfg.Update {
-			createErr := createExpectedYAMLFile(expectedFile, actualBytes)
-			if createErr != nil {
-				tb.Fatalf("testastic: failed to create expected YAML file: %v", createErr)
-			}
+	return cfg
+}
 
-			tb.Logf("testastic: created expected YAML file %s", expectedFile)
+// handleYAMLDiffs handles update mode and error reporting for YAML.
+// Returns true if the assertion should stop.
+func handleYAMLDiffs(
+	tb testing.TB, path string, actualBytes []byte, expected *ExpectedYAML,
+	actualData any, diffs []Difference, cfg *YAMLConfig,
+) bool {
+	tb.Helper()
 
-			return
-		}
-
-		tb.Fatalf(
-			"testastic: expected YAML file does not exist: %s (run with -update to create)",
-			expectedFile,
-		)
-
-		return
+	if len(diffs) == 0 {
+		return false
 	}
 
-	// Parse expected file
-	expected, err := ParseExpectedYAMLFile(expectedFile)
-	if err != nil {
-		tb.Fatalf("testastic: %v", err)
-
-		return
-	}
-
-	// Parse actual YAML
-	actualData, err := parseActualYAML(actualBytes)
-	if err != nil {
-		tb.Fatalf("testastic: %v", err)
-
-		return
-	}
-
-	// Compare using the same logic as JSON (YAML parses to same Go types)
-	diffs := compare(expected.Data, actualData, "$", cfg)
-
-	// If update mode and there are differences, update the file
-	if cfg.Update && len(diffs) > 0 {
-		updateErr := updateExpectedYAMLFile(expectedFile, actualBytes, expected)
+	if cfg.Update {
+		updateErr := updateExpectedYAMLFile(path, actualBytes, expected)
 		if updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected YAML file: %v", updateErr)
 		}
 
-		tb.Logf("testastic: updated expected YAML file %s", expectedFile)
+		tb.Logf("testastic: updated expected YAML file %s", path)
 
-		return
+		return true
 	}
 
-	// Report differences
-	if len(diffs) > 0 {
-		sortDiffs(diffs)
-		msg := formatAssertionMessage("AssertYAML", expectedFile, cfg.Message)
-		tb.Errorf(
-			"testastic: assertion failed\n\n  %s\n%s",
-			msg, FormatYAMLDiffInline(expected.Data, actualData),
-		)
-	}
+	sortDiffs(diffs)
+
+	msg := formatAssertionMessage("AssertYAML", path, cfg.Message)
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatYAMLDiffInline(expected.Data, actualData))
+
+	return false
 }
 
 // toYAMLBytes converts various input types to []byte of YAML.

@@ -35,14 +35,14 @@ func PreserveWhitespace() HTMLOption {
 // IgnoreChildOrder makes child element comparison order-insensitive globally.
 func IgnoreChildOrder() HTMLOption {
 	return func(c *HTMLConfig) {
-		c.BaseConfig.IgnoreArrayOrder = true
+		c.IgnoreArrayOrder = true
 	}
 }
 
 // IgnoreChildOrderAt makes child comparison order-insensitive at the specified HTML path.
 func IgnoreChildOrderAt(path string) HTMLOption {
 	return func(c *HTMLConfig) {
-		c.BaseConfig.IgnoreArrayOrderPaths = append(c.BaseConfig.IgnoreArrayOrderPaths, path)
+		c.IgnoreArrayOrderPaths = append(c.IgnoreArrayOrderPaths, path)
 	}
 }
 
@@ -70,30 +70,15 @@ func IgnoreAttributeAt(pathAttr string) HTMLOption {
 // HTMLUpdate forces updating the expected file with the actual value.
 func HTMLUpdate() HTMLOption {
 	return func(c *HTMLConfig) {
-		c.BaseConfig.Update = true
+		c.Update = true
 	}
 }
 
 // HTMLMessage adds a custom message to the assertion failure output.
 func HTMLMessage(msg string) HTMLOption {
 	return func(c *HTMLConfig) {
-		c.BaseConfig.Message = msg
+		c.Message = msg
 	}
-}
-
-// newHTMLConfig creates a new HTMLConfig with default values and applies options.
-func newHTMLConfig(opts ...HTMLOption) *HTMLConfig {
-	cfg := &HTMLConfig{
-		BaseConfig: BaseConfig{
-			Update: shouldUpdate(),
-		},
-	}
-
-	for _, opt := range opts {
-		opt(cfg)
-	}
-
-	return cfg
 }
 
 // IsFieldIgnored checks if an element should be ignored.
@@ -105,6 +90,7 @@ func (c *HTMLConfig) IsFieldIgnored(path string) bool {
 			return true
 		}
 	}
+
 	return c.BaseConfig.IsFieldIgnored(path)
 }
 

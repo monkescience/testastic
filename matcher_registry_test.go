@@ -1,22 +1,27 @@
-package testastic
+package testastic_test
 
 import (
 	"testing"
+
+	"github.com/monkescience/testastic"
 )
 
 func TestNewMatchers(t *testing.T) {
 	t.Run("AnyUUID", func(t *testing.T) {
-		m := AnyUUID()
+		m := testastic.AnyUUID()
 
 		if !m.Match("550e8400-e29b-41d4-a716-446655440000") {
 			t.Error("Should match valid UUID")
 		}
+
 		if !m.Match("6ba7b810-9dad-11d1-80b4-00c04fd430c8") {
 			t.Error("Should match valid UUID")
 		}
+
 		if m.Match("not-a-uuid") {
 			t.Error("Should not match invalid UUID")
 		}
+
 		if m.Match(123) {
 			t.Error("Should not match non-string")
 		}
@@ -27,20 +32,24 @@ func TestNewMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyDateTime", func(t *testing.T) {
-		m := AnyDateTime()
+		m := testastic.AnyDateTime()
 
 		if !m.Match("2024-01-15") {
 			t.Error("Should match date")
 		}
+
 		if !m.Match("2024-01-15T10:30:00Z") {
 			t.Error("Should match ISO 8601 datetime")
 		}
+
 		if !m.Match("2024-01-15 10:30:00") {
 			t.Error("Should match datetime with space")
 		}
+
 		if m.Match("not-a-date") {
 			t.Error("Should not match invalid date")
 		}
+
 		if m.Match(123) {
 			t.Error("Should not match non-string")
 		}
@@ -51,17 +60,20 @@ func TestNewMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyURL", func(t *testing.T) {
-		m := AnyURL()
+		m := testastic.AnyURL()
 
 		if !m.Match("https://example.com") {
 			t.Error("Should match HTTPS URL")
 		}
+
 		if !m.Match("http://example.com/path") {
 			t.Error("Should match HTTP URL with path")
 		}
+
 		if m.Match("not-a-url") {
 			t.Error("Should not match invalid URL")
 		}
+
 		if m.Match(123) {
 			t.Error("Should not match non-string")
 		}
@@ -73,11 +85,11 @@ func TestNewMatchers(t *testing.T) {
 }
 
 func TestCustomMatcherRegistry(t *testing.T) {
-	RegisterMatcher("customTest", func(args string) (Matcher, error) {
-		return AnyString(), nil
+	testastic.RegisterMatcher("customTest", func(args string) (testastic.Matcher, error) {
+		return testastic.AnyString(), nil
 	})
 
-	m, err := ParseMatcher("customTest")
+	m, err := testastic.ParseMatcher("customTest")
 	if err != nil {
 		t.Fatalf("Failed to parse custom matcher: %v", err)
 	}
@@ -85,36 +97,4 @@ func TestCustomMatcherRegistry(t *testing.T) {
 	if !m.Match("test") {
 		t.Error("Custom matcher should work")
 	}
-}
-
-func TestUnifiedOptions(t *testing.T) {
-	t.Run("IgnoreFields", func(t *testing.T) {
-		opt := IgnoreFields("field1", "field2")
-		cfg := &Config{BaseConfig: BaseConfig{}}
-		opt.applyToConfig(cfg)
-
-		if len(cfg.BaseConfig.IgnoredFields) != 2 {
-			t.Errorf("Expected 2 ignored fields, got %d", len(cfg.BaseConfig.IgnoredFields))
-		}
-	})
-
-	t.Run("Update", func(t *testing.T) {
-		opt := Update()
-		cfg := &Config{BaseConfig: BaseConfig{}}
-		opt.applyToConfig(cfg)
-
-		if !cfg.BaseConfig.Update {
-			t.Error("Update should be true")
-		}
-	})
-
-	t.Run("Message", func(t *testing.T) {
-		opt := Message("test message")
-		cfg := &Config{BaseConfig: BaseConfig{}}
-		opt.applyToConfig(cfg)
-
-		if cfg.BaseConfig.Message != "test message" {
-			t.Errorf("Message = %q, want %q", cfg.BaseConfig.Message, "test message")
-		}
-	})
 }

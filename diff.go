@@ -52,8 +52,10 @@ type Difference struct {
 	Type     DiffType // Type of difference
 }
 
-type valueFormatter func(any) string
-type typeFormatter func(any) string
+type (
+	valueFormatter func(any) string
+	typeFormatter  func(any) string
+)
 
 func formatDiffList(diffs []Difference, formatName string, fmtValue valueFormatter, fmtType typeFormatter) string {
 	if len(diffs) == 0 {
@@ -63,7 +65,7 @@ func formatDiffList(diffs []Difference, formatName string, fmtValue valueFormatt
 	var sb strings.Builder
 
 	if len(diffs) == 1 {
-		sb.WriteString(fmt.Sprintf("%s mismatch at 1 path:\n", formatName))
+		sb.WriteString(formatName + " mismatch at 1 path:\n")
 	} else {
 		sb.WriteString(fmt.Sprintf("%s mismatch at %d paths:\n", formatName, len(diffs)))
 	}
