@@ -10,7 +10,6 @@ func TestParseLine_NoMatchers(t *testing.T) {
 
 	// when: parsing the line
 	result, err := parseLine(line)
-
 	// then: no error, pattern is nil (exact match), original preserved
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -32,7 +31,6 @@ func TestParseLine_SingleMatcher(t *testing.T) {
 
 	// when: parsing the line
 	result, err := parseLine(line)
-
 	// then: pattern is set, one matcher extracted
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -64,7 +62,6 @@ func TestParseLine_MultipleMatchers(t *testing.T) {
 
 	// when: parsing the line
 	result, err := parseLine(line)
-
 	// then: pattern matches, both matchers extracted
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -96,7 +93,6 @@ func TestParseLine_RegexMatcher(t *testing.T) {
 
 	// when: parsing the line
 	result, err := parseLine(line)
-
 	// then: pattern uses the regex
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -118,7 +114,6 @@ func TestParseLine_SpecialRegexChars(t *testing.T) {
 
 	// when: parsing the line
 	result, err := parseLine(line)
-
 	// then: special chars are escaped in pattern
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)

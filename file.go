@@ -1,6 +1,7 @@
 package testastic
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -8,16 +9,20 @@ import (
 	"testing"
 )
 
+// ErrUnsupportedFileType is returned when an unsupported type is passed to AssertFile.
+var ErrUnsupportedFileType = errors.New("unsupported type, expected string, []byte, or io.Reader")
+
 // AssertFile compares actual content against an expected file with template matcher support.
 // Supports {{anyString}}, {{regex `pattern`}}, and other matchers inline within text.
 //
-// Supported actual types: string, []byte, io.Reader
+// Supported actual types: string, []byte, or io.Reader.
 func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
 	tb.Helper()
 
 	actualStr, err := fileToString(actual)
 	if err != nil {
 		tb.Fatalf("testastic: failed to convert actual to string: %v", err)
+
 		return
 	}
 
@@ -27,7 +32,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	expectedContent, err := os.ReadFile(expectedFile)
+	expectedContent, err := os.ReadFile(expectedFile) //nolint:gosec // Path is controlled by test code.
 	if err != nil {
 		tb.Fatalf("testastic: failed to read expected file: %v", err)
 		return
@@ -43,7 +48,8 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	}
 
 	if cfg.Update {
-		if err := os.WriteFile(expectedFile, []byte(actualStr), 0644); err != nil {
+		//nolint:gosec // 0644 is appropriate for test fixtures.
+		if err := os.WriteFile(expectedFile, []byte(actualStr), 0o644); err != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", err)
 			return
 		}
@@ -79,7 +85,7 @@ func fileToString[T any](v T) (string, error) {
 		}
 		return string(data), nil
 	default:
-		return "", fmt.Errorf("unsupported type %T, expected string, []byte, or io.Reader", v)
+		return "", fmt.Errorf("%w: %T", ErrUnsupportedFileType, v)
 	}
 }
 

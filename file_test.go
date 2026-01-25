@@ -13,7 +13,7 @@ func TestAssertFile_ExactMatch(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "line 1\nline 2\nline 3"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -26,7 +26,7 @@ func TestAssertFile_Mismatch(t *testing.T) {
 	// given: expected file and mismatched actual
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
-	if err := os.WriteFile(expectedFile, []byte("expected line"), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte("expected line"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -59,7 +59,7 @@ func TestAssertFile_WithAnyStringMatcher(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "Name: {{anyString}}\nStatus: active"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,7 +75,7 @@ func TestAssertFile_WithMultipleMatchers(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "User: {{anyString}} ({{anyInt}} years old)"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -91,7 +91,7 @@ func TestAssertFile_WithRegexMatcher(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "Email: {{regex `[a-z]+@example\\.com`}}"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -107,7 +107,7 @@ func TestAssertFile_WithBytes(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "hello world"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -121,7 +121,7 @@ func TestAssertFile_MatcherFails(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "Count: {{anyInt}}"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -141,7 +141,7 @@ func TestAssertFile_WithMessage(t *testing.T) {
 	// given: expected file and mismatched actual
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
-	if err := os.WriteFile(expectedFile, []byte("expected"), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte("expected"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -160,7 +160,7 @@ func TestAssertFile_EmptyFiles(t *testing.T) {
 	// given: empty expected file
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
-	if err := os.WriteFile(expectedFile, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(""), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -173,7 +173,7 @@ func TestAssertFile_EmptyExpectedNonEmptyActual(t *testing.T) {
 	// given: empty expected, non-empty actual
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
-	if err := os.WriteFile(expectedFile, []byte(""), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(""), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -193,7 +193,7 @@ func TestAssertFile_SpecialChars(t *testing.T) {
 	dir := t.TempDir()
 	expectedFile := filepath.Join(dir, "expected.txt")
 	content := "Price: ${{anyInt}}.99 (USD)"
-	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(expectedFile, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

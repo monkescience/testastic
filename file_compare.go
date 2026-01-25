@@ -84,6 +84,8 @@ func itoa(i int) string {
 }
 
 // compareFileLinesWithMatchers compares expected and actual lines, supporting matchers.
+//
+//nolint:funlen // Line-by-line comparison requires sequential steps.
 func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 	var diffs []Difference
 
