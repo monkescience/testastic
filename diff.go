@@ -132,6 +132,19 @@ func FormatDiffInline(expected, actual any) string {
 	return sb.String()
 }
 
+// FormatFileDiffInline generates a git-style inline diff for file comparison.
+func FormatFileDiffInline(expected, actual []string) string {
+	diff := computeDiff(expected, actual)
+
+	var sb strings.Builder
+	for _, line := range diff {
+		sb.WriteString(line)
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
 // diffOp represents a diff operation type.
 type diffOp int
 

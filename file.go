@@ -94,7 +94,10 @@ func splitLines(content string) []string {
 	return strings.Split(content, "\n")
 }
 
-// formatFileDiff formats differences for display.
+// formatFileDiff formats differences for display using inline diff style.
 func formatFileDiff(expected, actual []string, diffs []Difference) string {
-	return formatDiffList(diffs, "File", formatValue, typeOf)
+	if len(diffs) == 0 {
+		return ""
+	}
+	return FormatFileDiffInline(expected, actual)
 }
