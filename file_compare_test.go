@@ -80,3 +80,34 @@ func TestCompareFileLines_MissingLines(t *testing.T) {
 		t.Errorf("expected 'line 2', got %q", diffs[0].Expected)
 	}
 }
+
+func TestCompareFileLinesWithMatchers_Match(t *testing.T) {
+	// given: expected with matcher, matching actual
+	expected := []string{"Name: {{anyString}}"}
+	actual := []string{"Name: Alice"}
+
+	// when: comparing with matchers
+	diffs := compareFileLinesWithMatchers(expected, actual)
+
+	// then: no differences (matcher matches)
+	if len(diffs) != 0 {
+		t.Errorf("expected no diffs, got %d: %v", len(diffs), diffs)
+	}
+}
+
+func TestCompareFileLinesWithMatchers_NoMatch(t *testing.T) {
+	// given: expected with int matcher, non-matching actual
+	expected := []string{"Age: {{anyInt}}"}
+	actual := []string{"Age: not-a-number"}
+
+	// when: comparing with matchers
+	diffs := compareFileLinesWithMatchers(expected, actual)
+
+	// then: one difference (matcher failed)
+	if len(diffs) != 1 {
+		t.Fatalf("expected 1 diff, got %d", len(diffs))
+	}
+	if diffs[0].Type != DiffMatcherFailed {
+		t.Errorf("expected DiffMatcherFailed, got %v", diffs[0].Type)
+	}
+}

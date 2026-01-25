@@ -82,3 +82,93 @@ func itoa(i int) string {
 	}
 	return string(b[pos:])
 }
+
+// compareFileLinesWithMatchers compares expected and actual lines, supporting matchers.
+func compareFileLinesWithMatchers(expected, actual []string) []Difference {
+	var diffs []Difference
+
+	// Parse expected lines into line matchers
+	parsedLines := make([]*lineMatcher, len(expected))
+	for i, line := range expected {
+		parsed, err := parseLine(line)
+		if err != nil {
+			// Treat parse errors as comparison failures
+			diffs = append(diffs, Difference{
+				Path:     lineNumberPath(i + 1),
+				Expected: line,
+				Actual:   err.Error(),
+				Type:     DiffChanged,
+			})
+			continue
+		}
+		parsedLines[i] = parsed
+	}
+
+	maxLines := max(len(expected), len(actual))
+
+	for i := range maxLines {
+		var hasExp, hasAct bool
+		var expLine *lineMatcher
+		var actLine string
+
+		if i < len(parsedLines) && parsedLines[i] != nil {
+			expLine = parsedLines[i]
+			hasExp = true
+		}
+		if i < len(actual) {
+			actLine = actual[i]
+			hasAct = true
+		}
+
+		if !hasExp && hasAct {
+			// Extra line in actual
+			diffs = append(diffs, Difference{
+				Path:     lineNumberPath(i + 1),
+				Expected: nil,
+				Actual:   actLine,
+				Type:     DiffAdded,
+			})
+			continue
+		}
+
+		if hasExp && !hasAct {
+			// Missing line in actual
+			diffs = append(diffs, Difference{
+				Path:     lineNumberPath(i + 1),
+				Expected: expLine.original,
+				Actual:   nil,
+				Type:     DiffRemoved,
+			})
+			continue
+		}
+
+		if !hasExp && !hasAct {
+			continue
+		}
+
+		// Both lines exist - compare them
+		if expLine.pattern == nil {
+			// Exact match mode
+			if expLine.original != actLine {
+				diffs = append(diffs, Difference{
+					Path:     lineNumberPath(i + 1),
+					Expected: expLine.original,
+					Actual:   actLine,
+					Type:     DiffChanged,
+				})
+			}
+		} else {
+			// Pattern match mode
+			if !expLine.pattern.MatchString(actLine) {
+				diffs = append(diffs, Difference{
+					Path:     lineNumberPath(i + 1),
+					Expected: expLine.original,
+					Actual:   actLine,
+					Type:     DiffMatcherFailed,
+				})
+			}
+		}
+	}
+
+	return diffs
+}
