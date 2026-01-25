@@ -5,6 +5,7 @@ type AssertionOption interface {
 	applyToConfig(cfg *Config)
 	applyToYAMLConfig(cfg *YAMLConfig)
 	applyToHTMLConfig(cfg *HTMLConfig)
+	applyToFileConfig(cfg *FileConfig)
 }
 
 // Unified option functions that work with all assertion types.
@@ -90,6 +91,10 @@ func (a *optionAdapter) applyToHTMLConfig(cfg *HTMLConfig) {
 	applyOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
+func (a *optionAdapter) applyToFileConfig(cfg *FileConfig) {
+	applyOptionViaConfig(a.opt, &cfg.BaseConfig)
+}
+
 // yamlOptionAdapter wraps a YAMLOption to implement AssertionOption.
 type yamlOptionAdapter struct {
 	opt YAMLOption
@@ -100,6 +105,10 @@ func (a *yamlOptionAdapter) applyToConfig(cfg *Config) {
 }
 func (a *yamlOptionAdapter) applyToYAMLConfig(cfg *YAMLConfig) { a.opt(cfg) }
 func (a *yamlOptionAdapter) applyToHTMLConfig(cfg *HTMLConfig) {
+	applyYAMLOptionViaConfig(a.opt, &cfg.BaseConfig)
+}
+
+func (a *yamlOptionAdapter) applyToFileConfig(cfg *FileConfig) {
 	applyYAMLOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
@@ -116,6 +125,10 @@ func (a *htmlOptionAdapter) applyToYAMLConfig(cfg *YAMLConfig) {
 	applyHTMLOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 func (a *htmlOptionAdapter) applyToHTMLConfig(cfg *HTMLConfig) { a.opt(cfg) }
+
+func (a *htmlOptionAdapter) applyToFileConfig(cfg *FileConfig) {
+	applyHTMLOptionViaConfig(a.opt, &cfg.BaseConfig)
+}
 
 // WrapOption wraps an Option to implement AssertionOption.
 func WrapOption(opt Option) AssertionOption {
@@ -141,6 +154,7 @@ type baseConfigOpt struct {
 func (o *baseConfigOpt) applyToConfig(cfg *Config)         { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToYAMLConfig(cfg *YAMLConfig) { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToHTMLConfig(cfg *HTMLConfig) { o.apply(&cfg.BaseConfig) }
+func (o *baseConfigOpt) applyToFileConfig(cfg *FileConfig) { o.apply(&cfg.BaseConfig) }
 
 // ignoreFieldsOpt implements AssertionOption for ignoring fields.
 type ignoreFieldsOpt struct{ baseConfigOpt }

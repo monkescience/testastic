@@ -68,6 +68,14 @@ type Config struct {
 // Option is a functional option for configuring JSON comparison.
 type Option func(*Config)
 
+// FileConfig holds configuration for file assertions.
+type FileConfig struct {
+	BaseConfig
+}
+
+// FileOption is a functional option for configuring file comparison.
+type FileOption func(*FileConfig)
+
 // JSONIgnoreFields excludes the specified fields from comparison in JSON.
 // Fields can be simple names or JSON paths (e.g., "$.user.id").
 func JSONIgnoreFields(fields ...string) Option {
