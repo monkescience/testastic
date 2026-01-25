@@ -12,6 +12,9 @@ import (
 // ErrUnsupportedFileType is returned when an unsupported type is passed to AssertFile.
 var ErrUnsupportedFileType = errors.New("unsupported type, expected string, []byte, or io.Reader")
 
+// expectedFilePerms is the file permission used when creating/updating expected files.
+const expectedFilePerms = 0o644
+
 // AssertFile compares actual content against an expected file with template matcher support.
 // Supports {{anyString}}, {{regex `pattern`}}, and other matchers inline within text.
 //
@@ -35,6 +38,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	expectedContent, err := os.ReadFile(expectedFile) //nolint:gosec // Path is controlled by test code.
 	if err != nil {
 		tb.Fatalf("testastic: failed to read expected file: %v", err)
+
 		return
 	}
 
@@ -48,12 +52,15 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	}
 
 	if cfg.Update {
-		//nolint:gosec // 0644 is appropriate for test fixtures.
-		if err := os.WriteFile(expectedFile, []byte(actualStr), 0o644); err != nil {
+		err := os.WriteFile(expectedFile, []byte(actualStr), expectedFilePerms)
+		if err != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", err)
+
 			return
 		}
+
 		tb.Logf("testastic: updated expected file %s", expectedFile)
+
 		return
 	}
 
@@ -68,6 +75,7 @@ func buildFileConfig(opts []AssertionOption) *FileConfig {
 	for _, opt := range opts {
 		opt.applyToFileConfig(cfg)
 	}
+
 	return cfg
 }
 
@@ -83,6 +91,7 @@ func fileToString[T any](v T) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to read from io.Reader: %w", err)
 		}
+
 		return string(data), nil
 	default:
 		return "", fmt.Errorf("%w: %T", ErrUnsupportedFileType, v)
@@ -94,9 +103,11 @@ func splitLines(content string) []string {
 	if content == "" {
 		return nil
 	}
+
 	// Normalize line endings
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	content = strings.ReplaceAll(content, "\r", "\n")
+
 	return strings.Split(content, "\n")
 }
 
@@ -105,5 +116,6 @@ func formatFileDiff(expected, actual []string, diffs []Difference) string {
 	if len(diffs) == 0 {
 		return ""
 	}
+
 	return FormatFileDiffInline(expected, actual)
 }

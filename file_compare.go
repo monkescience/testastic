@@ -8,12 +8,14 @@ func compareFileLines(expected, actual []string) []Difference {
 
 	for i := range maxLines {
 		var expLine, actLine string
+
 		var hasExp, hasAct bool
 
 		if i < len(expected) {
 			expLine = expected[i]
 			hasExp = true
 		}
+
 		if i < len(actual) {
 			actLine = actual[i]
 			hasAct = true
@@ -27,6 +29,7 @@ func compareFileLines(expected, actual []string) []Difference {
 				Actual:   actLine,
 				Type:     DiffAdded,
 			})
+
 			continue
 		}
 
@@ -38,6 +41,7 @@ func compareFileLines(expected, actual []string) []Difference {
 				Actual:   nil,
 				Type:     DiffRemoved,
 			})
+
 			continue
 		}
 
@@ -65,21 +69,27 @@ func itoa(i int) string {
 	if i == 0 {
 		return "0"
 	}
+
 	var b [20]byte
+
 	pos := len(b)
 	neg := i < 0
+
 	if neg {
 		i = -i
 	}
+
 	for i > 0 {
 		pos--
 		b[pos] = byte('0' + i%10)
 		i /= 10
 	}
+
 	if neg {
 		pos--
 		b[pos] = '-'
 	}
+
 	return string(b[pos:])
 }
 
@@ -91,6 +101,7 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 
 	// Parse expected lines into line matchers
 	parsedLines := make([]*lineMatcher, len(expected))
+
 	for i, line := range expected {
 		parsed, err := parseLine(line)
 		if err != nil {
@@ -101,8 +112,10 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 				Actual:   err.Error(),
 				Type:     DiffChanged,
 			})
+
 			continue
 		}
+
 		parsedLines[i] = parsed
 	}
 
@@ -110,13 +123,16 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 
 	for i := range maxLines {
 		var hasExp, hasAct bool
+
 		var expLine *lineMatcher
+
 		var actLine string
 
 		if i < len(parsedLines) && parsedLines[i] != nil {
 			expLine = parsedLines[i]
 			hasExp = true
 		}
+
 		if i < len(actual) {
 			actLine = actual[i]
 			hasAct = true
@@ -130,6 +146,7 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 				Actual:   actLine,
 				Type:     DiffAdded,
 			})
+
 			continue
 		}
 
@@ -141,6 +158,7 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 				Actual:   nil,
 				Type:     DiffRemoved,
 			})
+
 			continue
 		}
 

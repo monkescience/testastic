@@ -1,3 +1,4 @@
+//nolint:testpackage // Internal tests for unexported functions.
 package testastic
 
 import (
@@ -30,12 +31,15 @@ func TestCompareFileLines_Mismatch(t *testing.T) {
 	if len(diffs) != 1 {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
+
 	if diffs[0].Path != "line 2" {
 		t.Errorf("expected path 'line 2', got %q", diffs[0].Path)
 	}
+
 	if diffs[0].Expected != "expected text" {
 		t.Errorf("expected %q, got %q", "expected text", diffs[0].Expected)
 	}
+
 	if diffs[0].Actual != "actual text" {
 		t.Errorf("expected actual %q, got %q", "actual text", diffs[0].Actual)
 	}
@@ -53,9 +57,11 @@ func TestCompareFileLines_ExtraLines(t *testing.T) {
 	if len(diffs) != 1 {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
+
 	if diffs[0].Type != DiffAdded {
 		t.Errorf("expected DiffAdded, got %v", diffs[0].Type)
 	}
+
 	if diffs[0].Actual != "extra line" {
 		t.Errorf("expected actual 'extra line', got %q", diffs[0].Actual)
 	}
@@ -73,9 +79,11 @@ func TestCompareFileLines_MissingLines(t *testing.T) {
 	if len(diffs) != 1 {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
+
 	if diffs[0].Type != DiffRemoved {
 		t.Errorf("expected DiffRemoved, got %v", diffs[0].Type)
 	}
+
 	if diffs[0].Expected != "line 2" {
 		t.Errorf("expected 'line 2', got %q", diffs[0].Expected)
 	}
@@ -107,6 +115,7 @@ func TestCompareFileLinesWithMatchers_NoMatch(t *testing.T) {
 	if len(diffs) != 1 {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
+
 	if diffs[0].Type != DiffMatcherFailed {
 		t.Errorf("expected DiffMatcherFailed, got %v", diffs[0].Type)
 	}

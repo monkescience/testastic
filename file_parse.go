@@ -41,10 +41,13 @@ func parseLine(line string) (*lineMatcher, error) {
 	}
 
 	var matchers []Matcher
+
 	var patternBuilder strings.Builder
+
 	patternBuilder.WriteString("^")
 
 	lastEnd := 0
+
 	for _, match := range matches {
 		// match[0]:match[1] is the full match {{...}}
 		// match[2]:match[3] is the captured group (content inside {{}})
@@ -58,10 +61,12 @@ func parseLine(line string) (*lineMatcher, error) {
 
 		// Parse the matcher expression
 		expr := trimSpace(line[exprStart:exprEnd])
+
 		matcher, err := ParseMatcher(expr)
 		if err != nil {
 			return nil, fmt.Errorf("line %q: %w", line, err)
 		}
+
 		matchers = append(matchers, matcher)
 
 		// Get the text pattern for this matcher
@@ -75,6 +80,7 @@ func parseLine(line string) (*lineMatcher, error) {
 	if lastEnd < len(line) {
 		patternBuilder.WriteString(regexp.QuoteMeta(line[lastEnd:]))
 	}
+
 	patternBuilder.WriteString("$")
 
 	pattern, err := regexp.Compile(patternBuilder.String())
@@ -97,18 +103,22 @@ func getMatcherTextPattern(expr string, _ Matcher) string {
 		if pattern == "" {
 			pattern = extractQuotedArg(expr[6:])
 		}
+
 		return pattern
 	}
 
 	// Check for oneOf matcher - build alternation pattern
 	if strings.HasPrefix(expr, "oneOf ") {
 		values := extractQuotedArgs(expr[6:])
+
 		var escaped []string
+
 		for _, v := range values {
 			if s, ok := v.(string); ok {
 				escaped = append(escaped, regexp.QuoteMeta(s))
 			}
 		}
+
 		return "(?:" + strings.Join(escaped, "|") + ")"
 	}
 

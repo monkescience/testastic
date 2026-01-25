@@ -34,7 +34,7 @@ func (m anyStringMatcher) Match(actual any) bool {
 }
 
 func (m anyStringMatcher) String() string {
-	return "{{anyString}}"
+	return "{{anyString}}" //nolint:goconst // Canonical matcher representation, same pattern as other matchers.
 }
 
 // anyIntMatcher matches any integer value (including float64 with no decimal part).
