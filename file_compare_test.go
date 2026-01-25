@@ -17,3 +17,66 @@ func TestCompareFileLines_ExactMatch(t *testing.T) {
 		t.Errorf("expected no diffs, got %d: %v", len(diffs), diffs)
 	}
 }
+
+func TestCompareFileLines_Mismatch(t *testing.T) {
+	// given: lines with a difference
+	expected := []string{"line 1", "expected text", "line 3"}
+	actual := []string{"line 1", "actual text", "line 3"}
+
+	// when: comparing
+	diffs := compareFileLines(expected, actual)
+
+	// then: one difference at line 2
+	if len(diffs) != 1 {
+		t.Fatalf("expected 1 diff, got %d", len(diffs))
+	}
+	if diffs[0].Path != "line 2" {
+		t.Errorf("expected path 'line 2', got %q", diffs[0].Path)
+	}
+	if diffs[0].Expected != "expected text" {
+		t.Errorf("expected %q, got %q", "expected text", diffs[0].Expected)
+	}
+	if diffs[0].Actual != "actual text" {
+		t.Errorf("expected actual %q, got %q", "actual text", diffs[0].Actual)
+	}
+}
+
+func TestCompareFileLines_ExtraLines(t *testing.T) {
+	// given: actual has more lines
+	expected := []string{"line 1"}
+	actual := []string{"line 1", "extra line"}
+
+	// when: comparing
+	diffs := compareFileLines(expected, actual)
+
+	// then: one added difference
+	if len(diffs) != 1 {
+		t.Fatalf("expected 1 diff, got %d", len(diffs))
+	}
+	if diffs[0].Type != DiffAdded {
+		t.Errorf("expected DiffAdded, got %v", diffs[0].Type)
+	}
+	if diffs[0].Actual != "extra line" {
+		t.Errorf("expected actual 'extra line', got %q", diffs[0].Actual)
+	}
+}
+
+func TestCompareFileLines_MissingLines(t *testing.T) {
+	// given: actual has fewer lines
+	expected := []string{"line 1", "line 2"}
+	actual := []string{"line 1"}
+
+	// when: comparing
+	diffs := compareFileLines(expected, actual)
+
+	// then: one removed difference
+	if len(diffs) != 1 {
+		t.Fatalf("expected 1 diff, got %d", len(diffs))
+	}
+	if diffs[0].Type != DiffRemoved {
+		t.Errorf("expected DiffRemoved, got %v", diffs[0].Type)
+	}
+	if diffs[0].Expected != "line 2" {
+		t.Errorf("expected 'line 2', got %q", diffs[0].Expected)
+	}
+}
