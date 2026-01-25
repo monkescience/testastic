@@ -136,3 +136,70 @@ func TestAssertFile_MatcherFails(t *testing.T) {
 		t.Error("expected test to fail")
 	}
 }
+
+func TestAssertFile_WithMessage(t *testing.T) {
+	// given: expected file and mismatched actual
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	if err := os.WriteFile(expectedFile, []byte("expected"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mt := &fileMockT{}
+
+	// when: asserting with custom message
+	testastic.AssertFile(mt, expectedFile, "actual", testastic.Message("custom error message"))
+
+	// then: failure includes custom message
+	if !mt.failed {
+		t.Error("expected test to fail")
+	}
+}
+
+func TestAssertFile_EmptyFiles(t *testing.T) {
+	// given: empty expected file
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	if err := os.WriteFile(expectedFile, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// when: asserting with empty actual
+	// then: passes
+	testastic.AssertFile(t, expectedFile, "")
+}
+
+func TestAssertFile_EmptyExpectedNonEmptyActual(t *testing.T) {
+	// given: empty expected, non-empty actual
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	if err := os.WriteFile(expectedFile, []byte(""), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mt := &fileMockT{}
+
+	// when: asserting
+	testastic.AssertFile(mt, expectedFile, "some content")
+
+	// then: test fails (extra content)
+	if !mt.failed {
+		t.Error("expected test to fail")
+	}
+}
+
+func TestAssertFile_SpecialChars(t *testing.T) {
+	// given: file with special regex characters
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	content := "Price: ${{anyInt}}.99 (USD)"
+	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// when: asserting with matching value
+	actual := "Price: $100.99 (USD)"
+
+	// then: passes (special chars escaped properly)
+	testastic.AssertFile(t, expectedFile, actual)
+}
