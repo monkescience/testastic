@@ -53,3 +53,86 @@ func (m *fileMockT) Helper()                           {}
 func (m *fileMockT) Fatalf(format string, args ...any) { m.failed = true; m.output = format }
 func (m *fileMockT) Errorf(format string, args ...any) { m.failed = true; m.output = format }
 func (m *fileMockT) Logf(format string, args ...any)   {}
+
+func TestAssertFile_WithAnyStringMatcher(t *testing.T) {
+	// given: expected file with anyString matcher
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	content := "Name: {{anyString}}\nStatus: active"
+	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// when: asserting with any string value
+	actual := "Name: John Doe\nStatus: active"
+
+	// then: passes (matcher accepts any string)
+	testastic.AssertFile(t, expectedFile, actual)
+}
+
+func TestAssertFile_WithMultipleMatchers(t *testing.T) {
+	// given: expected file with multiple matchers
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	content := "User: {{anyString}} ({{anyInt}} years old)"
+	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// when: asserting with matching values
+	actual := "User: Alice (30 years old)"
+
+	// then: passes
+	testastic.AssertFile(t, expectedFile, actual)
+}
+
+func TestAssertFile_WithRegexMatcher(t *testing.T) {
+	// given: expected file with regex matcher
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	content := "Email: {{regex `[a-z]+@example\\.com`}}"
+	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// when: asserting with matching email
+	actual := "Email: alice@example.com"
+
+	// then: passes
+	testastic.AssertFile(t, expectedFile, actual)
+}
+
+func TestAssertFile_WithBytes(t *testing.T) {
+	// given: expected file
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	content := "hello world"
+	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// when: asserting with []byte input
+	// then: passes
+	testastic.AssertFile(t, expectedFile, []byte(content))
+}
+
+func TestAssertFile_MatcherFails(t *testing.T) {
+	// given: expected file with int matcher
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "expected.txt")
+	content := "Count: {{anyInt}}"
+	if err := os.WriteFile(expectedFile, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	mt := &fileMockT{}
+	actual := "Count: not-a-number"
+
+	// when: asserting with non-matching value
+	testastic.AssertFile(mt, expectedFile, actual)
+
+	// then: test fails
+	if !mt.failed {
+		t.Error("expected test to fail")
+	}
+}
