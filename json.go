@@ -57,16 +57,16 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...any
 }
 
 // buildJSONConfig creates a JSON config from the provided options.
-func buildJSONConfig(tb testing.TB, opts []any) *Config {
+func buildJSONConfig(tb testing.TB, opts []any) *JSONConfig {
 	tb.Helper()
 
-	cfg := &Config{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+	cfg := &JSONConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
 		switch o := opt.(type) {
 		case AssertionOption:
 			o.applyToConfig(cfg)
-		case Option:
+		case JSONOption:
 			o(cfg)
 		default:
 			tb.Fatalf("testastic: invalid option type: %T", opt)
@@ -108,7 +108,7 @@ func handleMissingExpectedFile(
 // Returns true if the assertion should stop.
 func handleJSONDiffs(
 	tb testing.TB, path string, actualBytes []byte, expected *ExpectedJSON,
-	actualData any, diffs []Difference, cfg *Config,
+	actualData any, diffs []Difference, cfg *JSONConfig,
 ) bool {
 	tb.Helper()
 

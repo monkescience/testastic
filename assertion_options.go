@@ -2,7 +2,7 @@ package testastic
 
 // AssertionOption is a common interface for all assertion options.
 type AssertionOption interface {
-	applyToConfig(cfg *Config)
+	applyToConfig(cfg *JSONConfig)
 	applyToYAMLConfig(cfg *YAMLConfig)
 	applyToHTMLConfig(cfg *HTMLConfig)
 	applyToFileConfig(cfg *FileConfig)
@@ -36,8 +36,8 @@ func Message(msg string) AssertionOption {
 }
 
 // ConvertToOption converts an AssertionOption to an Option.
-func ConvertToOption(opt AssertionOption) Option {
-	return func(c *Config) {
+func ConvertToOption(opt AssertionOption) JSONOption {
+	return func(c *JSONConfig) {
 		opt.applyToConfig(c)
 	}
 }
@@ -58,8 +58,8 @@ func ConvertToHTMLOption(opt AssertionOption) HTMLOption {
 
 // Helper functions for applying options via temporary configs.
 
-func applyOptionViaConfig(opt Option, base *BaseConfig) {
-	temp := &Config{BaseConfig: *base}
+func applyOptionViaConfig(opt JSONOption, base *BaseConfig) {
+	temp := &JSONConfig{BaseConfig: *base}
 	opt(temp)
 	*base = temp.BaseConfig
 }
@@ -78,10 +78,10 @@ func applyHTMLOptionViaConfig(opt HTMLOption, base *BaseConfig) {
 
 // optionAdapter wraps an Option to implement AssertionOption.
 type optionAdapter struct {
-	opt Option
+	opt JSONOption
 }
 
-func (a *optionAdapter) applyToConfig(cfg *Config) { a.opt(cfg) }
+func (a *optionAdapter) applyToConfig(cfg *JSONConfig) { a.opt(cfg) }
 
 func (a *optionAdapter) applyToYAMLConfig(cfg *YAMLConfig) {
 	applyOptionViaConfig(a.opt, &cfg.BaseConfig)
@@ -100,7 +100,7 @@ type yamlOptionAdapter struct {
 	opt YAMLOption
 }
 
-func (a *yamlOptionAdapter) applyToConfig(cfg *Config) {
+func (a *yamlOptionAdapter) applyToConfig(cfg *JSONConfig) {
 	applyYAMLOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 func (a *yamlOptionAdapter) applyToYAMLConfig(cfg *YAMLConfig) { a.opt(cfg) }
@@ -117,7 +117,7 @@ type htmlOptionAdapter struct {
 	opt HTMLOption
 }
 
-func (a *htmlOptionAdapter) applyToConfig(cfg *Config) {
+func (a *htmlOptionAdapter) applyToConfig(cfg *JSONConfig) {
 	applyHTMLOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
@@ -131,7 +131,7 @@ func (a *htmlOptionAdapter) applyToFileConfig(cfg *FileConfig) {
 }
 
 // WrapOption wraps an Option to implement AssertionOption.
-func WrapOption(opt Option) AssertionOption {
+func WrapOption(opt JSONOption) AssertionOption {
 	return &optionAdapter{opt: opt}
 }
 
@@ -151,7 +151,7 @@ type baseConfigOpt struct {
 	apply func(*BaseConfig)
 }
 
-func (o *baseConfigOpt) applyToConfig(cfg *Config)         { o.apply(&cfg.BaseConfig) }
+func (o *baseConfigOpt) applyToConfig(cfg *JSONConfig)         { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToYAMLConfig(cfg *YAMLConfig) { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToHTMLConfig(cfg *HTMLConfig) { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToFileConfig(cfg *FileConfig) { o.apply(&cfg.BaseConfig) }
