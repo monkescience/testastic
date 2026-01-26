@@ -35,8 +35,8 @@ func Message(msg string) AssertionOption {
 	return newMessageOpt(msg)
 }
 
-// ConvertToOption converts an AssertionOption to an Option.
-func ConvertToOption(opt AssertionOption) JSONOption {
+// ConvertToJSONOption converts an AssertionOption to an Option.
+func ConvertToJSONOption(opt AssertionOption) JSONOption {
 	return func(c *JSONConfig) {
 		opt.applyToConfig(c)
 	}
@@ -58,7 +58,7 @@ func ConvertToHTMLOption(opt AssertionOption) HTMLOption {
 
 // Helper functions for applying options via temporary configs.
 
-func applyOptionViaConfig(opt JSONOption, base *BaseConfig) {
+func applyJSONOptionViaConfig(opt JSONOption, base *BaseConfig) {
 	temp := &JSONConfig{BaseConfig: *base}
 	opt(temp)
 	*base = temp.BaseConfig
@@ -76,23 +76,23 @@ func applyHTMLOptionViaConfig(opt HTMLOption, base *BaseConfig) {
 	*base = temp.BaseConfig
 }
 
-// optionAdapter wraps an Option to implement AssertionOption.
-type optionAdapter struct {
+// jsonOptionAdapter wraps an Option to implement AssertionOption.
+type jsonOptionAdapter struct {
 	opt JSONOption
 }
 
-func (a *optionAdapter) applyToConfig(cfg *JSONConfig) { a.opt(cfg) }
+func (a *jsonOptionAdapter) applyToConfig(cfg *JSONConfig) { a.opt(cfg) }
 
-func (a *optionAdapter) applyToYAMLConfig(cfg *YAMLConfig) {
-	applyOptionViaConfig(a.opt, &cfg.BaseConfig)
+func (a *jsonOptionAdapter) applyToYAMLConfig(cfg *YAMLConfig) {
+	applyJSONOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
-func (a *optionAdapter) applyToHTMLConfig(cfg *HTMLConfig) {
-	applyOptionViaConfig(a.opt, &cfg.BaseConfig)
+func (a *jsonOptionAdapter) applyToHTMLConfig(cfg *HTMLConfig) {
+	applyJSONOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
-func (a *optionAdapter) applyToFileConfig(cfg *FileConfig) {
-	applyOptionViaConfig(a.opt, &cfg.BaseConfig)
+func (a *jsonOptionAdapter) applyToFileConfig(cfg *FileConfig) {
+	applyJSONOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
 // yamlOptionAdapter wraps a YAMLOption to implement AssertionOption.
@@ -130,9 +130,9 @@ func (a *htmlOptionAdapter) applyToFileConfig(cfg *FileConfig) {
 	applyHTMLOptionViaConfig(a.opt, &cfg.BaseConfig)
 }
 
-// WrapOption wraps an Option to implement AssertionOption.
-func WrapOption(opt JSONOption) AssertionOption {
-	return &optionAdapter{opt: opt}
+// WrapJSONOption wraps an Option to implement AssertionOption.
+func WrapJSONOption(opt JSONOption) AssertionOption {
+	return &jsonOptionAdapter{opt: opt}
 }
 
 // WrapYAMLOption wraps a YAMLOption to implement AssertionOption.
