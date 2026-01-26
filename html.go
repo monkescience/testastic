@@ -18,7 +18,7 @@ var ErrUnsupportedHTMLType = errors.New("unsupported type for HTML comparison")
 //	testastic.AssertHTML(t, "testdata/user.expected.html", resp.Body)
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlBytes)
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlString)
-func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...any) {
+func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
 	tb.Helper()
 
 	actualBytes, err := toHTMLBytes(actual)
@@ -56,20 +56,13 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...any
 }
 
 // buildHTMLConfig creates an HTML config from the provided options.
-func buildHTMLConfig(tb testing.TB, opts []any) *HTMLConfig {
+func buildHTMLConfig(tb testing.TB, opts []AssertionOption) *HTMLConfig {
 	tb.Helper()
 
 	cfg := &HTMLConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
-		switch o := opt.(type) {
-		case AssertionOption:
-			o.applyToHTMLConfig(cfg)
-		case HTMLOption:
-			o(cfg)
-		default:
-			tb.Fatalf("testastic: invalid option type: %T", opt)
-		}
+		opt.applyToHTMLConfig(cfg)
 	}
 
 	return cfg

@@ -19,7 +19,7 @@ import (
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", myUser)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", jsonBytes)
-func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...any) {
+func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
 	tb.Helper()
 
 	actualBytes, err := toBytes(actual)
@@ -57,20 +57,13 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...any
 }
 
 // buildJSONConfig creates a JSON config from the provided options.
-func buildJSONConfig(tb testing.TB, opts []any) *JSONConfig {
+func buildJSONConfig(tb testing.TB, opts []AssertionOption) *JSONConfig {
 	tb.Helper()
 
 	cfg := &JSONConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
-		switch o := opt.(type) {
-		case AssertionOption:
-			o.applyToConfig(cfg)
-		case JSONOption:
-			o(cfg)
-		default:
-			tb.Fatalf("testastic: invalid option type: %T", opt)
-		}
+		opt.applyToConfig(cfg)
 	}
 
 	return cfg

@@ -16,7 +16,7 @@ import (
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", myConfig)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", resp.Body)
-func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...any) {
+func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
 	tb.Helper()
 
 	actualBytes, err := toYAMLBytes(actual)
@@ -54,20 +54,13 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...any
 }
 
 // buildYAMLConfig creates a YAML config from the provided options.
-func buildYAMLConfig(tb testing.TB, opts []any) *YAMLConfig {
+func buildYAMLConfig(tb testing.TB, opts []AssertionOption) *YAMLConfig {
 	tb.Helper()
 
 	cfg := &YAMLConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
-		switch o := opt.(type) {
-		case AssertionOption:
-			o.applyToYAMLConfig(cfg)
-		case YAMLOption:
-			o(cfg)
-		default:
-			tb.Fatalf("testastic: invalid option type: %T", opt)
-		}
+		opt.applyToYAMLConfig(cfg)
 	}
 
 	return cfg
