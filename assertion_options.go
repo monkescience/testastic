@@ -151,7 +151,7 @@ type baseConfigOpt struct {
 	apply func(*BaseConfig)
 }
 
-func (o *baseConfigOpt) applyToConfig(cfg *JSONConfig)         { o.apply(&cfg.BaseConfig) }
+func (o *baseConfigOpt) applyToConfig(cfg *JSONConfig)     { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToYAMLConfig(cfg *YAMLConfig) { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToHTMLConfig(cfg *HTMLConfig) { o.apply(&cfg.BaseConfig) }
 func (o *baseConfigOpt) applyToFileConfig(cfg *FileConfig) { o.apply(&cfg.BaseConfig) }

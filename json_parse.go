@@ -23,7 +23,9 @@ type ExpectedJSON struct {
 const jsonMatcherPlaceholderPrefix = "__TESTASTIC_MATCHER_"
 
 // jsonTemplateExprRegex matches {{...}} expressions.
-var jsonTemplateExprRegex = regexp.MustCompile(`"?\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}"?`)
+var jsonTemplateExprRegex = regexp.MustCompile(
+	`"?\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}"?`,
+)
 
 // ParseExpectedJSONFile reads and parses an expected file, replacing template expressions with matchers.
 func ParseExpectedJSONFile(path string) (*ExpectedJSON, error) {

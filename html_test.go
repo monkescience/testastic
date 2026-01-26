@@ -431,7 +431,10 @@ func TestAssertHTML_IgnoreAttributes(t *testing.T) {
 	actual := `<div class="box" data-testid="different"><span>Content</span></div>`
 
 	// when: asserting with IgnoreAttributes option
-	testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.IgnoreAttributes("class", "data-testid")))
+	testastic.AssertHTML(
+		mt, expectedFile, actual,
+		testastic.WrapHTMLOption(testastic.IgnoreAttributes("class", "data-testid")),
+	)
 
 	// then: the test passes (specified attributes are ignored)
 	if mt.failed {
