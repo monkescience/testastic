@@ -498,7 +498,7 @@ func TestFormatDiff(t *testing.T) {
 	}
 
 	// when: formatting the diff
-	output := testastic.FormatDiff(diffs)
+	output := testastic.FormatJSONDiff(diffs)
 
 	// then: the output contains all expected information
 	if !strings.Contains(output, "$.name") {

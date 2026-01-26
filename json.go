@@ -35,7 +35,7 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...any
 		return
 	}
 
-	expected, err := ParseExpectedFile(expectedFile)
+	expected, err := ParseExpectedJSONFile(expectedFile)
 	if err != nil {
 		tb.Fatalf("testastic: %v", err)
 
@@ -130,7 +130,7 @@ func handleJSONDiffs(
 	sortDiffs(diffs)
 
 	msg := formatAssertionMessage("AssertJSON", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatDiffInline(expected.Data, actualData))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatJSONDiffInline(expected.Data, actualData))
 
 	return false
 }

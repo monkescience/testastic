@@ -7,15 +7,15 @@ import (
 	"strings"
 )
 
-// FormatDiff formats a slice of differences into a human-readable string.
+// FormatJSONDiff formats a slice of differences into a human-readable string.
 // This is the simple format showing paths and values.
-func FormatDiff(diffs []Difference) string {
+func FormatJSONDiff(diffs []Difference) string {
 	return formatDiffList(diffs, "JSON", formatValue, typeOf)
 }
 
-// FormatDiffInline generates a git-style inline diff between expected and actual JSON.
+// FormatJSONDiffInline generates a git-style inline diff between expected and actual JSON.
 // Shows the full JSON with - prefix for removed lines and + prefix for added lines.
-func FormatDiffInline(expected, actual any) string {
+func FormatJSONDiffInline(expected, actual any) string {
 	expClean := cleanMatchersForDisplay(expected)
 	actClean := cleanMatchersForDisplay(actual)
 
