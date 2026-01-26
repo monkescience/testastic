@@ -359,7 +359,7 @@ func TestAssertHTML_PreserveWhitespace(t *testing.T) {
 	actual := `<div><span>Hello   World</span></div>`
 
 	// when: asserting with PreserveWhitespace option
-	testastic.AssertHTML(mt, expectedFile, actual, testastic.PreserveWhitespace())
+	testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.PreserveWhitespace()))
 
 	// then: the test fails (whitespace differences are detected)
 	if !mt.failed {
@@ -383,7 +383,7 @@ func TestAssertHTML_IgnoreComments(t *testing.T) {
 	actual := `<div><!-- different comment --><span>Content</span></div>`
 
 	// when: asserting with IgnoreHTMLComments option
-	testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreHTMLComments())
+	testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.IgnoreHTMLComments()))
 
 	// then: the test passes (comments are ignored)
 	if mt.failed {
@@ -407,7 +407,7 @@ func TestAssertHTML_IgnoreElements(t *testing.T) {
 	actual := `<div><script>console.log('different')</script><span>Content</span></div>`
 
 	// when: asserting with IgnoreElements option for script
-	testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreElements("script"))
+	testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.IgnoreElements("script")))
 
 	// then: the test passes (script element is ignored)
 	if mt.failed {
@@ -431,7 +431,7 @@ func TestAssertHTML_IgnoreAttributes(t *testing.T) {
 	actual := `<div class="box" data-testid="different"><span>Content</span></div>`
 
 	// when: asserting with IgnoreAttributes option
-	testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreAttributes("class", "data-testid"))
+	testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.IgnoreAttributes("class", "data-testid")))
 
 	// then: the test passes (specified attributes are ignored)
 	if mt.failed {
@@ -448,7 +448,7 @@ func TestAssertHTML_CreateExpectedFile(t *testing.T) {
 	actual := `<div class="card"><span>Content</span></div>`
 
 	// when: asserting with HTMLUpdate option
-	testastic.AssertHTML(mt, expectedFile, actual, testastic.HTMLUpdate())
+	testastic.AssertHTML(mt, expectedFile, actual, testastic.Update())
 
 	// then: the test passes and the file is created
 	if mt.failed {

@@ -432,7 +432,7 @@ func TestAssertYAML_ArrayIgnoreOrder(t *testing.T) {
 `
 
 	// when: asserting with IgnoreArrayOrder option
-	testastic.AssertYAML(mt, expectedFile, actual, testastic.YAMLIgnoreArrayOrder())
+	testastic.AssertYAML(mt, expectedFile, actual, testastic.IgnoreArrayOrder())
 
 	// then: the test passes
 	if mt.failed {
@@ -468,7 +468,7 @@ tags:
 `
 
 	// when: asserting with IgnoreArrayOrderAt for items only
-	testastic.AssertYAML(mt, expectedFile, actual, testastic.YAMLIgnoreArrayOrderAt("$.items"))
+	testastic.AssertYAML(mt, expectedFile, actual, testastic.IgnoreArrayOrderAt("$.items"))
 
 	// then: the test fails because tags order still matters
 	if !mt.failed {
@@ -500,7 +500,7 @@ version: "1.0"
 `
 
 	// when: asserting with IgnoreFields option
-	testastic.AssertYAML(mt, expectedFile, actual, testastic.YAMLIgnoreFields("timestamp"))
+	testastic.AssertYAML(mt, expectedFile, actual, testastic.IgnoreFields("timestamp"))
 
 	// then: the test passes (timestamp is ignored)
 	if mt.failed {
@@ -521,7 +521,7 @@ version: "1.0"
 `
 
 	// when: asserting with YAMLUpdate option
-	testastic.AssertYAML(mt, expectedFile, actual, testastic.YAMLUpdate())
+	testastic.AssertYAML(mt, expectedFile, actual, testastic.Update())
 
 	// then: the test passes and the file is created
 	if mt.failed {
