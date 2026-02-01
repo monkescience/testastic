@@ -7,7 +7,7 @@ import (
 
 // HTMLConfig holds the configuration for HTML comparison.
 type HTMLConfig struct {
-	BaseConfig
+	baseConfig
 	IgnoreComments        bool
 	PreserveWhitespace    bool
 	IgnoredElements       []string
@@ -91,7 +91,7 @@ func (c *HTMLConfig) IsFieldIgnored(path string) bool {
 		}
 	}
 
-	return c.BaseConfig.IsFieldIgnored(path)
+	return c.baseConfig.IsFieldIgnored(path)
 }
 
 // isElementIgnored checks if an element with the given tag should be ignored.

@@ -2,7 +2,7 @@ package testastic
 
 // JSONConfig holds the configuration for JSON comparison.
 type JSONConfig struct {
-	BaseConfig
+	baseConfig
 }
 
 // JSONOption is a functional option for configuring JSON comparison.

@@ -71,7 +71,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 
 // buildFileConfig creates a file config from the provided options.
 func buildFileConfig(opts []AssertionOption) *FileConfig {
-	cfg := &FileConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+	cfg := &FileConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
 	for _, opt := range opts {
 		opt.applyToFileConfig(cfg)
 	}

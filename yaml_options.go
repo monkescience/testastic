@@ -2,7 +2,7 @@ package testastic
 
 // YAMLConfig holds the configuration for YAML comparison.
 type YAMLConfig struct {
-	BaseConfig
+	baseConfig
 }
 
 // YAMLOption is a functional option for configuring YAML comparison.

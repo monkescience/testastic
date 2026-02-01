@@ -9,11 +9,19 @@ import (
 	"strings"
 )
 
-// Matcher parsing errors.
+// Matcher parsing errors returned by [ParseMatcher].
 var (
+	// ErrInvalidRegexSyntax is returned when a regex matcher has invalid syntax.
+	// Example: {{regex `[invalid`}} - unclosed character class.
 	ErrInvalidRegexSyntax = errors.New("invalid regex syntax")
+
+	// ErrInvalidOneOfSyntax is returned when a oneOf matcher has invalid arguments.
+	// Arguments must be quoted strings: {{oneOf "a" "b"}}, not {{oneOf a b}}.
 	ErrInvalidOneOfSyntax = errors.New("invalid oneOf syntax")
-	ErrUnknownMatcher     = errors.New("unknown matcher")
+
+	// ErrUnknownMatcher is returned when a matcher expression is not recognized.
+	// This can occur if a custom matcher was not registered with [RegisterMatcher].
+	ErrUnknownMatcher = errors.New("unknown matcher")
 )
 
 // Matcher defines the interface for custom value matching.
@@ -272,18 +280,61 @@ func AnyURL() Matcher {
 	return &anyURLMatcher{re: urlRegex}
 }
 
-// MatcherFactory creates a Matcher from arguments extracted from template expression.
+// MatcherFactory creates a [Matcher] from arguments extracted from a template expression.
+// The args parameter contains everything after the matcher name in the template.
+//
+// For {{myMatcher}}, args is an empty string.
+// For {{myMatcher foo bar}}, args is "foo bar".
+//
+// Return an error if the arguments are invalid. The error will be wrapped
+// and reported during template parsing.
 type MatcherFactory func(args string) (Matcher, error)
 
 var customMatchers = make(map[string]MatcherFactory)
 
 // RegisterMatcher registers a custom matcher factory with the given name.
+// Once registered, the matcher can be used in expected files as {{name}} or {{name args}}.
+//
+// Registration should typically happen in TestMain or an init function
+// to ensure matchers are available before tests run.
+//
+// Example without arguments:
+//
+//	testastic.RegisterMatcher("orderID", func(args string) (testastic.Matcher, error) {
+//	    return &orderIDMatcher{}, nil
+//	})
+//	// Use in expected file: "id": "{{orderID}}"
+//
+// Example with arguments:
+//
+//	testastic.RegisterMatcher("minLength", func(args string) (testastic.Matcher, error) {
+//	    n, err := strconv.Atoi(strings.TrimSpace(args))
+//	    if err != nil {
+//	        return nil, fmt.Errorf("minLength requires integer argument: %w", err)
+//	    }
+//	    return &minLengthMatcher{min: n}, nil
+//	})
+//	// Use in expected file: "name": "{{minLength 3}}"
+//
+// Custom matchers must implement the [Matcher] interface.
 func RegisterMatcher(name string, factory MatcherFactory) {
 	customMatchers[name] = factory
 }
 
-// ParseMatcher creates a Matcher from a template expression.
-// The expression is the content between {{ and }}.
+// ParseMatcher creates a [Matcher] from a template expression.
+// The expression is the content between {{ and }}, without the braces.
+//
+// Built-in matchers:
+//   - anyString, anyInt, anyFloat, anyBool, anyValue
+//   - anyUUID, anyDateTime, anyURL
+//   - ignore
+//   - regex `pattern` or regex "pattern"
+//   - oneOf "value1" "value2" ...
+//
+// Custom matchers registered with [RegisterMatcher] are also recognized.
+//
+// Returns [ErrUnknownMatcher] if the expression doesn't match any known matcher.
+// Returns [ErrInvalidRegexSyntax] or [ErrInvalidOneOfSyntax] for malformed arguments.
 func ParseMatcher(expr string) (Matcher, error) {
 	switch expr {
 	case "anyString":

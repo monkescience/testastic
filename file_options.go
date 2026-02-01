@@ -2,7 +2,7 @@ package testastic
 
 // FileConfig holds configuration for file assertions.
 type FileConfig struct {
-	BaseConfig
+	baseConfig
 }
 
 // FileOption is a functional option for configuring file comparison.

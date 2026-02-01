@@ -6,8 +6,9 @@ import (
 	"strings"
 )
 
-// BaseConfig holds common configuration shared across all assertion types.
-type BaseConfig struct {
+// baseConfig holds common configuration shared across all assertion types.
+// This struct is embedded in JSONConfig, YAMLConfig, HTMLConfig, and FileConfig.
+type baseConfig struct {
 	IgnoreArrayOrder      bool
 	IgnoreArrayOrderPaths []string
 	IgnoredFields         []string
@@ -15,14 +16,14 @@ type BaseConfig struct {
 	Message               string
 }
 
-// CompareConfig is the interface for comparison configuration.
+// CompareConfig defines methods for querying comparison configuration.
 type CompareConfig interface {
 	ShouldIgnoreArrayOrder(path string) bool
 	IsFieldIgnored(path string) bool
 }
 
 // ShouldIgnoreArrayOrder checks if array order should be ignored at the given path.
-func (c *BaseConfig) ShouldIgnoreArrayOrder(path string) bool {
+func (c *baseConfig) ShouldIgnoreArrayOrder(path string) bool {
 	if c.IgnoreArrayOrder {
 		return true
 	}
@@ -39,7 +40,7 @@ func (c *BaseConfig) ShouldIgnoreArrayOrder(path string) bool {
 // IsFieldIgnored checks if a field at the given path should be ignored.
 // Fields can be matched by exact path (e.g., "$.user.id") or by field name only (e.g., "id").
 // When matching by field name, all fields with that name at any depth are ignored.
-func (c *BaseConfig) IsFieldIgnored(path string) bool {
+func (c *baseConfig) IsFieldIgnored(path string) bool {
 	if len(c.IgnoredFields) == 0 {
 		return false
 	}

@@ -1,6 +1,3 @@
-// Package testastic provides JSON assertion utilities for Go tests.
-// It compares API responses against expected JSON files with support for
-// template-based matchers, semantic comparison, and automatic updates.
 package testastic
 
 import (
@@ -60,7 +57,7 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 func buildJSONConfig(tb testing.TB, opts []AssertionOption) *JSONConfig {
 	tb.Helper()
 
-	cfg := &JSONConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+	cfg := &JSONConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
 		opt.applyToConfig(cfg)

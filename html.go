@@ -59,7 +59,7 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 func buildHTMLConfig(tb testing.TB, opts []AssertionOption) *HTMLConfig {
 	tb.Helper()
 
-	cfg := &HTMLConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+	cfg := &HTMLConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
 		opt.applyToHTMLConfig(cfg)

@@ -57,7 +57,7 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 func buildYAMLConfig(tb testing.TB, opts []AssertionOption) *YAMLConfig {
 	tb.Helper()
 
-	cfg := &YAMLConfig{BaseConfig: BaseConfig{Update: shouldUpdate()}}
+	cfg := &YAMLConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
 
 	for _, opt := range opts {
 		opt.applyToYAMLConfig(cfg)
