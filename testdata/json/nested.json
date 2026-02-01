@@ -1,0 +1,9 @@
+{
+  "user": {
+    "id": "{{anyString}}",
+    "profile": {
+      "name": "Alice",
+      "age": 30
+    }
+  }
+}

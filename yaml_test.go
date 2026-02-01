@@ -12,22 +12,11 @@ import (
 func TestAssertYAML(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		// given: an expected YAML file with exact content
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		yamlContent := `name: test
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(yamlContent), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
+		actual := "name: test\nversion: \"1.0\"\n"
 
 		// when: asserting with matching YAML
-		testastic.AssertYAML(mt, expectedFile, yamlContent)
+		testastic.AssertYAML(mt, "testdata/yaml/exact_match.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -37,10 +26,8 @@ version: "1.0"
 
 	t.Run("exact match nested structure", func(t *testing.T) {
 		// given: an expected YAML file with nested content
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		yamlContent := `apiVersion: v1
+		mt := newMockT()
+		actual := `apiVersion: v1
 kind: ConfigMap
 metadata:
   name: my-config
@@ -50,15 +37,8 @@ data:
   key2: value2
 `
 
-		err := os.WriteFile(expectedFile, []byte(yamlContent), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
-		mt := newMockT()
-
 		// when: asserting with matching nested YAML
-		testastic.AssertYAML(mt, expectedFile, yamlContent)
+		testastic.AssertYAML(mt, "testdata/yaml/nested_structure.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -68,25 +48,11 @@ data:
 
 	t.Run("with anyString matcher", func(t *testing.T) {
 		// given: an expected YAML file with anyString matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: {{anyString}}
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-version: "1.0"
-`
+		actual := "name: my-app\nversion: \"1.0\"\n"
 
 		// when: asserting with any string in the name field
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_anystring.yaml", actual)
 
 		// then: the test passes (matcher accepts any string)
 		if mt.failed {
@@ -96,23 +62,11 @@ version: "1.0"
 
 	t.Run("with regex matcher", func(t *testing.T) {
 		// given: an expected YAML file with regex matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := "name: {{regex `^app-[a-z]+$`}}\nversion: \"1.0\"\n"
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: app-test
-version: "1.0"
-`
+		actual := "name: app-test\nversion: \"1.0\"\n"
 
 		// when: asserting with a value matching the regex
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_regex.yaml", actual)
 
 		// then: the test passes (regex matches)
 		if mt.failed {
@@ -122,23 +76,11 @@ version: "1.0"
 
 	t.Run("with regex matcher fails", func(t *testing.T) {
 		// given: an expected YAML file with regex matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := "name: {{regex `^app-[a-z]+$`}}\nversion: \"1.0\"\n"
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: invalid-123
-version: "1.0"
-`
+		actual := "name: invalid-123\nversion: \"1.0\"\n"
 
 		// when: asserting with a value not matching the regex
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_regex.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -148,27 +90,11 @@ version: "1.0"
 
 	t.Run("with ignore matcher", func(t *testing.T) {
 		// given: an expected YAML file with ignore matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-timestamp: {{ignore}}
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-timestamp: "2024-01-15T10:30:00Z"
-version: "1.0"
-`
+		actual := "name: my-app\ntimestamp: \"2024-01-15T10:30:00Z\"\nversion: \"1.0\"\n"
 
 		// when: asserting with any value in the ignored field
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_ignore.yaml", actual)
 
 		// then: the test passes (ignored content is not compared)
 		if mt.failed {
@@ -178,25 +104,11 @@ version: "1.0"
 
 	t.Run("with anyInt matcher", func(t *testing.T) {
 		// given: an expected YAML file with anyInt matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-replicas: {{anyInt}}
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-replicas: 3
-`
+		actual := "name: my-app\nreplicas: 3\n"
 
 		// when: asserting with any integer in replicas
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_anyint.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -206,25 +118,11 @@ replicas: 3
 
 	t.Run("with oneOf matcher", func(t *testing.T) {
 		// given: an expected YAML file with oneOf matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-environment: {{oneOf "dev" "staging" "prod"}}
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-environment: staging
-`
+		actual := "name: my-app\nenvironment: staging\n"
 
 		// when: asserting with a value from the oneOf list
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_oneof.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -234,25 +132,11 @@ environment: staging
 
 	t.Run("with oneOf matcher fails", func(t *testing.T) {
 		// given: an expected YAML file with oneOf matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-environment: {{oneOf "dev" "staging" "prod"}}
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-environment: test
-`
+		actual := "name: my-app\nenvironment: test\n"
 
 		// when: asserting with a value not in the oneOf list
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_oneof.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -262,25 +146,11 @@ environment: test
 
 	t.Run("mismatch value", func(t *testing.T) {
 		// given: an expected YAML file with a specific value
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: expected-name
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: actual-name
-version: "1.0"
-`
+		actual := "name: actual-name\nversion: \"1.0\"\n"
 
 		// when: asserting with a different value
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/mismatch_value.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -290,26 +160,11 @@ version: "1.0"
 
 	t.Run("missing field", func(t *testing.T) {
 		// given: an expected YAML file with multiple fields
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-version: "1.0"
-description: My app description
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-version: "1.0"
-`
+		actual := "name: my-app\nversion: \"1.0\"\n"
 
 		// when: asserting with YAML missing a field
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/missing_field.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -319,26 +174,11 @@ version: "1.0"
 
 	t.Run("extra field", func(t *testing.T) {
 		// given: an expected YAML file with specific fields
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-version: "1.0"
-extra: unexpected-field
-`
+		actual := "name: my-app\nversion: \"1.0\"\nextra: unexpected-field\n"
 
 		// when: asserting with YAML containing an extra field
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/extra_field.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -348,24 +188,11 @@ extra: unexpected-field
 
 	t.Run("array exact match", func(t *testing.T) {
 		// given: an expected YAML file with an array
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `items:
-  - name: item1
-  - name: item2
-  - name: item3
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
+		actual := "items:\n  - name: item1\n  - name: item2\n  - name: item3\n"
 
 		// when: asserting with matching array
-		testastic.AssertYAML(mt, expectedFile, expected)
+		testastic.AssertYAML(mt, "testdata/yaml/array_exact.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -375,27 +202,11 @@ extra: unexpected-field
 
 	t.Run("array order matters", func(t *testing.T) {
 		// given: an expected YAML file with an array in specific order
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `items:
-  - name: first
-  - name: second
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `items:
-  - name: second
-  - name: first
-`
+		actual := "items:\n  - name: second\n  - name: first\n"
 
 		// when: asserting with reordered array (order matters by default)
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/array_order.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -405,27 +216,11 @@ extra: unexpected-field
 
 	t.Run("array ignore order", func(t *testing.T) {
 		// given: an expected YAML file with an array
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `items:
-  - name: first
-  - name: second
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `items:
-  - name: second
-  - name: first
-`
+		actual := "items:\n  - name: second\n  - name: first\n"
 
 		// when: asserting with IgnoreArrayOrder option
-		testastic.AssertYAML(mt, expectedFile, actual, testastic.IgnoreArrayOrder())
+		testastic.AssertYAML(mt, "testdata/yaml/array_order.yaml", actual, testastic.IgnoreArrayOrder())
 
 		// then: the test passes
 		if mt.failed {
@@ -435,33 +230,11 @@ extra: unexpected-field
 
 	t.Run("array ignore order at", func(t *testing.T) {
 		// given: an expected YAML file with multiple arrays
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `items:
-  - name: first
-  - name: second
-tags:
-  - a
-  - b
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `items:
-  - name: second
-  - name: first
-tags:
-  - b
-  - a
-`
+		actual := "items:\n  - name: second\n  - name: first\ntags:\n  - b\n  - a\n"
 
 		// when: asserting with IgnoreArrayOrderAt for items only
-		testastic.AssertYAML(mt, expectedFile, actual, testastic.IgnoreArrayOrderAt("$.items"))
+		testastic.AssertYAML(mt, "testdata/yaml/array_multiple.yaml", actual, testastic.IgnoreArrayOrderAt("$.items"))
 
 		// then: the test fails because tags order still matters
 		if !mt.failed {
@@ -471,27 +244,11 @@ tags:
 
 	t.Run("ignore fields", func(t *testing.T) {
 		// given: an expected YAML file
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		expected := `name: my-app
-timestamp: "2024-01-01T00:00:00Z"
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
-		actual := `name: my-app
-timestamp: "2024-12-31T23:59:59Z"
-version: "1.0"
-`
+		actual := "name: my-app\ntimestamp: \"2024-12-31T23:59:59Z\"\nversion: \"1.0\"\n"
 
 		// when: asserting with IgnoreFields option
-		testastic.AssertYAML(mt, expectedFile, actual, testastic.IgnoreFields("timestamp"))
+		testastic.AssertYAML(mt, "testdata/yaml/ignore_fields.yaml", actual, testastic.IgnoreFields("timestamp"))
 
 		// then: the test passes (timestamp is ignored)
 		if mt.failed {
@@ -505,9 +262,7 @@ version: "1.0"
 		expectedFile := filepath.Join(dir, "new-expected.yaml")
 
 		mt := newMockT()
-		actual := `name: my-app
-version: "1.0"
-`
+		actual := "name: my-app\nversion: \"1.0\"\n"
 
 		// when: asserting with YAMLUpdate option
 		testastic.AssertYAML(mt, expectedFile, actual, testastic.Update())
@@ -529,22 +284,11 @@ version: "1.0"
 
 	t.Run("byte slice input", func(t *testing.T) {
 		// given: an expected YAML file and actual as []byte
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		yamlContent := `name: test
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(yamlContent), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
+		actual := []byte("name: test\nversion: \"1.0\"\n")
 
 		// when: asserting with []byte input
-		testastic.AssertYAML(mt, expectedFile, []byte(yamlContent))
+		testastic.AssertYAML(mt, "testdata/yaml/byte_slice.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -554,28 +298,16 @@ version: "1.0"
 
 	t.Run("struct input", func(t *testing.T) {
 		// given: an expected YAML file and actual as a struct
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
 		type Config struct {
 			Name    string `yaml:"name"`
 			Version string `yaml:"version"`
-		}
-
-		expected := `name: my-app
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
 		}
 
 		mt := newMockT()
 		actual := Config{Name: "my-app", Version: "1.0"}
 
 		// when: asserting with struct input (auto-marshaled)
-		testastic.AssertYAML(mt, expectedFile, actual)
+		testastic.AssertYAML(mt, "testdata/yaml/struct_input.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -585,22 +317,11 @@ version: "1.0"
 
 	t.Run("reader input", func(t *testing.T) {
 		// given: an expected YAML file and actual as io.Reader
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.yaml")
-
-		yamlContent := `name: test
-version: "1.0"
-`
-
-		err := os.WriteFile(expectedFile, []byte(yamlContent), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := newMockT()
+		actual := strings.NewReader("name: test\nversion: \"1.0\"\n")
 
 		// when: asserting with io.Reader input
-		testastic.AssertYAML(mt, expectedFile, strings.NewReader(yamlContent))
+		testastic.AssertYAML(mt, "testdata/yaml/reader_input.yaml", actual)
 
 		// then: the test passes
 		if mt.failed {

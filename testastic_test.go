@@ -2,8 +2,6 @@ package testastic_test
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -20,33 +18,18 @@ const (
 func TestAssertJSON(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		// given: an expected JSON file with exact values
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "exact.expected.json")
-
-		expected := `{
-  "name": "Alice",
-  "age": 30,
-  "active": true
-}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with matching JSON
 		// then: the test passes without failure
-		testastic.AssertJSON(t, expectedFile, testJSONAliceAge30Full)
+		testastic.AssertJSON(t, "testdata/json/exact_match.json", testJSONAliceAge30Full)
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
 		// given: an expected JSON file and non-matching actual JSON
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "mismatch.expected.json")
-
-		writeTestFile(t, expectedFile, testJSONAliceAge30)
-
 		mt := &mockT{}
 		actual := `{"name": "Bob", "age": 25}`
 
 		// when: asserting with mismatched JSON
-		testastic.AssertJSON(mt, expectedFile, actual)
+		testastic.AssertJSON(mt, "testdata/json/mismatch.json", actual)
 
 		// then: the test fails and diff mentions the differing fields
 		if !mt.failed {
@@ -64,199 +47,105 @@ func TestAssertJSON(t *testing.T) {
 
 	t.Run("with anyString matcher", func(t *testing.T) {
 		// given: an expected JSON file with anyString matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "any_string.expected.json")
-
-		expected := `{
-  "id": "{{anyString}}",
-  "name": "Alice"
-}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with any string value for id
 		actual := `{"id": "abc-123-xyz", "name": "Alice"}`
 
 		// then: the test passes (matcher accepts any string)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/with_anystring.json", actual)
 	})
 
 	t.Run("with anyInt matcher", func(t *testing.T) {
 		// given: an expected JSON file with anyInt matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "any_int.expected.json")
-
-		expected := `{
-  "count": "{{anyInt}}",
-  "name": "test"
-}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with any integer value for count
 		actual := `{"count": 42, "name": "test"}`
 
 		// then: the test passes (matcher accepts any integer)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/with_anyint.json", actual)
 	})
 
 	t.Run("with ignore matcher", func(t *testing.T) {
 		// given: an expected JSON file with ignore matchers
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "ignore.expected.json")
-
-		expected := `{
-  "id": "{{ignore}}",
-  "timestamp": "{{ignore}}",
-  "name": "Alice"
-}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with any values for ignored fields
 		actual := `{"id": 12345, "timestamp": "2024-01-15T10:30:00Z", "name": "Alice"}`
 
 		// then: the test passes (ignored fields are not compared)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/with_ignore.json", actual)
 	})
 
 	t.Run("with regex matcher", func(t *testing.T) {
 		// given: an expected JSON file with regex matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "regex.expected.json")
-
-		expected := "{\"email\": \"{{regex `^[a-z]+@example\\.com$`}}\"}"
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with a value matching the regex pattern
 		actual := `{"email": "alice@example.com"}`
 
 		// then: the test passes (value matches regex)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/with_regex.json", actual)
 	})
 
 	t.Run("with regex matcher containing braces", func(t *testing.T) {
 		// given: an expected JSON file with regex containing braces
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "regex_braces.expected.json")
-
-		expected := "{\"date\": \"{{regex `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`}}\"}"
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with a value matching the regex pattern
 		actual := `{"date": "2024-01-15"}`
 
 		// then: the test passes (value matches regex with quantifiers)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/with_regex_braces.json", actual)
 	})
 
 	t.Run("with oneOf matcher", func(t *testing.T) {
 		// given: an expected JSON file with oneOf matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "one_of.expected.json")
-
-		expected := "{\"status\": \"{{oneOf \\\"pending\\\" \\\"active\\\" \\\"completed\\\"}}\"}"
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with a value from the allowed set
 		actual := `{"status": "active"}`
 
 		// then: the test passes (value is one of the allowed values)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/with_oneof.json", actual)
 	})
 
 	t.Run("nested objects", func(t *testing.T) {
 		// given: an expected JSON file with nested objects and matchers
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "nested.expected.json")
-
-		expected := `{
-  "user": {
-    "id": "{{anyString}}",
-    "profile": {
-      "name": "Alice",
-      "age": 30
-    }
-  }
-}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with matching nested structure
 		actual := `{"user": {"id": "usr-123", "profile": {"name": "Alice", "age": 30}}}`
 
 		// then: the test passes (nested structure matches)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/nested.json", actual)
 	})
 
 	t.Run("arrays", func(t *testing.T) {
 		// given: an expected JSON file with arrays
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "arrays.expected.json")
-
-		expected := `{
-  "items": [
-    {"id": 1, "name": "first"},
-    {"id": 2, "name": "second"}
-  ]
-}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with matching array content and order
 		actual := `{"items": [{"id": 1, "name": "first"}, {"id": 2, "name": "second"}]}`
 
 		// then: the test passes (array matches exactly)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/arrays.json", actual)
 	})
 
 	t.Run("ignore array order", func(t *testing.T) {
 		// given: an expected JSON file with an array
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "array_order.expected.json")
-
-		expected := `{"tags": ["a", "b", "c"]}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with same elements in different order using IgnoreArrayOrder
 		actual := `{"tags": ["c", "a", "b"]}`
 
 		// then: the test passes (order is ignored)
-		testastic.AssertJSON(t, expectedFile, actual, testastic.IgnoreArrayOrder())
+		testastic.AssertJSON(t, "testdata/json/array_order.json", actual, testastic.IgnoreArrayOrder())
 	})
 
 	t.Run("ignore array order at", func(t *testing.T) {
 		// given: an expected JSON file with ordered and unordered arrays
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "array_order_at.expected.json")
-
-		expected := `{"ordered": [1, 2, 3], "unordered": ["a", "b", "c"]}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with different order only in the unordered array
 		actual := `{"ordered": [1, 2, 3], "unordered": ["c", "a", "b"]}`
 
 		// then: the test passes (order ignored only at specified path)
-		testastic.AssertJSON(t, expectedFile, actual, testastic.IgnoreArrayOrderAt("$.unordered"))
+		testastic.AssertJSON(t, "testdata/json/array_order_at.json", actual, testastic.IgnoreArrayOrderAt("$.unordered"))
 	})
 
 	t.Run("ignore fields", func(t *testing.T) {
 		// given: an expected JSON file with fields to ignore
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "ignore_fields.expected.json")
-
-		expected := `{"id": "fixed", "name": "Alice", "timestamp": "2024-01-01"}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting with different values for ignored fields
 		actual := `{"id": "different", "name": "Alice", "timestamp": "2024-12-15"}`
 
 		// then: the test passes (specified fields are ignored)
-		testastic.AssertJSON(t, expectedFile, actual, testastic.IgnoreFields("id", "timestamp"))
+		testastic.AssertJSON(t, "testdata/json/ignore_fields.json", actual, testastic.IgnoreFields("id", "timestamp"))
 	})
 
 	t.Run("from struct", func(t *testing.T) {
 		// given: an expected JSON file and a Go struct with matching data
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "struct.expected.json")
-
-		writeTestFile(t, expectedFile, testJSONAliceAge30)
-
 		type User struct {
 			Name string `json:"name"`
 			Age  int    `json:"age"`
@@ -266,35 +155,25 @@ func TestAssertJSON(t *testing.T) {
 
 		// when: asserting with the struct as actual value
 		// then: the test passes (struct is serialized and matches)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/struct.json", actual)
 	})
 
 	t.Run("from reader", func(t *testing.T) {
 		// given: an expected JSON file and an io.Reader with matching content
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "reader.expected.json")
-
-		writeTestFile(t, expectedFile, testJSONAliceOnly)
-
 		actual := bytes.NewReader([]byte(testJSONAliceOnly))
 
 		// when: asserting with the io.Reader as actual value
 		// then: the test passes (reader content matches)
-		testastic.AssertJSON(t, expectedFile, actual)
+		testastic.AssertJSON(t, "testdata/json/reader.json", actual)
 	})
 
 	t.Run("extra field", func(t *testing.T) {
 		// given: an expected JSON file without an extra field
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "extra.expected.json")
-
-		writeTestFile(t, expectedFile, testJSONAliceOnly)
-
 		mt := &mockT{}
 		actual := `{"name": "Alice", "extra": "field"}`
 
 		// when: asserting with JSON containing an extra field
-		testastic.AssertJSON(mt, expectedFile, actual)
+		testastic.AssertJSON(mt, "testdata/json/extra_field.json", actual)
 
 		// then: the test fails and diff mentions the extra field
 		if !mt.failed {
@@ -308,15 +187,10 @@ func TestAssertJSON(t *testing.T) {
 
 	t.Run("missing field", func(t *testing.T) {
 		// given: an expected JSON file with a field that actual lacks
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "missing.expected.json")
-
-		writeTestFile(t, expectedFile, testJSONAliceAge30)
-
 		mt := &mockT{}
 
 		// when: asserting with JSON missing the age field
-		testastic.AssertJSON(mt, expectedFile, testJSONAliceOnly)
+		testastic.AssertJSON(mt, "testdata/json/missing_field.json", testJSONAliceOnly)
 
 		// then: the test fails and diff mentions the missing field
 		if !mt.failed {
@@ -459,16 +333,6 @@ func TestMatchers(t *testing.T) {
 			t.Error("expected not to match 'd'")
 		}
 	})
-}
-
-// writeTestFile writes content to a file, failing the test on error.
-func writeTestFile(t *testing.T, path, content string) {
-	t.Helper()
-
-	err := os.WriteFile(path, []byte(content), 0o600)
-	if err != nil {
-		t.Fatal(err)
-	}
 }
 
 // mockT is a mock testing.TB for capturing test failures.

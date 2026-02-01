@@ -1,0 +1,1 @@
+Email: {{regex `[a-z]+@example\.com`}}

@@ -1,7 +1,6 @@
 package testastic_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -116,14 +115,8 @@ func TestCustomMatcherRegistry(t *testing.T) {
 			return testastic.AnyString(), nil
 		})
 
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "custom.expected.json")
-
-		expected := `{"value": "{{customTest}}"}`
-		writeTestFile(t, expectedFile, expected)
-
 		// when: asserting JSON with the custom matcher
 		// then: the custom matcher is used and matches any string
-		testastic.AssertJSON(t, expectedFile, `{"value": "test"}`)
+		testastic.AssertJSON(t, "testdata/json/custom_matcher.json", `{"value": "test"}`)
 	})
 }

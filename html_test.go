@@ -12,20 +12,11 @@ import (
 func TestAssertHTML(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		// given: an expected HTML file with exact content
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		html := `<div class="card"><span>Hello</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(html), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, html)
+		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
+			`<div class="card"><span>Hello</span></div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -35,20 +26,12 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("exact match full document", func(t *testing.T) {
 		// given: an expected HTML file with a full HTML document
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		html := `<!DOCTYPE html><html><head><title>Test</title></head><body><p>Hello</p></body></html>`
-
-		err := os.WriteFile(expectedFile, []byte(html), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
+		actual := `<!DOCTYPE html><html><head><title>Test</title></head>` +
+			`<body><p>Hello</p></body></html>`
 
 		// when: asserting with matching full document
-		testastic.AssertHTML(mt, expectedFile, html)
+		testastic.AssertHTML(mt, "testdata/html/full_document.html", actual)
 
 		// then: the test passes
 		if mt.failed {
@@ -58,21 +41,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with anyString matcher", func(t *testing.T) {
 		// given: an expected HTML file with anyString matcher in text content
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="card"><span>{{anyString}}</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div class="card"><span>Hello World</span></div>`
 
 		// when: asserting with any string in the span
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/with_anystring.html",
+			`<div class="card"><span>Hello World</span></div>`)
 
 		// then: the test passes (matcher accepts any string)
 		if mt.failed {
@@ -82,21 +55,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with regex matcher", func(t *testing.T) {
 		// given: an expected HTML file with regex matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := "<div><span>{{regex `^user-\\d+$`}}</span></div>"
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><span>user-123</span></div>`
 
 		// when: asserting with a value matching the regex
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/with_regex.html",
+			`<div><span>user-123</span></div>`)
 
 		// then: the test passes (regex matches)
 		if mt.failed {
@@ -106,21 +69,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with regex matcher fails", func(t *testing.T) {
 		// given: an expected HTML file with regex matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := "<div><span>{{regex `^user-\\d+$`}}</span></div>"
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><span>invalid-format</span></div>`
 
 		// when: asserting with a value not matching the regex
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/with_regex.html",
+			`<div><span>invalid-format</span></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -130,21 +83,12 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with ignore matcher", func(t *testing.T) {
 		// given: an expected HTML file with ignore matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><span class="timestamp">{{ignore}}</span><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><span class="timestamp">2024-01-01 12:00:00</span><span>Content</span></div>`
+		actual := `<div><span class="timestamp">2024-01-01 12:00:00</span>` +
+			`<span>Content</span></div>`
 
 		// when: asserting with any value in the ignored span
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/with_ignore.html", actual)
 
 		// then: the test passes (ignored content is not compared)
 		if mt.failed {
@@ -154,21 +98,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("matcher in attribute", func(t *testing.T) {
 		// given: an expected HTML file with matcher in an attribute
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-id="{{anyString}}"><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-id="abc-123"><span>Content</span></div>`
 
 		// when: asserting with any string in the attribute
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/matcher_in_attribute.html",
+			`<div data-id="abc-123"><span>Content</span></div>`)
 
 		// then: the test passes (matcher accepts any string)
 		if mt.failed {
@@ -178,21 +112,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("missing element", func(t *testing.T) {
 		// given: an expected HTML file with two span elements
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><span>First</span><span>Second</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><span>First</span></div>`
 
 		// when: asserting with HTML missing the second span
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/missing_element.html",
+			`<div><span>First</span></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -202,21 +126,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("extra element", func(t *testing.T) {
 		// given: an expected HTML file with one span element
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><span>First</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><span>First</span><span>Second</span></div>`
 
 		// when: asserting with HTML containing an extra span
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/extra_element.html",
+			`<div><span>First</span><span>Second</span></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -226,21 +140,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("wrong tag", func(t *testing.T) {
 		// given: an expected HTML file with a span element
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><p>Content</p></div>`
 
 		// when: asserting with HTML using a different tag
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/wrong_tag.html",
+			`<div><p>Content</p></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -250,21 +154,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("wrong attribute", func(t *testing.T) {
 		// given: an expected HTML file with a specific class attribute
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="card"><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div class="box"><span>Content</span></div>`
 
 		// when: asserting with HTML using a different class value
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/wrong_attribute.html",
+			`<div class="box"><span>Content</span></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -274,21 +168,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("missing attribute", func(t *testing.T) {
 		// given: an expected HTML file with class and id attributes
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="card" id="main"><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div class="card"><span>Content</span></div>`
 
 		// when: asserting with HTML missing the id attribute
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/missing_attribute.html",
+			`<div class="card"><span>Content</span></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -298,21 +182,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("extra attribute", func(t *testing.T) {
 		// given: an expected HTML file with only class attribute
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="card"><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div class="card" id="extra"><span>Content</span></div>`
 
 		// when: asserting with HTML containing an extra id attribute
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/extra_attribute.html",
+			`<div class="card" id="extra"><span>Content</span></div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -322,21 +196,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("whitespace normalization", func(t *testing.T) {
 		// given: an expected HTML file with normalized whitespace
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><span>Hello World</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div><span>Hello   World</span></div>` // Extra whitespace
 
 		// when: asserting with HTML containing extra whitespace
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/whitespace.html",
+			`<div><span>Hello   World</span></div>`)
 
 		// then: the test passes (whitespace is normalized by default)
 		if mt.failed {
@@ -346,21 +210,12 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("preserve whitespace", func(t *testing.T) {
 		// given: an expected HTML file with specific whitespace
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><span>Hello World</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 		actual := `<div><span>Hello   World</span></div>`
 
 		// when: asserting with PreserveWhitespace option
-		testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.PreserveWhitespace()))
+		testastic.AssertHTML(mt, "testdata/html/whitespace.html", actual,
+			testastic.WrapHTMLOption(testastic.PreserveWhitespace()))
 
 		// then: the test fails (whitespace differences are detected)
 		if !mt.failed {
@@ -370,21 +225,12 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("ignore comments", func(t *testing.T) {
 		// given: an expected HTML file with a comment
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><!-- comment --><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 		actual := `<div><!-- different comment --><span>Content</span></div>`
 
 		// when: asserting with IgnoreHTMLComments option
-		testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.IgnoreHTMLComments()))
+		testastic.AssertHTML(mt, "testdata/html/with_comment.html", actual,
+			testastic.WrapHTMLOption(testastic.IgnoreHTMLComments()))
 
 		// then: the test passes (comments are ignored)
 		if mt.failed {
@@ -394,21 +240,12 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("ignore elements", func(t *testing.T) {
 		// given: an expected HTML file with a script element
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div><script>console.log('test')</script><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 		actual := `<div><script>console.log('different')</script><span>Content</span></div>`
 
 		// when: asserting with IgnoreElements option for script
-		testastic.AssertHTML(mt, expectedFile, actual, testastic.WrapHTMLOption(testastic.IgnoreElements("script")))
+		testastic.AssertHTML(mt, "testdata/html/with_script.html", actual,
+			testastic.WrapHTMLOption(testastic.IgnoreElements("script")))
 
 		// then: the test passes (script element is ignored)
 		if mt.failed {
@@ -418,24 +255,12 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("ignore attributes", func(t *testing.T) {
 		// given: an expected HTML file with class and data-testid attributes
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="card" data-testid="test"><span>Content</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 		actual := `<div class="box" data-testid="different"><span>Content</span></div>`
 
 		// when: asserting with IgnoreAttributes option
-		testastic.AssertHTML(
-			mt, expectedFile, actual,
-			testastic.WrapHTMLOption(testastic.IgnoreAttributes("class", "data-testid")),
-		)
+		testastic.AssertHTML(mt, "testdata/html/ignore_attributes.html", actual,
+			testastic.WrapHTMLOption(testastic.IgnoreAttributes("class", "data-testid")))
 
 		// then: the test passes (specified attributes are ignored)
 		if mt.failed {
@@ -471,20 +296,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("byte slice input", func(t *testing.T) {
 		// given: an expected HTML file and actual as []byte
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		html := `<div><span>Hello</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(html), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 
 		// when: asserting with []byte input
-		testastic.AssertHTML(mt, expectedFile, []byte(html))
+		testastic.AssertHTML(mt, "testdata/html/bytes.html",
+			[]byte(`<div><span>Hello</span></div>`))
 
 		// then: the test passes
 		if mt.failed {
@@ -494,20 +310,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("reader input", func(t *testing.T) {
 		// given: an expected HTML file and actual as io.Reader
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		html := `<div><span>Hello</span></div>`
-
-		err := os.WriteFile(expectedFile, []byte(html), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 
 		// when: asserting with io.Reader input
-		testastic.AssertHTML(mt, expectedFile, strings.NewReader(html))
+		testastic.AssertHTML(mt, "testdata/html/bytes.html",
+			strings.NewReader(`<div><span>Hello</span></div>`))
 
 		// then: the test passes
 		if mt.failed {
@@ -517,20 +324,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("nested elements", func(t *testing.T) {
 		// given: an expected HTML file with nested elements
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		html := `<div><ul><li>Item 1</li><li>Item 2</li></ul></div>`
-
-		err := os.WriteFile(expectedFile, []byte(html), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 
 		// when: asserting with matching nested structure
-		testastic.AssertHTML(mt, expectedFile, html)
+		testastic.AssertHTML(mt, "testdata/html/nested.html",
+			`<div><ul><li>Item 1</li><li>Item 2</li></ul></div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -540,20 +338,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("void elements", func(t *testing.T) {
 		// given: an expected HTML file with void elements
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		html := `<div><img src="test.jpg"><br><input type="text"></div>`
-
-		err := os.WriteFile(expectedFile, []byte(html), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
 
 		// when: asserting with matching void elements
-		testastic.AssertHTML(mt, expectedFile, html)
+		testastic.AssertHTML(mt, "testdata/html/void_elements.html",
+			`<div><img src="test.jpg"><br><input type="text"></div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -563,21 +352,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded matcher in attribute", func(t *testing.T) {
 		// given: an expected HTML file with embedded matcher in attribute
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div style="border-left: 6px solid {{anyString}};">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div style="border-left: 6px solid #ff0000;">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_matcher_attr.html",
+			`<div style="border-left: 6px solid #ff0000;">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -587,21 +366,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded regex in attribute", func(t *testing.T) {
 		// given: an expected HTML file with embedded regex in attribute
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := "<div style=\"border-left: 6px solid {{regex `#[0-9a-fA-F]{6}`}};\">Content</div>"
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div style="border-left: 6px solid #ff0000;">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_regex_attr.html",
+			`<div style="border-left: 6px solid #ff0000;">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -611,21 +380,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded matcher mismatch", func(t *testing.T) {
 		// given: an expected HTML file with embedded regex that won't match
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := "<div style=\"border-left: 6px solid {{regex `#[0-9a-fA-F]{6}`}};\">Content</div>"
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div style="border-left: 6px solid red;">Content</div>`
 
 		// when: asserting with non-matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_regex_attr.html",
+			`<div style="border-left: 6px solid red;">Content</div>`)
 
 		// then: the test fails
 		if !mt.failed {
@@ -635,21 +394,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("multiple embedded matchers", func(t *testing.T) {
 		// given: an expected HTML file with multiple embedded matchers
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-info="user-{{anyString}}-id-{{anyString}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-info="user-john-id-12345">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/multiple_embedded.html",
+			`<div data-info="user-john-id-12345">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -659,21 +408,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded matcher in text content", func(t *testing.T) {
 		// given: an expected HTML file with embedded matcher in text content
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div>Hello {{anyString}}, your ID is {{anyString}}</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div>Hello World, your ID is 12345</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_text.html",
+			`<div>Hello World, your ID is 12345</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -683,21 +422,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyInt", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyInt matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-count="Total: {{anyInt}} items">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-count="Total: 42 items">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_anyint.html",
+			`<div data-count="Total: 42 items">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -707,21 +436,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyFloat", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyFloat matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-price="Price: ${{anyFloat}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-price="Price: $19.99">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_anyfloat.html",
+			`<div data-price="Price: $19.99">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -731,21 +450,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyBool", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyBool matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-state="enabled={{anyBool}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-state="enabled=true">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_anybool.html",
+			`<div data-state="enabled=true">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -755,21 +464,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyValue", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyValue matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-info="key={{anyValue}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-info="key=anything-here-123">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_anyvalue.html",
+			`<div data-info="key=anything-here-123">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -779,21 +478,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded ignore", func(t *testing.T) {
 		// given: an expected HTML file with embedded ignore matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div data-timestamp="created={{ignore}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div data-timestamp="created=2024-01-15T10:30:00Z">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_ignore.html",
+			`<div data-timestamp="created=2024-01-15T10:30:00Z">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -803,21 +492,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded oneOf", func(t *testing.T) {
 		// given: an expected HTML file with embedded oneOf matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="btn btn-{{oneOf "primary" "secondary" "danger"}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div class="btn btn-secondary">Content</div>`
 
 		// when: asserting with matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_oneof.html",
+			`<div class="btn btn-secondary">Content</div>`)
 
 		// then: the test passes
 		if mt.failed {
@@ -827,21 +506,11 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded oneOf mismatch", func(t *testing.T) {
 		// given: an expected HTML file with embedded oneOf matcher
-		dir := t.TempDir()
-		expectedFile := filepath.Join(dir, "expected.html")
-
-		expected := `<div class="btn btn-{{oneOf "primary" "secondary"}}">Content</div>`
-
-		err := os.WriteFile(expectedFile, []byte(expected), 0o644)
-		if err != nil {
-			t.Fatalf("failed to create expected file: %v", err)
-		}
-
 		mt := &htmlMockT{}
-		actual := `<div class="btn btn-danger">Content</div>`
 
 		// when: asserting with non-matching HTML
-		testastic.AssertHTML(mt, expectedFile, actual)
+		testastic.AssertHTML(mt, "testdata/html/embedded_oneof_limited.html",
+			`<div class="btn btn-danger">Content</div>`)
 
 		// then: the test fails
 		if !mt.failed {

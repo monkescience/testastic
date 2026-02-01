@@ -1,0 +1,1 @@
+Price: ${{anyInt}}.99 (USD)

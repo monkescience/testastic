@@ -1,0 +1,3 @@
+name: my-app
+timestamp: {{ignore}}
+version: "1.0"
