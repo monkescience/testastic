@@ -10,6 +10,9 @@ import (
 	"testing"
 )
 
+// nilTypeName is the type name for nil values.
+const nilTypeName = "nil"
+
 // fail reports an assertion failure with expected and actual values.
 func fail(tb testing.TB, name, expected, actual string) {
 	tb.Helper()

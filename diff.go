@@ -1,97 +1,49 @@
 package testastic
 
 import (
-	"fmt"
 	"strings"
 )
 
-// DiffType represents the type of difference found.
-type DiffType int
+// diffType represents the type of difference found.
+type diffType int
 
 const (
-	// DiffChanged indicates a value was modified.
-	DiffChanged DiffType = iota
-	// DiffAdded indicates a value was added (exists in actual but not expected).
-	DiffAdded
-	// DiffRemoved indicates a value was removed (exists in expected but not actual).
-	DiffRemoved
-	// DiffTypeMismatch indicates the types don't match.
-	DiffTypeMismatch
-	// DiffMatcherFailed indicates a matcher didn't match the actual value.
-	DiffMatcherFailed
+	// diffChanged indicates a value was modified.
+	diffChanged diffType = iota
+	// diffAdded indicates a value was added (exists in actual but not expected).
+	diffAdded
+	// diffRemoved indicates a value was removed (exists in expected but not actual).
+	diffRemoved
+	// diffTypeMismatch indicates the types don't match.
+	diffTypeMismatch
+	// diffMatcherFailed indicates a matcher didn't match the actual value.
+	diffMatcherFailed
 )
 
-// maxDisplayLineLen is the maximum length for displaying values before truncation.
-const maxDisplayLineLen = 80
-
 // String returns a human-readable description of the diff type.
-func (d DiffType) String() string {
+func (d diffType) String() string {
 	switch d {
-	case DiffChanged:
+	case diffChanged:
 		return "changed"
-	case DiffAdded:
+	case diffAdded:
 		return "added"
-	case DiffRemoved:
+	case diffRemoved:
 		return "removed"
-	case DiffTypeMismatch:
+	case diffTypeMismatch:
 		return "type mismatch"
-	case DiffMatcherFailed:
+	case diffMatcherFailed:
 		return "matcher failed"
 	default:
 		return "unknown"
 	}
 }
 
-// Difference represents a single difference between expected and actual JSON.
-type Difference struct {
+// difference represents a single difference between expected and actual JSON.
+type difference struct {
 	Path     string   // JSON path, e.g., "$.users[0].name"
 	Expected any      // Expected value (or matcher description)
 	Actual   any      // Actual value
-	Type     DiffType // Type of difference
-}
-
-type (
-	valueFormatter func(any) string
-	typeFormatter  func(any) string
-)
-
-func formatDiffList(diffs []Difference, formatName string, fmtValue valueFormatter, fmtType typeFormatter) string {
-	if len(diffs) == 0 {
-		return ""
-	}
-
-	var sb strings.Builder
-
-	if len(diffs) == 1 {
-		sb.WriteString(formatName + " mismatch at 1 path:\n")
-	} else {
-		sb.WriteString(fmt.Sprintf("%s mismatch at %d paths:\n", formatName, len(diffs)))
-	}
-
-	for _, d := range diffs {
-		sb.WriteString("\n")
-		sb.WriteString(fmt.Sprintf("  %s\n", d.Path))
-
-		switch d.Type {
-		case DiffAdded:
-			sb.WriteString("    expected: (missing)\n")
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", fmtValue(d.Actual)))
-
-		case DiffRemoved:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", fmtValue(d.Expected)))
-			sb.WriteString("    actual:   (missing)\n")
-
-		case DiffTypeMismatch:
-			sb.WriteString(fmt.Sprintf("    expected: %s (%s)\n", fmtValue(d.Expected), fmtType(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s (%s)\n", fmtValue(d.Actual), fmtType(d.Actual)))
-
-		case DiffChanged, DiffMatcherFailed:
-			sb.WriteString(fmt.Sprintf("    expected: %s\n", fmtValue(d.Expected)))
-			sb.WriteString(fmt.Sprintf("    actual:   %s\n", fmtValue(d.Actual)))
-		}
-	}
-
-	return sb.String()
+	Type     diffType // Type of difference
 }
 
 // FormatFileDiffInline generates a git-style inline diff for file comparison.

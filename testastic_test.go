@@ -327,36 +327,6 @@ func TestAssertJSON_MissingField(t *testing.T) {
 	}
 }
 
-func TestParseMatcher(t *testing.T) {
-	tests := []struct {
-		expr    string
-		wantErr bool
-	}{
-		{"anyString", false},
-		{"anyInt", false},
-		{"anyFloat", false},
-		{"anyBool", false},
-		{"anyValue", false},
-		{"ignore", false},
-		{"regex `^test$`", false},
-		{`oneOf "a" "b"`, false},
-		{"unknown", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.expr, func(t *testing.T) {
-			// given: a matcher expression
-			// when: parsing the matcher expression
-			_, err := testastic.ParseMatcher(tt.expr)
-
-			// then: error status matches expectation
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseMatcher(%q) error = %v, wantErr %v", tt.expr, err, tt.wantErr)
-			}
-		})
-	}
-}
-
 func TestMatchers(t *testing.T) {
 	t.Run("AnyString", func(t *testing.T) {
 		// given: an AnyString matcher
@@ -487,35 +457,6 @@ func TestMatchers(t *testing.T) {
 			t.Error("expected not to match 'd'")
 		}
 	})
-}
-
-func TestFormatDiff(t *testing.T) {
-	// given: a list of differences
-	diffs := []testastic.Difference{
-		{Path: "$.name", Expected: "Alice", Actual: "Bob", Type: testastic.DiffChanged},
-		{Path: "$.age", Expected: float64(30), Actual: nil, Type: testastic.DiffRemoved},
-		{Path: "$.extra", Expected: nil, Actual: "value", Type: testastic.DiffAdded},
-	}
-
-	// when: formatting the diff
-	output := testastic.FormatJSONDiff(diffs)
-
-	// then: the output contains all expected information
-	if !strings.Contains(output, "$.name") {
-		t.Error("expected output to contain $.name")
-	}
-
-	if !strings.Contains(output, "Alice") {
-		t.Error("expected output to contain Alice")
-	}
-
-	if !strings.Contains(output, "Bob") {
-		t.Error("expected output to contain Bob")
-	}
-
-	if !strings.Contains(output, "(missing)") {
-		t.Error("expected output to contain (missing)")
-	}
 }
 
 // writeTestFile writes content to a file, failing the test on error.

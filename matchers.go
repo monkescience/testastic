@@ -118,8 +118,8 @@ func (m ignoreMatcher) String() string {
 	return "{{ignore}}"
 }
 
-// IsIgnore returns true if the matcher is an ignore matcher.
-func IsIgnore(m Matcher) bool {
+// isIgnore returns true if the matcher is an ignore matcher.
+func isIgnore(m Matcher) bool {
 	_, ok := m.(ignoreMatcher)
 
 	return ok
@@ -321,21 +321,9 @@ func RegisterMatcher(name string, factory MatcherFactory) {
 	customMatchers[name] = factory
 }
 
-// ParseMatcher creates a [Matcher] from a template expression.
+// parseMatcher creates a Matcher from a template expression.
 // The expression is the content between {{ and }}, without the braces.
-//
-// Built-in matchers:
-//   - anyString, anyInt, anyFloat, anyBool, anyValue
-//   - anyUUID, anyDateTime, anyURL
-//   - ignore
-//   - regex `pattern` or regex "pattern"
-//   - oneOf "value1" "value2" ...
-//
-// Custom matchers registered with [RegisterMatcher] are also recognized.
-//
-// Returns [ErrUnknownMatcher] if the expression doesn't match any known matcher.
-// Returns [ErrInvalidRegexSyntax] or [ErrInvalidOneOfSyntax] for malformed arguments.
-func ParseMatcher(expr string) (Matcher, error) {
+func parseMatcher(expr string) (Matcher, error) {
 	switch expr {
 	case "anyString":
 		return AnyString(), nil

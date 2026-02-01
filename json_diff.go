@@ -3,19 +3,12 @@ package testastic
 import (
 	"encoding/json"
 	"fmt"
-	"strconv"
 	"strings"
 )
 
-// FormatJSONDiff formats a slice of differences into a human-readable string.
-// This is the simple format showing paths and values.
-func FormatJSONDiff(diffs []Difference) string {
-	return formatDiffList(diffs, "JSON", formatValue, typeOf)
-}
-
-// FormatJSONDiffInline generates a git-style inline diff between expected and actual JSON.
+// formatJSONDiffInline generates a git-style inline diff between expected and actual JSON.
 // Shows the full JSON with - prefix for removed lines and + prefix for added lines.
-func FormatJSONDiffInline(expected, actual any) string {
+func formatJSONDiffInline(expected, actual any) string {
 	expClean := cleanMatchersForDisplay(expected)
 	actClean := cleanMatchersForDisplay(actual)
 
@@ -68,71 +61,5 @@ func cleanMatchersForDisplay(data any) any {
 
 	default:
 		return v
-	}
-}
-
-// formatValue formats a value for display in diff output.
-func formatValue(v any) string {
-	if v == nil {
-		return "null"
-	}
-
-	switch val := v.(type) {
-	case string:
-		return fmt.Sprintf("%q", val)
-
-	case float64:
-		// Display integers without decimal point.
-		if val == float64(int64(val)) {
-			return strconv.FormatInt(int64(val), 10)
-		}
-
-		return fmt.Sprintf("%g", val)
-
-	case bool:
-		return strconv.FormatBool(val)
-
-	case map[string]any, []any:
-		data, err := json.Marshal(val)
-		if err != nil {
-			return fmt.Sprintf("%v", val)
-		}
-
-		s := string(data)
-		if len(s) > maxDisplayLineLen {
-			return s[:maxDisplayLineLen-3] + "..."
-		}
-
-		return s
-
-	case Matcher:
-		return val.String()
-
-	default:
-		return fmt.Sprintf("%v", val)
-	}
-}
-
-// typeOf returns a human-readable type name for a value.
-func typeOf(v any) string {
-	if v == nil {
-		return "null"
-	}
-
-	switch v.(type) {
-	case string:
-		return "string"
-	case float64:
-		return "number"
-	case bool:
-		return "boolean"
-	case map[string]any:
-		return "object"
-	case []any:
-		return "array"
-	case Matcher:
-		return "matcher"
-	default:
-		return fmt.Sprintf("%T", v)
 	}
 }

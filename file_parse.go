@@ -62,7 +62,7 @@ func parseLine(line string) (*lineMatcher, error) {
 		// Parse the matcher expression
 		expr := trimSpace(line[exprStart:exprEnd])
 
-		matcher, err := ParseMatcher(expr)
+		matcher, err := parseMatcher(expr)
 		if err != nil {
 			return nil, fmt.Errorf("line %q: %w", line, err)
 		}

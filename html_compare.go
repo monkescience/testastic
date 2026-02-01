@@ -12,78 +12,78 @@ const maxTextDisplayLen = 30
 // nilDisplay is the string representation for nil values.
 const nilDisplay = "(nil)"
 
-// HTMLDifference represents a single difference between expected and actual HTML.
-type HTMLDifference struct {
+// htmlDifference represents a single difference between expected and actual HTML.
+type htmlDifference struct {
 	Path     string
 	Expected any
 	Actual   any
-	Type     DiffType
+	Type     diffType
 }
 
 // compareHTML compares expected and actual HTML nodes.
 // Returns a list of differences found.
-func compareHTML(expected, actual *HTMLNode, cfg *HTMLConfig) []HTMLDifference {
+func compareHTML(expected, actual *htmlNode, cfg *HTMLConfig) []htmlDifference {
 	if expected == nil && actual == nil {
 		return nil
 	}
 
 	if expected == nil {
-		return []HTMLDifference{{
+		return []htmlDifference{{
 			Path:     actual.Path,
 			Expected: nil,
 			Actual:   describeNode(actual),
-			Type:     DiffAdded,
+			Type:     diffAdded,
 		}}
 	}
 
 	if actual == nil {
-		return []HTMLDifference{{
+		return []htmlDifference{{
 			Path:     expected.Path,
 			Expected: describeNode(expected),
 			Actual:   nil,
-			Type:     DiffRemoved,
+			Type:     diffRemoved,
 		}}
 	}
 
-	return compareHTMLNodes(expected, actual, expected.Path, cfg)
+	return comparehtmlNodes(expected, actual, expected.Path, cfg)
 }
 
-// compareHTMLNodes recursively compares two HTML nodes.
+// comparehtmlNodes recursively compares two HTML nodes.
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
-func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) []HTMLDifference {
+func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
 	// Check if element should be ignored
 	if cfg.isElementIgnored(expected.Tag) {
 		return nil
 	}
 
-	if expected.Type == HTMLText { //nolint:nestif // Matcher handling requires nested conditions.
+	if expected.Type == htmlText { //nolint:nestif // Matcher handling requires nested conditions.
 		if m, ok := expected.Text.(Matcher); ok {
-			if IsIgnore(m) {
+			if isIgnore(m) {
 				return nil
 			}
 
 			actualText := getTextContent(actual)
 			if !m.Match(actualText) {
-				return []HTMLDifference{{
+				return []htmlDifference{{
 					Path:     path,
 					Expected: m.String(),
 					Actual:   actualText,
-					Type:     DiffMatcherFailed,
+					Type:     diffMatcherFailed,
 				}}
 			}
 
 			return nil
 		}
 
-		if ts, ok := expected.Text.(TemplateString); ok {
+		if ts, ok := expected.Text.(templateString); ok {
 			actualText := getTextContent(actual)
 			if !ts.Match(actualText) {
-				return []HTMLDifference{{
+				return []htmlDifference{{
 					Path:     path,
 					Expected: ts.String(),
 					Actual:   actualText,
-					Type:     DiffMatcherFailed,
+					Type:     diffMatcherFailed,
 				}}
 			}
 
@@ -93,25 +93,25 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 
 	// Compare node types
 	if expected.Type != actual.Type {
-		return []HTMLDifference{{
+		return []htmlDifference{{
 			Path:     path,
 			Expected: describeNodeType(expected.Type),
 			Actual:   describeNodeType(actual.Type),
-			Type:     DiffTypeMismatch,
+			Type:     diffTypeMismatch,
 		}}
 	}
 
-	var diffs []HTMLDifference
+	var diffs []htmlDifference
 
 	switch expected.Type {
-	case HTMLElement:
+	case htmlElement:
 		// Compare tag names
 		if !strings.EqualFold(expected.Tag, actual.Tag) {
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     path,
 				Expected: fmt.Sprintf("<%s>", expected.Tag),
 				Actual:   fmt.Sprintf("<%s>", actual.Tag),
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			})
 
 			return diffs // Different tags, no point comparing further
@@ -123,7 +123,7 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 		// Compare children
 		diffs = append(diffs, compareHTMLChildren(expected.Children, actual.Children, path, cfg)...)
 
-	case HTMLText:
+	case htmlText:
 		expText := getTextContent(expected)
 		actText := getTextContent(actual)
 
@@ -134,36 +134,36 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 		}
 
 		if expText != actText {
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     path,
 				Expected: expText,
 				Actual:   actText,
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			})
 		}
 
-	case HTMLComment:
+	case htmlComment:
 		if !cfg.IgnoreComments {
 			expComment := getString(expected.Text)
 			actComment := getString(actual.Text)
 
 			if expComment != actComment {
-				diffs = append(diffs, HTMLDifference{
+				diffs = append(diffs, htmlDifference{
 					Path:     path,
 					Expected: expComment,
 					Actual:   actComment,
-					Type:     DiffChanged,
+					Type:     diffChanged,
 				})
 			}
 		}
 
-	case HTMLDoctype:
+	case htmlDoctype:
 		if !strings.EqualFold(expected.Tag, actual.Tag) {
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     path,
 				Expected: expected.Tag,
 				Actual:   actual.Tag,
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			})
 		}
 	}
@@ -174,8 +174,8 @@ func compareHTMLNodes(expected, actual *HTMLNode, path string, cfg *HTMLConfig) 
 // compareHTMLAttributes compares HTML element attributes.
 //
 //nolint:funlen // Attribute comparison needs explicit handling for all cases.
-func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HTMLConfig) []HTMLDifference {
-	var diffs []HTMLDifference
+func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HTMLConfig) []htmlDifference {
+	var diffs []htmlDifference
 
 	// Check expected attributes
 	for name, expVal := range expected {
@@ -184,7 +184,7 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 		}
 
 		// Check if expected value is an ignore matcher
-		if m, ok := expVal.(Matcher); ok && IsIgnore(m) {
+		if m, ok := expVal.(Matcher); ok && isIgnore(m) {
 			continue
 		}
 
@@ -192,11 +192,11 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 		actVal, exists := actual[name]
 
 		if !exists {
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     attrPath,
 				Expected: formatAttrValue(expVal),
 				Actual:   nil,
-				Type:     DiffRemoved,
+				Type:     diffRemoved,
 			})
 
 			continue
@@ -205,25 +205,25 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 		if m, ok := expVal.(Matcher); ok {
 			actStr := getString(actVal)
 			if !m.Match(actStr) {
-				diffs = append(diffs, HTMLDifference{
+				diffs = append(diffs, htmlDifference{
 					Path:     attrPath,
 					Expected: m.String(),
 					Actual:   actStr,
-					Type:     DiffMatcherFailed,
+					Type:     diffMatcherFailed,
 				})
 			}
 
 			continue
 		}
 
-		if ts, ok := expVal.(TemplateString); ok {
+		if ts, ok := expVal.(templateString); ok {
 			actStr := getString(actVal)
 			if !ts.Match(actStr) {
-				diffs = append(diffs, HTMLDifference{
+				diffs = append(diffs, htmlDifference{
 					Path:     attrPath,
 					Expected: ts.String(),
 					Actual:   actStr,
-					Type:     DiffMatcherFailed,
+					Type:     diffMatcherFailed,
 				})
 			}
 
@@ -234,11 +234,11 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 		actStr := getString(actVal)
 
 		if expStr != actStr {
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     attrPath,
 				Expected: expStr,
 				Actual:   actStr,
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			})
 		}
 	}
@@ -250,11 +250,11 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 		}
 
 		if _, exists := expected[name]; !exists {
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     path + " @" + name,
 				Expected: nil,
 				Actual:   formatAttrValue(actVal),
-				Type:     DiffAdded,
+				Type:     diffAdded,
 			})
 		}
 	}
@@ -263,7 +263,7 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 }
 
 // compareHTMLChildren compares child nodes of an HTML element.
-func compareHTMLChildren(expected, actual []*HTMLNode, path string, cfg *HTMLConfig) []HTMLDifference {
+func compareHTMLChildren(expected, actual []*htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
 	// Filter out nodes that should be ignored
 	expFiltered := filterSignificantChildren(expected, cfg)
 	actFiltered := filterSignificantChildren(actual, cfg)
@@ -276,8 +276,8 @@ func compareHTMLChildren(expected, actual []*HTMLNode, path string, cfg *HTMLCon
 }
 
 // compareChildrenOrdered compares children where order matters.
-func compareChildrenOrdered(expected, actual []*HTMLNode, path string, cfg *HTMLConfig) []HTMLDifference {
-	var diffs []HTMLDifference
+func compareChildrenOrdered(expected, actual []*htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
+	var diffs []htmlDifference
 
 	maxLen := max(len(expected), len(actual))
 
@@ -285,23 +285,23 @@ func compareChildrenOrdered(expected, actual []*HTMLNode, path string, cfg *HTML
 		switch {
 		case i >= len(expected):
 			childPath := buildChildPath(path, actual[i], i)
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     childPath,
 				Expected: nil,
 				Actual:   describeNode(actual[i]),
-				Type:     DiffAdded,
+				Type:     diffAdded,
 			})
 		case i >= len(actual):
 			childPath := buildChildPath(path, expected[i], i)
-			diffs = append(diffs, HTMLDifference{
+			diffs = append(diffs, htmlDifference{
 				Path:     childPath,
 				Expected: describeNode(expected[i]),
 				Actual:   nil,
-				Type:     DiffRemoved,
+				Type:     diffRemoved,
 			})
 		default:
 			childPath := buildChildPath(path, expected[i], i)
-			diffs = append(diffs, compareHTMLNodes(expected[i], actual[i], childPath, cfg)...)
+			diffs = append(diffs, comparehtmlNodes(expected[i], actual[i], childPath, cfg)...)
 		}
 	}
 
@@ -309,25 +309,25 @@ func compareChildrenOrdered(expected, actual []*HTMLNode, path string, cfg *HTML
 }
 
 // compareChildrenUnordered compares children where order doesn't matter.
-func compareChildrenUnordered(expected, actual []*HTMLNode, path string, cfg *HTMLConfig) []HTMLDifference {
+func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
 	if len(expected) != len(actual) {
-		return []HTMLDifference{{
+		return []htmlDifference{{
 			Path:     path,
 			Expected: fmt.Sprintf("%d children", len(expected)),
 			Actual:   fmt.Sprintf("%d children", len(actual)),
-			Type:     DiffChanged,
+			Type:     diffChanged,
 		}}
 	}
 
-	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(exp, act *HTMLNode) bool {
-		return len(compareHTMLNodes(exp, act, path, cfg)) == 0
+	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(exp, act *htmlNode) bool {
+		return len(comparehtmlNodes(exp, act, path, cfg)) == 0
 	})
 
 	if len(unmatched) == 0 {
 		return nil
 	}
 
-	var diffs []HTMLDifference
+	var diffs []htmlDifference
 
 	for i, idx := range unmatched {
 		childPath := buildChildPath(path, expected[idx], idx)
@@ -337,11 +337,11 @@ func compareChildrenUnordered(expected, actual []*HTMLNode, path string, cfg *HT
 			actualDesc = describeNode(actual[unusedActual[i]])
 		}
 
-		diffs = append(diffs, HTMLDifference{
+		diffs = append(diffs, htmlDifference{
 			Path:     childPath,
 			Expected: describeNode(expected[idx]),
 			Actual:   actualDesc,
-			Type:     DiffChanged,
+			Type:     diffChanged,
 		})
 	}
 
@@ -349,8 +349,8 @@ func compareChildrenUnordered(expected, actual []*HTMLNode, path string, cfg *HT
 }
 
 // filterSignificantChildren filters out insignificant nodes.
-func filterSignificantChildren(nodes []*HTMLNode, cfg *HTMLConfig) []*HTMLNode {
-	result := make([]*HTMLNode, 0, len(nodes))
+func filterSignificantChildren(nodes []*htmlNode, cfg *HTMLConfig) []*htmlNode {
+	result := make([]*htmlNode, 0, len(nodes))
 
 	for _, node := range nodes {
 		if node == nil {
@@ -358,17 +358,17 @@ func filterSignificantChildren(nodes []*HTMLNode, cfg *HTMLConfig) []*HTMLNode {
 		}
 
 		// Skip ignored elements
-		if node.Type == HTMLElement && cfg.isElementIgnored(node.Tag) {
+		if node.Type == htmlElement && cfg.isElementIgnored(node.Tag) {
 			continue
 		}
 
 		// Skip comments if ignored
-		if node.Type == HTMLComment && cfg.IgnoreComments {
+		if node.Type == htmlComment && cfg.IgnoreComments {
 			continue
 		}
 
 		// Skip whitespace-only text nodes unless preserving whitespace
-		if node.Type == HTMLText && !cfg.PreserveWhitespace {
+		if node.Type == htmlText && !cfg.PreserveWhitespace {
 			text := getTextContent(node)
 			if strings.TrimSpace(text) == "" {
 				continue
@@ -382,12 +382,12 @@ func filterSignificantChildren(nodes []*HTMLNode, cfg *HTMLConfig) []*HTMLNode {
 }
 
 // buildChildPath builds a path for a child node.
-func buildChildPath(parentPath string, node *HTMLNode, _ int) string {
-	if node.Type == HTMLText {
+func buildChildPath(parentPath string, node *htmlNode, _ int) string {
+	if node.Type == htmlText {
 		return parentPath + " (text)"
 	}
 
-	if node.Type == HTMLComment {
+	if node.Type == htmlComment {
 		return parentPath + " (comment)"
 	}
 
@@ -399,24 +399,24 @@ func buildChildPath(parentPath string, node *HTMLNode, _ int) string {
 }
 
 // describeNode returns a human-readable description of a node.
-func describeNode(node *HTMLNode) string {
+func describeNode(node *htmlNode) string {
 	if node == nil {
 		return nilDisplay
 	}
 
 	switch node.Type {
-	case HTMLElement:
+	case htmlElement:
 		return fmt.Sprintf("<%s>", node.Tag)
-	case HTMLText:
+	case htmlText:
 		text := getTextContent(node)
 		if len(text) > maxTextDisplayLen {
 			return fmt.Sprintf("%q...", text[:maxTextDisplayLen])
 		}
 
 		return fmt.Sprintf("%q", text)
-	case HTMLComment:
+	case htmlComment:
 		return "<!-- comment -->"
-	case HTMLDoctype:
+	case htmlDoctype:
 		return "<!DOCTYPE>"
 	default:
 		return "(unknown)"
@@ -424,15 +424,15 @@ func describeNode(node *HTMLNode) string {
 }
 
 // describeNodeType returns a human-readable type name.
-func describeNodeType(t HTMLNodeType) string {
+func describeNodeType(t htmlNodeType) string {
 	switch t {
-	case HTMLElement:
+	case htmlElement:
 		return "element"
-	case HTMLText:
+	case htmlText:
 		return "text"
-	case HTMLComment:
+	case htmlComment:
 		return "comment"
-	case HTMLDoctype:
+	case htmlDoctype:
 		return "doctype"
 	default:
 		return "unknown"
@@ -440,7 +440,7 @@ func describeNodeType(t HTMLNodeType) string {
 }
 
 // getTextContent extracts text content from a node.
-func getTextContent(node *HTMLNode) string {
+func getTextContent(node *htmlNode) string {
 	if node == nil {
 		return ""
 	}
@@ -453,7 +453,7 @@ func getTextContent(node *HTMLNode) string {
 		return m.String()
 	}
 
-	if ts, ok := node.Text.(TemplateString); ok {
+	if ts, ok := node.Text.(templateString); ok {
 		return ts.String()
 	}
 
@@ -474,7 +474,7 @@ func getString(v any) string {
 		return m.String()
 	}
 
-	if ts, ok := v.(TemplateString); ok {
+	if ts, ok := v.(templateString); ok {
 		return ts.String()
 	}
 
@@ -503,7 +503,7 @@ func normalizeWhitespace(s string) string {
 }
 
 // sortHTMLDiffs sorts differences by path for consistent output.
-func sortHTMLDiffs(diffs []HTMLDifference) {
+func sortHTMLDiffs(diffs []htmlDifference) {
 	sort.Slice(diffs, func(i, j int) bool {
 		return diffs[i].Path < diffs[j].Path
 	})

@@ -1,8 +1,8 @@
 package testastic
 
 // compareFileLines compares expected and actual lines.
-func compareFileLines(expected, actual []string) []Difference {
-	var diffs []Difference
+func compareFileLines(expected, actual []string) []difference {
+	var diffs []difference
 
 	maxLines := max(len(expected), len(actual))
 
@@ -23,11 +23,11 @@ func compareFileLines(expected, actual []string) []Difference {
 
 		if !hasExp {
 			// Extra line in actual
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: nil,
 				Actual:   actLine,
-				Type:     DiffAdded,
+				Type:     diffAdded,
 			})
 
 			continue
@@ -35,11 +35,11 @@ func compareFileLines(expected, actual []string) []Difference {
 
 		if !hasAct {
 			// Missing line in actual
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: expLine,
 				Actual:   nil,
-				Type:     DiffRemoved,
+				Type:     diffRemoved,
 			})
 
 			continue
@@ -47,11 +47,11 @@ func compareFileLines(expected, actual []string) []Difference {
 
 		// Both lines exist - compare them
 		if expLine != actLine {
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: expLine,
 				Actual:   actLine,
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			})
 		}
 	}
@@ -96,8 +96,8 @@ func itoa(i int) string {
 // compareFileLinesWithMatchers compares expected and actual lines, supporting matchers.
 //
 //nolint:funlen // Line-by-line comparison requires sequential steps.
-func compareFileLinesWithMatchers(expected, actual []string) []Difference {
-	var diffs []Difference
+func compareFileLinesWithMatchers(expected, actual []string) []difference {
+	var diffs []difference
 
 	// Parse expected lines into line matchers
 	parsedLines := make([]*lineMatcher, len(expected))
@@ -106,11 +106,11 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 		parsed, err := parseLine(line)
 		if err != nil {
 			// Treat parse errors as comparison failures
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: line,
 				Actual:   err.Error(),
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			})
 
 			continue
@@ -140,11 +140,11 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 
 		if !hasExp && hasAct {
 			// Extra line in actual
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: nil,
 				Actual:   actLine,
-				Type:     DiffAdded,
+				Type:     diffAdded,
 			})
 
 			continue
@@ -152,11 +152,11 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 
 		if hasExp && !hasAct {
 			// Missing line in actual
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: expLine.original,
 				Actual:   nil,
-				Type:     DiffRemoved,
+				Type:     diffRemoved,
 			})
 
 			continue
@@ -170,21 +170,21 @@ func compareFileLinesWithMatchers(expected, actual []string) []Difference {
 		if expLine.pattern == nil {
 			// Exact match mode
 			if expLine.original != actLine {
-				diffs = append(diffs, Difference{
+				diffs = append(diffs, difference{
 					Path:     lineNumberPath(i + 1),
 					Expected: expLine.original,
 					Actual:   actLine,
-					Type:     DiffChanged,
+					Type:     diffChanged,
 				})
 			}
 		} else {
 			// Pattern match mode
 			if !expLine.pattern.MatchString(actLine) {
-				diffs = append(diffs, Difference{
+				diffs = append(diffs, difference{
 					Path:     lineNumberPath(i + 1),
 					Expected: expLine.original,
 					Actual:   actLine,
-					Type:     DiffMatcherFailed,
+					Type:     diffMatcherFailed,
 				})
 			}
 		}

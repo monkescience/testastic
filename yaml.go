@@ -32,7 +32,7 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	expected, err := ParseExpectedYAMLFile(expectedFile)
+	expected, err := parseExpectedYAMLFile(expectedFile)
 	if err != nil {
 		tb.Fatalf("testastic: %v", err)
 
@@ -69,8 +69,8 @@ func buildYAMLConfig(tb testing.TB, opts []AssertionOption) *YAMLConfig {
 // handleYAMLDiffs handles update mode and error reporting for YAML.
 // Returns true if the assertion should stop.
 func handleYAMLDiffs(
-	tb testing.TB, path string, actualBytes []byte, expected *ExpectedYAML,
-	actualData any, diffs []Difference, cfg *YAMLConfig,
+	tb testing.TB, path string, actualBytes []byte, expected *expectedYAML,
+	actualData any, diffs []difference, cfg *YAMLConfig,
 ) bool {
 	tb.Helper()
 
@@ -92,7 +92,7 @@ func handleYAMLDiffs(
 	sortDiffs(diffs)
 
 	msg := formatAssertionMessage("AssertYAML", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatYAMLDiffInline(expected.Data, actualData))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatYAMLDiffInline(expected.Data, actualData))
 
 	return false
 }
@@ -192,7 +192,7 @@ func createExpectedYAMLFile(path string, actual []byte) error {
 }
 
 // updateExpectedYAMLFile updates an existing expected YAML file.
-func updateExpectedYAMLFile(path string, actual []byte, expected *ExpectedYAML) error {
+func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) error {
 	// Parse actual to preserve any matchers from expected
 	var actualData any
 
@@ -202,7 +202,7 @@ func updateExpectedYAMLFile(path string, actual []byte, expected *ExpectedYAML) 
 	}
 
 	// Get matcher positions from expected
-	matcherPositions := expected.ExtractMatcherPositions()
+	matcherPositions := expected.extractMatcherPositions()
 
 	// Restore matchers in actual data
 	mergedData := restoreYAMLMatchers(actualData, matcherPositions, "$")

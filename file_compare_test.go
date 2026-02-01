@@ -58,8 +58,8 @@ func TestCompareFileLines_ExtraLines(t *testing.T) {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
 
-	if diffs[0].Type != DiffAdded {
-		t.Errorf("expected DiffAdded, got %v", diffs[0].Type)
+	if diffs[0].Type != diffAdded {
+		t.Errorf("expected diffAdded, got %v", diffs[0].Type)
 	}
 
 	if diffs[0].Actual != "extra line" {
@@ -80,8 +80,8 @@ func TestCompareFileLines_MissingLines(t *testing.T) {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
 
-	if diffs[0].Type != DiffRemoved {
-		t.Errorf("expected DiffRemoved, got %v", diffs[0].Type)
+	if diffs[0].Type != diffRemoved {
+		t.Errorf("expected diffRemoved, got %v", diffs[0].Type)
 	}
 
 	if diffs[0].Expected != "line 2" {
@@ -116,7 +116,7 @@ func TestCompareFileLinesWithMatchers_NoMatch(t *testing.T) {
 		t.Fatalf("expected 1 diff, got %d", len(diffs))
 	}
 
-	if diffs[0].Type != DiffMatcherFailed {
-		t.Errorf("expected DiffMatcherFailed, got %v", diffs[0].Type)
+	if diffs[0].Type != diffMatcherFailed {
+		t.Errorf("expected diffMatcherFailed, got %v", diffs[0].Type)
 	}
 }

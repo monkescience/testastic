@@ -1,29 +1,13 @@
 package testastic
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 )
 
-// nilValueDisplay is the string representation for nil values in output.
-const nilValueDisplay = "(nil)"
-
-// nilTypeName is the type name for nil values.
-const nilTypeName = "nil"
-
-func FormatHTMLDiff(diffs []HTMLDifference) string {
-	converted := make([]Difference, len(diffs))
-	for i, d := range diffs {
-		converted[i] = Difference(d)
-	}
-
-	return formatDiffList(converted, "HTML", formatHTMLValue, typeOfHTML)
-}
-
-// FormatHTMLDiffInline generates a git-style inline diff between expected and actual HTML.
+// formatHTMLDiffInline generates a git-style inline diff between expected and actual HTML.
 // Uses the same format as JSON diff.
-func FormatHTMLDiffInline(expected, actual *HTMLNode) string {
+func formatHTMLDiffInline(expected, actual *htmlNode) string {
 	expHTML := renderPrettyHTML(expected, 0)
 	actHTML := renderPrettyHTML(actual, 0)
 
@@ -41,10 +25,10 @@ func FormatHTMLDiffInline(expected, actual *HTMLNode) string {
 	return sb.String()
 }
 
-// renderPrettyHTML renders an HTMLNode tree as formatted HTML string.
+// renderPrettyHTML renders an htmlNode tree as formatted HTML string.
 //
 //nolint:gocognit,funlen // HTML rendering requires handling multiple cases and statements.
-func renderPrettyHTML(node *HTMLNode, indent int) string {
+func renderPrettyHTML(node *htmlNode, indent int) string {
 	if node == nil {
 		return ""
 	}
@@ -54,7 +38,7 @@ func renderPrettyHTML(node *HTMLNode, indent int) string {
 	indentStr := strings.Repeat("  ", indent)
 
 	switch node.Type {
-	case HTMLElement:
+	case htmlElement:
 		if node.Tag == "#document" {
 			for i, child := range node.Children {
 				if i > 0 {
@@ -101,7 +85,7 @@ func renderPrettyHTML(node *HTMLNode, indent int) string {
 		sb.WriteString(">")
 
 		// Inline text content for single-text children.
-		if len(node.Children) == 1 && node.Children[0].Type == HTMLText {
+		if len(node.Children) == 1 && node.Children[0].Type == htmlText {
 			text := getTextContent(node.Children[0])
 			sb.WriteString(text)
 			sb.WriteString("</")
@@ -125,20 +109,20 @@ func renderPrettyHTML(node *HTMLNode, indent int) string {
 		sb.WriteString(node.Tag)
 		sb.WriteString(">")
 
-	case HTMLText:
+	case htmlText:
 		text := getTextContent(node)
 		if strings.TrimSpace(text) != "" {
 			sb.WriteString(indentStr)
 			sb.WriteString(strings.TrimSpace(text))
 		}
 
-	case HTMLComment:
+	case htmlComment:
 		sb.WriteString(indentStr)
 		sb.WriteString("<!-- ")
 		sb.WriteString(getString(node.Text))
 		sb.WriteString(" -->")
 
-	case HTMLDoctype:
+	case htmlDoctype:
 		sb.WriteString("<!DOCTYPE ")
 		sb.WriteString(node.Tag)
 		sb.WriteString(">")
@@ -155,48 +139,5 @@ func isVoidElement(tag string) bool {
 		return true
 	default:
 		return false
-	}
-}
-
-// formatHTMLValue formats a value for display in HTML diff output.
-func formatHTMLValue(v any) string {
-	if v == nil {
-		return nilValueDisplay
-	}
-
-	switch val := v.(type) {
-	case string:
-		if len(val) > maxDisplayLineLen {
-			return fmt.Sprintf("%q...", val[:maxDisplayLineLen-3])
-		}
-
-		return fmt.Sprintf("%q", val)
-
-	case Matcher:
-		return val.String()
-
-	default:
-		s := fmt.Sprintf("%v", val)
-		if len(s) > maxDisplayLineLen {
-			return s[:maxDisplayLineLen-3] + "..."
-		}
-
-		return s
-	}
-}
-
-// typeOfHTML returns a human-readable type name for an HTML value.
-func typeOfHTML(v any) string {
-	if v == nil {
-		return nilTypeName
-	}
-
-	switch v.(type) {
-	case string:
-		return "string"
-	case Matcher:
-		return "matcher"
-	default:
-		return fmt.Sprintf("%T", v)
 	}
 }

@@ -9,11 +9,11 @@ import (
 	"strings"
 )
 
-// ErrUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
-var ErrUnknownPlaceholder = errors.New("unknown placeholder")
+// errUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
+var errUnknownPlaceholder = errors.New("unknown placeholder")
 
-// ExpectedJSON represents a parsed expected file with matchers.
-type ExpectedJSON struct {
+// expectedJSON represents a parsed expected file with matchers.
+type expectedJSON struct {
 	Data     any               // Parsed JSON with Matcher objects in place of template expressions
 	Matchers map[string]string // Map of placeholder to original template expression
 	Raw      string            // Original file content for update operations
@@ -27,19 +27,19 @@ var jsonTemplateExprRegex = regexp.MustCompile(
 	`"?\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}"?`,
 )
 
-// ParseExpectedJSONFile reads and parses an expected file, replacing template expressions with matchers.
-func ParseExpectedJSONFile(path string) (*ExpectedJSON, error) {
+// parseExpectedJSONFile reads and parses an expected file, replacing template expressions with matchers.
+func parseExpectedJSONFile(path string) (*expectedJSON, error) {
 	content, err := os.ReadFile(path) //nolint:gosec // Path is controlled by test code.
 	if err != nil {
 		return nil, fmt.Errorf("failed to read expected file: %w", err)
 	}
 
-	return ParseExpectedJSONString(string(content))
+	return parseExpectedJSONString(string(content))
 }
 
-// ParseExpectedJSONString parses an expected JSON string with template expressions.
-func ParseExpectedJSONString(content string) (*ExpectedJSON, error) {
-	expected := &ExpectedJSON{
+// parseExpectedJSONString parses an expected JSON string with template expressions.
+func parseExpectedJSONString(content string) (*expectedJSON, error) {
+	expected := &expectedJSON{
 		Matchers: make(map[string]string),
 		Raw:      content,
 	}
@@ -120,10 +120,10 @@ func replaceJSONPlaceholders(data any, matchers map[string]string) (any, error) 
 		if strings.HasPrefix(v, jsonMatcherPlaceholderPrefix) {
 			expr, ok := matchers[v]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s", ErrUnknownPlaceholder, v)
+				return nil, fmt.Errorf("%w: %s", errUnknownPlaceholder, v)
 			}
 
-			matcher, err := ParseMatcher(expr)
+			matcher, err := parseMatcher(expr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
 			}
@@ -138,9 +138,9 @@ func replaceJSONPlaceholders(data any, matchers map[string]string) (any, error) 
 	}
 }
 
-// ExtractMatcherPositions returns a map of JSON paths to their original template expressions.
+// extractMatcherPositions returns a map of JSON paths to their original template expressions.
 // This is used when updating expected files to preserve matchers.
-func (e *ExpectedJSON) ExtractMatcherPositions() map[string]string {
+func (e *expectedJSON) extractMatcherPositions() map[string]string {
 	positions := make(map[string]string)
 	extractJSONMatcherPaths(e.Data, "$", positions)
 

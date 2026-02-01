@@ -11,22 +11,22 @@ import (
 // Returns a list of differences found.
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
-func compare(expected, actual any, path string, cfg CompareConfig) []Difference {
+func compare(expected, actual any, path string, cfg compareConfig) []difference {
 	if cfg.IsFieldIgnored(path) {
 		return nil
 	}
 
 	if m, ok := expected.(Matcher); ok {
-		if IsIgnore(m) {
+		if isIgnore(m) {
 			return nil
 		}
 
 		if !m.Match(actual) {
-			return []Difference{{
+			return []difference{{
 				Path:     path,
 				Expected: m.String(),
 				Actual:   actual,
-				Type:     DiffMatcherFailed,
+				Type:     diffMatcherFailed,
 			}}
 		}
 
@@ -38,20 +38,20 @@ func compare(expected, actual any, path string, cfg CompareConfig) []Difference 
 	}
 
 	if expected == nil {
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: nil,
 			Actual:   actual,
-			Type:     DiffAdded,
+			Type:     diffAdded,
 		}}
 	}
 
 	if actual == nil {
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: expected,
 			Actual:   nil,
-			Type:     DiffRemoved,
+			Type:     diffRemoved,
 		}}
 	}
 
@@ -65,22 +65,22 @@ func compare(expected, actual any, path string, cfg CompareConfig) []Difference 
 	case string:
 		if act, ok := actual.(string); ok {
 			if exp != act {
-				return []Difference{{
+				return []difference{{
 					Path:     path,
 					Expected: exp,
 					Actual:   act,
-					Type:     DiffChanged,
+					Type:     diffChanged,
 				}}
 			}
 
 			return nil
 		}
 
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: exp,
 			Actual:   actual,
-			Type:     DiffTypeMismatch,
+			Type:     diffTypeMismatch,
 		}}
 
 	case float64:
@@ -89,32 +89,32 @@ func compare(expected, actual any, path string, cfg CompareConfig) []Difference 
 	case bool:
 		if act, ok := actual.(bool); ok {
 			if exp != act {
-				return []Difference{{
+				return []difference{{
 					Path:     path,
 					Expected: exp,
 					Actual:   act,
-					Type:     DiffChanged,
+					Type:     diffChanged,
 				}}
 			}
 
 			return nil
 		}
 
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: exp,
 			Actual:   actual,
-			Type:     DiffTypeMismatch,
+			Type:     diffTypeMismatch,
 		}}
 
 	default:
 		// For other types, use deep equality
 		if !reflect.DeepEqual(expected, actual) {
-			return []Difference{{
+			return []difference{{
 				Path:     path,
 				Expected: expected,
 				Actual:   actual,
-				Type:     DiffChanged,
+				Type:     diffChanged,
 			}}
 		}
 
@@ -123,18 +123,18 @@ func compare(expected, actual any, path string, cfg CompareConfig) []Difference 
 }
 
 // compareObjects compares two JSON objects (maps).
-func compareObjects(expected map[string]any, actual any, path string, cfg CompareConfig) []Difference {
+func compareObjects(expected map[string]any, actual any, path string, cfg compareConfig) []difference {
 	actMap, ok := actual.(map[string]any)
 	if !ok {
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: expected,
 			Actual:   actual,
-			Type:     DiffTypeMismatch,
+			Type:     diffTypeMismatch,
 		}}
 	}
 
-	var diffs []Difference
+	var diffs []difference
 
 	// First pass: check for missing and changed keys in expected.
 	for key, expVal := range expected {
@@ -143,17 +143,17 @@ func compareObjects(expected map[string]any, actual any, path string, cfg Compar
 			continue
 		}
 
-		if m, ok := expVal.(Matcher); ok && IsIgnore(m) {
+		if m, ok := expVal.(Matcher); ok && isIgnore(m) {
 			continue
 		}
 
 		actVal, exists := actMap[key]
 		if !exists {
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     childPath,
 				Expected: expVal,
 				Actual:   nil,
-				Type:     DiffRemoved,
+				Type:     diffRemoved,
 			})
 		} else {
 			diffs = append(diffs, compare(expVal, actVal, childPath, cfg)...)
@@ -168,11 +168,11 @@ func compareObjects(expected map[string]any, actual any, path string, cfg Compar
 		}
 
 		if _, exists := expected[key]; !exists {
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     childPath,
 				Expected: nil,
 				Actual:   actVal,
-				Type:     DiffAdded,
+				Type:     diffAdded,
 			})
 		}
 	}
@@ -181,14 +181,14 @@ func compareObjects(expected map[string]any, actual any, path string, cfg Compar
 }
 
 // compareArrays compares two JSON arrays.
-func compareArrays(expected []any, actual any, path string, cfg CompareConfig) []Difference {
+func compareArrays(expected []any, actual any, path string, cfg compareConfig) []difference {
 	actArr, ok := actual.([]any)
 	if !ok {
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: expected,
 			Actual:   actual,
-			Type:     DiffTypeMismatch,
+			Type:     diffTypeMismatch,
 		}}
 	}
 
@@ -200,26 +200,26 @@ func compareArrays(expected []any, actual any, path string, cfg CompareConfig) [
 }
 
 // compareArraysOrdered compares arrays where order matters.
-func compareArraysOrdered(expected, actual []any, path string, cfg CompareConfig) []Difference {
-	var diffs []Difference
+func compareArraysOrdered(expected, actual []any, path string, cfg compareConfig) []difference {
+	var diffs []difference
 
 	for i := range max(len(expected), len(actual)) {
 		childPath := fmt.Sprintf("%s[%d]", path, i)
 
 		switch {
 		case i >= len(expected):
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     childPath,
 				Expected: nil,
 				Actual:   actual[i],
-				Type:     DiffAdded,
+				Type:     diffAdded,
 			})
 		case i >= len(actual):
-			diffs = append(diffs, Difference{
+			diffs = append(diffs, difference{
 				Path:     childPath,
 				Expected: expected[i],
 				Actual:   nil,
-				Type:     DiffRemoved,
+				Type:     diffRemoved,
 			})
 		default:
 			diffs = append(diffs, compare(expected[i], actual[i], childPath, cfg)...)
@@ -269,13 +269,13 @@ func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) 
 }
 
 // compareArraysUnordered compares arrays where order doesn't matter.
-func compareArraysUnordered(expected, actual []any, path string, cfg CompareConfig) []Difference {
+func compareArraysUnordered(expected, actual []any, path string, cfg compareConfig) []difference {
 	if len(expected) != len(actual) {
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: fmt.Sprintf("array of length %d", len(expected)),
 			Actual:   fmt.Sprintf("array of length %d", len(actual)),
-			Type:     DiffChanged,
+			Type:     diffChanged,
 		}}
 	}
 
@@ -287,7 +287,7 @@ func compareArraysUnordered(expected, actual []any, path string, cfg CompareConf
 		return nil
 	}
 
-	var diffs []Difference
+	var diffs []difference
 
 	for i, idx := range unmatched {
 		childPath := fmt.Sprintf("%s[%d]", path, idx)
@@ -297,11 +297,11 @@ func compareArraysUnordered(expected, actual []any, path string, cfg CompareConf
 			actualVal = actual[unusedActual[i]]
 		}
 
-		diffs = append(diffs, Difference{
+		diffs = append(diffs, difference{
 			Path:     childPath,
 			Expected: expected[idx],
 			Actual:   actualVal,
-			Type:     DiffChanged,
+			Type:     diffChanged,
 		})
 	}
 
@@ -309,7 +309,7 @@ func compareArraysUnordered(expected, actual []any, path string, cfg CompareConf
 }
 
 // compareNumbers compares numeric values, handling JSON number quirks.
-func compareNumbers(expected float64, actual any, path string) []Difference {
+func compareNumbers(expected float64, actual any, path string) []difference {
 	var actNum float64
 
 	switch v := actual.(type) {
@@ -324,20 +324,20 @@ func compareNumbers(expected float64, actual any, path string) []Difference {
 	case int32:
 		actNum = float64(v)
 	default:
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: expected,
 			Actual:   actual,
-			Type:     DiffTypeMismatch,
+			Type:     diffTypeMismatch,
 		}}
 	}
 
 	if expected != actNum {
-		return []Difference{{
+		return []difference{{
 			Path:     path,
 			Expected: expected,
 			Actual:   actNum,
-			Type:     DiffChanged,
+			Type:     diffChanged,
 		}}
 	}
 
@@ -357,7 +357,7 @@ func parseActualJSON(data []byte) (any, error) {
 }
 
 // sortDiffs sorts differences by path for consistent output.
-func sortDiffs(diffs []Difference) {
+func sortDiffs(diffs []difference) {
 	sort.Slice(diffs, func(i, j int) bool {
 		return diffs[i].Path < diffs[j].Path
 	})

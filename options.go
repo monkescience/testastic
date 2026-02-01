@@ -16,8 +16,8 @@ type baseConfig struct {
 	Message               string
 }
 
-// CompareConfig defines methods for querying comparison configuration.
-type CompareConfig interface {
+// compareConfig defines methods for querying comparison configuration.
+type compareConfig interface {
 	ShouldIgnoreArrayOrder(path string) bool
 	IsFieldIgnored(path string) bool
 }

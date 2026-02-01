@@ -17,7 +17,7 @@ const (
 
 // updateExpectedFile updates the expected file with the actual value.
 // It preserves template matchers from the original file.
-func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) error {
+func updateExpectedFile(path string, actual []byte, expected *expectedJSON) error {
 	// Parse actual JSON
 	var actualData any
 
@@ -27,7 +27,7 @@ func updateExpectedFile(path string, actual []byte, expected *ExpectedJSON) erro
 	}
 
 	// Get matcher positions from original expected file
-	matcherPositions := expected.ExtractMatcherPositions()
+	matcherPositions := expected.extractMatcherPositions()
 
 	// Generate updated JSON with matchers preserved
 	updatedJSON, err := generateUpdatedJSON(actualData, matcherPositions)

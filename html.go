@@ -34,7 +34,7 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	expected, err := ParseExpectedHTMLFile(expectedFile)
+	expected, err := parseExpectedHTMLFile(expectedFile)
 	if err != nil {
 		tb.Fatalf("testastic: %v", err)
 
@@ -71,8 +71,8 @@ func buildHTMLConfig(tb testing.TB, opts []AssertionOption) *HTMLConfig {
 // handleHTMLDiffs handles update mode and error reporting for HTML.
 // Returns true if the assertion should stop.
 func handleHTMLDiffs(
-	tb testing.TB, path string, actualBytes []byte, expectedRoot, actualNode *HTMLNode,
-	diffs []HTMLDifference, cfg *HTMLConfig,
+	tb testing.TB, path string, actualBytes []byte, expectedRoot, actualNode *htmlNode,
+	diffs []htmlDifference, cfg *HTMLConfig,
 ) bool {
 	tb.Helper()
 
@@ -94,7 +94,7 @@ func handleHTMLDiffs(
 	sortHTMLDiffs(diffs)
 
 	msg := formatAssertionMessage("AssertHTML", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, FormatHTMLDiffInline(expectedRoot, actualNode))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatHTMLDiffInline(expectedRoot, actualNode))
 
 	return false
 }

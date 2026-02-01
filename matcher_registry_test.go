@@ -1,6 +1,7 @@
 package testastic_test
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -85,16 +86,18 @@ func TestNewMatchers(t *testing.T) {
 }
 
 func TestCustomMatcherRegistry(t *testing.T) {
+	// given: a custom matcher registered in the registry
 	testastic.RegisterMatcher("customTest", func(args string) (testastic.Matcher, error) {
 		return testastic.AnyString(), nil
 	})
 
-	m, err := testastic.ParseMatcher("customTest")
-	if err != nil {
-		t.Fatalf("Failed to parse custom matcher: %v", err)
-	}
+	dir := t.TempDir()
+	expectedFile := filepath.Join(dir, "custom.expected.json")
 
-	if !m.Match("test") {
-		t.Error("Custom matcher should work")
-	}
+	expected := `{"value": "{{customTest}}"}`
+	writeTestFile(t, expectedFile, expected)
+
+	// when: asserting JSON with the custom matcher
+	// then: the custom matcher is used and matches any string
+	testastic.AssertJSON(t, expectedFile, `{"value": "test"}`)
 }

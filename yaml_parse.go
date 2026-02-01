@@ -9,8 +9,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ExpectedYAML represents a parsed expected YAML file with matchers.
-type ExpectedYAML struct {
+// expectedYAML represents a parsed expected YAML file with matchers.
+type expectedYAML struct {
 	Data     any               // Parsed YAML with Matcher objects in place of template expressions
 	Matchers map[string]string // Map of placeholder to original template expression
 	Raw      string            // Original file content for update operations
@@ -22,19 +22,19 @@ const yamlMatcherPlaceholderPrefix = "__TESTASTIC_YAML_MATCHER_"
 // yamlTemplateExprRegex matches {{...}} expressions in YAML.
 var yamlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
 
-// ParseExpectedYAMLFile reads and parses an expected YAML file, replacing template expressions with matchers.
-func ParseExpectedYAMLFile(path string) (*ExpectedYAML, error) {
+// parseExpectedYAMLFile reads and parses an expected YAML file, replacing template expressions with matchers.
+func parseExpectedYAMLFile(path string) (*expectedYAML, error) {
 	content, err := os.ReadFile(path) //nolint:gosec // Path is controlled by test code.
 	if err != nil {
 		return nil, fmt.Errorf("failed to read expected YAML file: %w", err)
 	}
 
-	return ParseExpectedYAMLString(string(content))
+	return parseExpectedYAMLString(string(content))
 }
 
-// ParseExpectedYAMLString parses an expected YAML string with template expressions.
-func ParseExpectedYAMLString(content string) (*ExpectedYAML, error) {
-	expected := &ExpectedYAML{
+// parseExpectedYAMLString parses an expected YAML string with template expressions.
+func parseExpectedYAMLString(content string) (*expectedYAML, error) {
+	expected := &expectedYAML{
 		Matchers: make(map[string]string),
 		Raw:      content,
 	}
@@ -111,10 +111,10 @@ func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) 
 		if strings.HasPrefix(v, yamlMatcherPlaceholderPrefix) {
 			expr, ok := matchers[v]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s", ErrUnknownPlaceholder, v)
+				return nil, fmt.Errorf("%w: %s", errUnknownPlaceholder, v)
 			}
 
-			matcher, err := ParseMatcher(expr)
+			matcher, err := parseMatcher(expr)
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
 			}
@@ -129,8 +129,8 @@ func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) 
 	}
 }
 
-// ExtractMatcherPositions returns a map of YAML paths to their original template expressions.
-func (e *ExpectedYAML) ExtractMatcherPositions() map[string]string {
+// extractMatcherPositions returns a map of YAML paths to their original template expressions.
+func (e *expectedYAML) extractMatcherPositions() map[string]string {
 	positions := make(map[string]string)
 	extractYAMLMatcherPaths(e.Data, "$", positions)
 

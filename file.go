@@ -112,7 +112,7 @@ func splitLines(content string) []string {
 }
 
 // formatFileDiff formats differences for display using inline diff style.
-func formatFileDiff(expected, actual []string, diffs []Difference) string {
+func formatFileDiff(expected, actual []string, diffs []difference) string {
 	if len(diffs) == 0 {
 		return ""
 	}
