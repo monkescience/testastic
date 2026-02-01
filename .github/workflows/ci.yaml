@@ -25,17 +25,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        with:
+          fetch-depth: 0
+
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
+
       - name: Run tests with coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+
       - name: Check coverage
         run: |
-          go tool cover -func=coverage.out >> $GITHUB_STEP_SUMMARY
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "Total coverage: ${COVERAGE}%"
-          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
-            echo "Coverage ${COVERAGE}% is below 80% threshold"
+          echo "**Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+
+      - name: Check coverage delta
+        if: github.event_name == 'pull_request'
+        run: |
+          PR_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+
+          git checkout ${{ github.base_ref }}
+          go test -race -coverprofile=base_coverage.out -covermode=atomic ./... || true
+
+          if [ -f base_coverage.out ]; then
+            BASE_COVERAGE=$(go tool cover -func=base_coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          else
+            BASE_COVERAGE=0
+          fi
+
+          echo "Base branch coverage: ${BASE_COVERAGE}%"
+          echo "PR coverage: ${PR_COVERAGE}%"
+          echo "| Branch | Coverage |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Base (${{ github.base_ref }}) | ${BASE_COVERAGE}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| PR | ${PR_COVERAGE}% |" >> $GITHUB_STEP_SUMMARY
+
+          if (( $(echo "$PR_COVERAGE < $BASE_COVERAGE" | bc -l) )); then
+            echo "::error::Coverage decreased from ${BASE_COVERAGE}% to ${PR_COVERAGE}%"
             exit 1
           fi
