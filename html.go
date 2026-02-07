@@ -18,7 +18,7 @@ var ErrUnsupportedHTMLType = errors.New("unsupported type for HTML comparison")
 //	testastic.AssertHTML(t, "testdata/user.expected.html", resp.Body)
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlBytes)
 //	testastic.AssertHTML(t, "testdata/user.expected.html", htmlString)
-func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
+func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 
 	actualBytes, err := toHTMLBytes(actual)
@@ -28,7 +28,7 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	cfg := buildHTMLConfig(tb, opts)
+	cfg := buildConfig(opts)
 
 	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedHTMLFile) {
 		return
@@ -55,24 +55,11 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	}
 }
 
-// buildHTMLConfig creates an HTML config from the provided options.
-func buildHTMLConfig(tb testing.TB, opts []AssertionOption) *HTMLConfig {
-	tb.Helper()
-
-	cfg := &HTMLConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
-
-	for _, opt := range opts {
-		opt.applyToHTMLConfig(cfg)
-	}
-
-	return cfg
-}
-
 // handleHTMLDiffs handles update mode and error reporting for HTML.
 // Returns true if the assertion should stop.
 func handleHTMLDiffs(
 	tb testing.TB, path string, actualBytes []byte, expectedRoot, actualNode *htmlNode,
-	diffs []htmlDifference, cfg *HTMLConfig,
+	diffs []htmlDifference, cfg *config,
 ) bool {
 	tb.Helper()
 

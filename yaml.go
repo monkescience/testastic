@@ -16,7 +16,7 @@ import (
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", myConfig)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", resp.Body)
-func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
+func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 
 	actualBytes, err := toYAMLBytes(actual)
@@ -26,7 +26,7 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	cfg := buildYAMLConfig(tb, opts)
+	cfg := buildConfig(opts)
 
 	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedYAMLFile) {
 		return
@@ -53,24 +53,11 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	}
 }
 
-// buildYAMLConfig creates a YAML config from the provided options.
-func buildYAMLConfig(tb testing.TB, opts []AssertionOption) *YAMLConfig {
-	tb.Helper()
-
-	cfg := &YAMLConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
-
-	for _, opt := range opts {
-		opt.applyToYAMLConfig(cfg)
-	}
-
-	return cfg
-}
-
 // handleYAMLDiffs handles update mode and error reporting for YAML.
 // Returns true if the assertion should stop.
 func handleYAMLDiffs(
 	tb testing.TB, path string, actualBytes []byte, expected *expectedYAML,
-	actualData any, diffs []difference, cfg *YAMLConfig,
+	actualData any, diffs []difference, cfg *config,
 ) bool {
 	tb.Helper()
 

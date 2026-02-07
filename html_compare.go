@@ -22,7 +22,7 @@ type htmlDifference struct {
 
 // compareHTML compares expected and actual HTML nodes.
 // Returns a list of differences found.
-func compareHTML(expected, actual *htmlNode, cfg *HTMLConfig) []htmlDifference {
+func compareHTML(expected, actual *htmlNode, cfg *config) []htmlDifference {
 	if expected == nil && actual == nil {
 		return nil
 	}
@@ -51,7 +51,7 @@ func compareHTML(expected, actual *htmlNode, cfg *HTMLConfig) []htmlDifference {
 // comparehtmlNodes recursively compares two HTML nodes.
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
-func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
+func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
 	// Check if element should be ignored
 	if cfg.isElementIgnored(expected.Tag) {
 		return nil
@@ -174,7 +174,7 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *HTMLConfig) 
 // compareHTMLAttributes compares HTML element attributes.
 //
 //nolint:funlen // Attribute comparison needs explicit handling for all cases.
-func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HTMLConfig) []htmlDifference {
+func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *config) []htmlDifference {
 	var diffs []htmlDifference
 
 	// Check expected attributes
@@ -263,7 +263,7 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *HT
 }
 
 // compareHTMLChildren compares child nodes of an HTML element.
-func compareHTMLChildren(expected, actual []*htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
+func compareHTMLChildren(expected, actual []*htmlNode, path string, cfg *config) []htmlDifference {
 	// Filter out nodes that should be ignored
 	expFiltered := filterSignificantChildren(expected, cfg)
 	actFiltered := filterSignificantChildren(actual, cfg)
@@ -276,7 +276,7 @@ func compareHTMLChildren(expected, actual []*htmlNode, path string, cfg *HTMLCon
 }
 
 // compareChildrenOrdered compares children where order matters.
-func compareChildrenOrdered(expected, actual []*htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
+func compareChildrenOrdered(expected, actual []*htmlNode, path string, cfg *config) []htmlDifference {
 	var diffs []htmlDifference
 
 	maxLen := max(len(expected), len(actual))
@@ -309,7 +309,7 @@ func compareChildrenOrdered(expected, actual []*htmlNode, path string, cfg *HTML
 }
 
 // compareChildrenUnordered compares children where order doesn't matter.
-func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *HTMLConfig) []htmlDifference {
+func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *config) []htmlDifference {
 	if len(expected) != len(actual) {
 		return []htmlDifference{{
 			Path:     path,
@@ -349,7 +349,7 @@ func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *HT
 }
 
 // filterSignificantChildren filters out insignificant nodes.
-func filterSignificantChildren(nodes []*htmlNode, cfg *HTMLConfig) []*htmlNode {
+func filterSignificantChildren(nodes []*htmlNode, cfg *config) []*htmlNode {
 	result := make([]*htmlNode, 0, len(nodes))
 
 	for _, node := range nodes {

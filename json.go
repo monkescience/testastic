@@ -16,7 +16,7 @@ import (
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", myUser)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", jsonBytes)
-func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
+func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 
 	actualBytes, err := toBytes(actual)
@@ -26,7 +26,7 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	cfg := buildJSONConfig(tb, opts)
+	cfg := buildConfig(opts)
 
 	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedFile) {
 		return
@@ -51,19 +51,6 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	if handleJSONDiffs(tb, expectedFile, actualBytes, expected, actualData, diffs, cfg) {
 		return
 	}
-}
-
-// buildJSONConfig creates a JSON config from the provided options.
-func buildJSONConfig(tb testing.TB, opts []AssertionOption) *JSONConfig {
-	tb.Helper()
-
-	cfg := &JSONConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
-
-	for _, opt := range opts {
-		opt.applyToConfig(cfg)
-	}
-
-	return cfg
 }
 
 // handleMissingExpectedFile checks if file exists and creates it in update mode.
@@ -98,7 +85,7 @@ func handleMissingExpectedFile(
 // Returns true if the assertion should stop.
 func handleJSONDiffs(
 	tb testing.TB, path string, actualBytes []byte, expected *expectedJSON,
-	actualData any, diffs []difference, cfg *JSONConfig,
+	actualData any, diffs []difference, cfg *config,
 ) bool {
 	tb.Helper()
 

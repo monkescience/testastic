@@ -11,7 +11,7 @@ import (
 // Returns a list of differences found.
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
-func compare(expected, actual any, path string, cfg compareConfig) []difference {
+func compare(expected, actual any, path string, cfg *config) []difference {
 	if cfg.IsFieldIgnored(path) {
 		return nil
 	}
@@ -123,7 +123,7 @@ func compare(expected, actual any, path string, cfg compareConfig) []difference 
 }
 
 // compareObjects compares two JSON objects (maps).
-func compareObjects(expected map[string]any, actual any, path string, cfg compareConfig) []difference {
+func compareObjects(expected map[string]any, actual any, path string, cfg *config) []difference {
 	actMap, ok := actual.(map[string]any)
 	if !ok {
 		return []difference{{
@@ -181,7 +181,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg compar
 }
 
 // compareArrays compares two JSON arrays.
-func compareArrays(expected []any, actual any, path string, cfg compareConfig) []difference {
+func compareArrays(expected []any, actual any, path string, cfg *config) []difference {
 	actArr, ok := actual.([]any)
 	if !ok {
 		return []difference{{
@@ -200,7 +200,7 @@ func compareArrays(expected []any, actual any, path string, cfg compareConfig) [
 }
 
 // compareArraysOrdered compares arrays where order matters.
-func compareArraysOrdered(expected, actual []any, path string, cfg compareConfig) []difference {
+func compareArraysOrdered(expected, actual []any, path string, cfg *config) []difference {
 	var diffs []difference
 
 	for i := range max(len(expected), len(actual)) {
@@ -269,7 +269,7 @@ func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) 
 }
 
 // compareArraysUnordered compares arrays where order doesn't matter.
-func compareArraysUnordered(expected, actual []any, path string, cfg compareConfig) []difference {
+func compareArraysUnordered(expected, actual []any, path string, cfg *config) []difference {
 	if len(expected) != len(actual) {
 		return []difference{{
 			Path:     path,

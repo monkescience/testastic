@@ -215,7 +215,7 @@ func TestAssertHTML(t *testing.T) {
 
 		// when: asserting with PreserveWhitespace option
 		testastic.AssertHTML(mt, "testdata/html/whitespace.html", actual,
-			testastic.WrapHTMLOption(testastic.PreserveWhitespace()))
+			testastic.PreserveWhitespace())
 
 		// then: the test fails (whitespace differences are detected)
 		if !mt.failed {
@@ -230,7 +230,7 @@ func TestAssertHTML(t *testing.T) {
 
 		// when: asserting with IgnoreHTMLComments option
 		testastic.AssertHTML(mt, "testdata/html/with_comment.html", actual,
-			testastic.WrapHTMLOption(testastic.IgnoreHTMLComments()))
+			testastic.IgnoreHTMLComments())
 
 		// then: the test passes (comments are ignored)
 		if mt.failed {
@@ -245,7 +245,7 @@ func TestAssertHTML(t *testing.T) {
 
 		// when: asserting with IgnoreElements option for script
 		testastic.AssertHTML(mt, "testdata/html/with_script.html", actual,
-			testastic.WrapHTMLOption(testastic.IgnoreElements("script")))
+			testastic.IgnoreElements("script"))
 
 		// then: the test passes (script element is ignored)
 		if mt.failed {
@@ -260,7 +260,7 @@ func TestAssertHTML(t *testing.T) {
 
 		// when: asserting with IgnoreAttributes option
 		testastic.AssertHTML(mt, "testdata/html/ignore_attributes.html", actual,
-			testastic.WrapHTMLOption(testastic.IgnoreAttributes("class", "data-testid")))
+			testastic.IgnoreAttributes("class", "data-testid"))
 
 		// then: the test passes (specified attributes are ignored)
 		if mt.failed {

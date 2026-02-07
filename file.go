@@ -19,7 +19,7 @@ const expectedFilePerms = 0o644
 // Supports {{anyString}}, {{regex `pattern`}}, and other matchers inline within text.
 //
 // Supported actual types: string, []byte, or io.Reader.
-func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...AssertionOption) {
+func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 
 	actualStr, err := fileToString(actual)
@@ -29,7 +29,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 		return
 	}
 
-	cfg := buildFileConfig(opts)
+	cfg := buildConfig(opts)
 
 	if handleMissingExpectedFile(tb, expectedFile, []byte(actualStr), cfg.Update, createExpectedFile) {
 		return
@@ -67,16 +67,6 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Ass
 	msg := formatAssertionMessage("AssertFile", expectedFile, cfg.Message)
 	tb.Errorf("testastic: assertion failed\n\n  %s\n%s",
 		msg, formatFileDiff(expectedLines, actualLines, diffs))
-}
-
-// buildFileConfig creates a file config from the provided options.
-func buildFileConfig(opts []AssertionOption) *FileConfig {
-	cfg := &FileConfig{baseConfig: baseConfig{Update: shouldUpdate()}}
-	for _, opt := range opts {
-		opt.applyToFileConfig(cfg)
-	}
-
-	return cfg
 }
 
 // fileToString converts various input types to string.
