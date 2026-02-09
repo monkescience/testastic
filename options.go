@@ -7,6 +7,22 @@ import (
 	"strings"
 )
 
+// assertType identifies which assertion function is being called.
+type assertType string
+
+const (
+	assertJSON assertType = "json"
+	assertYAML assertType = "yaml"
+	assertHTML assertType = "html"
+	assertFile assertType = "file"
+)
+
+// optionMeta records which option was applied and which assertion types support it.
+type optionMeta struct {
+	name        string
+	supportedBy []assertType
+}
+
 // Option configures the behavior of assertion functions.
 // Use the provided option constructors (IgnoreFields, IgnoreArrayOrder, etc.) to create options.
 type Option func(*config)
@@ -28,6 +44,9 @@ type config struct {
 	IgnoredElements       []string
 	IgnoredAttributes     []string
 	IgnoredAttributePaths []string
+
+	// applied tracks which options were set for validation.
+	applied []optionMeta
 }
 
 // buildConfig creates a config from the provided options.
@@ -77,6 +96,19 @@ func (c *config) IsFieldIgnored(path string) bool {
 	}
 
 	return false
+}
+
+// validateOptions returns the names of options that are not supported by the given assertion type.
+func (c *config) validateOptions(target assertType) []string {
+	var unsupported []string
+
+	for _, opt := range c.applied {
+		if !slices.Contains(opt.supportedBy, target) {
+			unsupported = append(unsupported, opt.name)
+		}
+	}
+
+	return unsupported
 }
 
 // isElementIgnored checks if an element with the given tag should be ignored (HTML only).
@@ -149,6 +181,10 @@ func shouldUpdate() bool {
 func IgnoreFields(fields ...string) Option {
 	return func(c *config) {
 		c.IgnoredFields = append(c.IgnoredFields, fields...)
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreFields",
+			supportedBy: []assertType{assertJSON, assertYAML, assertHTML},
+		})
 	}
 }
 
@@ -160,6 +196,10 @@ func IgnoreFields(fields ...string) Option {
 func IgnoreArrayOrder() Option {
 	return func(c *config) {
 		c.IgnoreArrayOrder = true
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreArrayOrder",
+			supportedBy: []assertType{assertJSON, assertYAML},
+		})
 	}
 }
 
@@ -175,6 +215,10 @@ func IgnoreArrayOrder() Option {
 func IgnoreArrayOrderAt(path string) Option {
 	return func(c *config) {
 		c.IgnoreArrayOrderPaths = append(c.IgnoreArrayOrderPaths, path)
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreArrayOrderAt",
+			supportedBy: []assertType{assertJSON, assertYAML},
+		})
 	}
 }
 
@@ -209,6 +253,10 @@ func Message(msg string) Option {
 func IgnoreHTMLComments() Option {
 	return func(c *config) {
 		c.IgnoreComments = true
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreHTMLComments",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }
 
@@ -216,6 +264,10 @@ func IgnoreHTMLComments() Option {
 func PreserveWhitespace() Option {
 	return func(c *config) {
 		c.PreserveWhitespace = true
+		c.applied = append(c.applied, optionMeta{
+			name:        "PreserveWhitespace",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }
 
@@ -223,6 +275,10 @@ func PreserveWhitespace() Option {
 func IgnoreChildOrder() Option {
 	return func(c *config) {
 		c.IgnoreArrayOrder = true
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreChildOrder",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }
 
@@ -230,6 +286,10 @@ func IgnoreChildOrder() Option {
 func IgnoreChildOrderAt(path string) Option {
 	return func(c *config) {
 		c.IgnoreArrayOrderPaths = append(c.IgnoreArrayOrderPaths, path)
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreChildOrderAt",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }
 
@@ -237,6 +297,10 @@ func IgnoreChildOrderAt(path string) Option {
 func IgnoreElements(tags ...string) Option {
 	return func(c *config) {
 		c.IgnoredElements = append(c.IgnoredElements, tags...)
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreElements",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }
 
@@ -244,6 +308,10 @@ func IgnoreElements(tags ...string) Option {
 func IgnoreAttributes(attrs ...string) Option {
 	return func(c *config) {
 		c.IgnoredAttributes = append(c.IgnoredAttributes, attrs...)
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreAttributes",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }
 
@@ -251,5 +319,9 @@ func IgnoreAttributes(attrs ...string) Option {
 func IgnoreAttributeAt(pathAttr string) Option {
 	return func(c *config) {
 		c.IgnoredAttributePaths = append(c.IgnoredAttributePaths, pathAttr)
+		c.applied = append(c.applied, optionMeta{
+			name:        "IgnoreAttributeAt",
+			supportedBy: []assertType{assertHTML},
+		})
 	}
 }

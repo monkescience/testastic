@@ -1,6 +1,7 @@
 package testastic_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -16,7 +17,7 @@ func TestAssertFile(t *testing.T) {
 
 	t.Run("mismatch", func(t *testing.T) {
 		// given: expected file and mismatched actual
-		mt := &fileMockT{}
+		mt := &mockT{}
 
 		// when: asserting with mismatched content
 		testastic.AssertFile(mt, "testdata/file/mismatch.txt", "actual line")
@@ -57,7 +58,7 @@ func TestAssertFile(t *testing.T) {
 
 	t.Run("matcher fails", func(t *testing.T) {
 		// given: expected file with int matcher
-		mt := &fileMockT{}
+		mt := &mockT{}
 
 		// when: asserting with non-matching value
 		testastic.AssertFile(mt, "testdata/file/matcher_fails.txt", "Count: not-a-number")
@@ -70,7 +71,7 @@ func TestAssertFile(t *testing.T) {
 
 	t.Run("with message", func(t *testing.T) {
 		// given: expected file and mismatched actual
-		mt := &fileMockT{}
+		mt := &mockT{}
 
 		// when: asserting with custom message
 		testastic.AssertFile(mt, "testdata/file/with_message.txt", "actual", testastic.Message("custom error message"))
@@ -90,7 +91,7 @@ func TestAssertFile(t *testing.T) {
 
 	t.Run("empty expected non-empty actual", func(t *testing.T) {
 		// given: empty expected, non-empty actual
-		mt := &fileMockT{}
+		mt := &mockT{}
 
 		// when: asserting
 		testastic.AssertFile(mt, "testdata/file/empty.txt", "some content")
@@ -109,14 +110,34 @@ func TestAssertFile(t *testing.T) {
 	})
 }
 
-// fileMockT for testing file assertions.
-type fileMockT struct {
-	testing.TB
-	failed bool
-	output string
-}
+func TestAssertFile_UnsupportedOptions(t *testing.T) {
+	t.Run("structured data and html options rejected", func(t *testing.T) {
+		// given: JSON/YAML and HTML options passed to AssertFile
+		mt := &mockT{}
 
-func (m *fileMockT) Helper()                           {}
-func (m *fileMockT) Fatalf(format string, args ...any) { m.failed = true; m.output = format }
-func (m *fileMockT) Errorf(format string, args ...any) { m.failed = true; m.output = format }
-func (m *fileMockT) Logf(format string, args ...any)   {}
+		// when: asserting with unsupported options
+		testastic.AssertFile(mt, "testdata/file/exact_match.txt", "line 1\nline 2\nline 3",
+			testastic.IgnoreArrayOrder(), testastic.IgnoreHTMLComments())
+
+		// then: the test fails and mentions both unsupported options
+		if !mt.failed {
+			t.Error("expected test to fail for unsupported options")
+		}
+
+		if !strings.Contains(mt.message, "IgnoreArrayOrder") {
+			t.Errorf("expected output to mention IgnoreArrayOrder, got: %s", mt.message)
+		}
+
+		if !strings.Contains(mt.message, "IgnoreHTMLComments") {
+			t.Errorf("expected output to mention IgnoreHTMLComments, got: %s", mt.message)
+		}
+	})
+
+	t.Run("supported options accepted", func(t *testing.T) {
+		// given: supported options for AssertFile
+		// when: asserting with Message option
+		// then: the test passes without unsupported option error
+		testastic.AssertFile(t, "testdata/file/exact_match.txt", "line 1\nline 2\nline 3",
+			testastic.Message("custom message"))
+	})
+}

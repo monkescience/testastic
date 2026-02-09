@@ -12,7 +12,7 @@ import (
 func TestAssertHTML(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		// given: an expected HTML file with exact content
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
@@ -26,7 +26,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("exact match full document", func(t *testing.T) {
 		// given: an expected HTML file with a full HTML document
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<!DOCTYPE html><html><head><title>Test</title></head>` +
 			`<body><p>Hello</p></body></html>`
 
@@ -41,7 +41,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with anyString matcher", func(t *testing.T) {
 		// given: an expected HTML file with anyString matcher in text content
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with any string in the span
 		testastic.AssertHTML(mt, "testdata/html/with_anystring.html",
@@ -55,7 +55,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with regex matcher", func(t *testing.T) {
 		// given: an expected HTML file with regex matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with a value matching the regex
 		testastic.AssertHTML(mt, "testdata/html/with_regex.html",
@@ -69,7 +69,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with regex matcher fails", func(t *testing.T) {
 		// given: an expected HTML file with regex matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with a value not matching the regex
 		testastic.AssertHTML(mt, "testdata/html/with_regex.html",
@@ -83,7 +83,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("with ignore matcher", func(t *testing.T) {
 		// given: an expected HTML file with ignore matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<div><span class="timestamp">2024-01-01 12:00:00</span>` +
 			`<span>Content</span></div>`
 
@@ -98,7 +98,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("matcher in attribute", func(t *testing.T) {
 		// given: an expected HTML file with matcher in an attribute
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with any string in the attribute
 		testastic.AssertHTML(mt, "testdata/html/matcher_in_attribute.html",
@@ -112,7 +112,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("missing element", func(t *testing.T) {
 		// given: an expected HTML file with two span elements
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML missing the second span
 		testastic.AssertHTML(mt, "testdata/html/missing_element.html",
@@ -126,7 +126,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("extra element", func(t *testing.T) {
 		// given: an expected HTML file with one span element
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML containing an extra span
 		testastic.AssertHTML(mt, "testdata/html/extra_element.html",
@@ -140,7 +140,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("wrong tag", func(t *testing.T) {
 		// given: an expected HTML file with a span element
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML using a different tag
 		testastic.AssertHTML(mt, "testdata/html/wrong_tag.html",
@@ -154,7 +154,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("wrong attribute", func(t *testing.T) {
 		// given: an expected HTML file with a specific class attribute
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML using a different class value
 		testastic.AssertHTML(mt, "testdata/html/wrong_attribute.html",
@@ -168,7 +168,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("missing attribute", func(t *testing.T) {
 		// given: an expected HTML file with class and id attributes
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML missing the id attribute
 		testastic.AssertHTML(mt, "testdata/html/missing_attribute.html",
@@ -182,7 +182,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("extra attribute", func(t *testing.T) {
 		// given: an expected HTML file with only class attribute
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML containing an extra id attribute
 		testastic.AssertHTML(mt, "testdata/html/extra_attribute.html",
@@ -196,7 +196,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("whitespace normalization", func(t *testing.T) {
 		// given: an expected HTML file with normalized whitespace
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with HTML containing extra whitespace
 		testastic.AssertHTML(mt, "testdata/html/whitespace.html",
@@ -210,7 +210,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("preserve whitespace", func(t *testing.T) {
 		// given: an expected HTML file with specific whitespace
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<div><span>Hello   World</span></div>`
 
 		// when: asserting with PreserveWhitespace option
@@ -225,7 +225,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("ignore comments", func(t *testing.T) {
 		// given: an expected HTML file with a comment
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<div><!-- different comment --><span>Content</span></div>`
 
 		// when: asserting with IgnoreHTMLComments option
@@ -240,7 +240,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("ignore elements", func(t *testing.T) {
 		// given: an expected HTML file with a script element
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<div><script>console.log('different')</script><span>Content</span></div>`
 
 		// when: asserting with IgnoreElements option for script
@@ -255,7 +255,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("ignore attributes", func(t *testing.T) {
 		// given: an expected HTML file with class and data-testid attributes
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<div class="box" data-testid="different"><span>Content</span></div>`
 
 		// when: asserting with IgnoreAttributes option
@@ -273,7 +273,7 @@ func TestAssertHTML(t *testing.T) {
 		dir := t.TempDir()
 		expectedFile := filepath.Join(dir, "new-expected.html")
 
-		mt := &htmlMockT{}
+		mt := &mockT{}
 		actual := `<div class="card"><span>Content</span></div>`
 
 		// when: asserting with HTMLUpdate option
@@ -296,7 +296,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("byte slice input", func(t *testing.T) {
 		// given: an expected HTML file and actual as []byte
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with []byte input
 		testastic.AssertHTML(mt, "testdata/html/bytes.html",
@@ -310,7 +310,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("reader input", func(t *testing.T) {
 		// given: an expected HTML file and actual as io.Reader
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with io.Reader input
 		testastic.AssertHTML(mt, "testdata/html/bytes.html",
@@ -324,7 +324,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("nested elements", func(t *testing.T) {
 		// given: an expected HTML file with nested elements
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching nested structure
 		testastic.AssertHTML(mt, "testdata/html/nested.html",
@@ -338,7 +338,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("void elements", func(t *testing.T) {
 		// given: an expected HTML file with void elements
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching void elements
 		testastic.AssertHTML(mt, "testdata/html/void_elements.html",
@@ -352,7 +352,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded matcher in attribute", func(t *testing.T) {
 		// given: an expected HTML file with embedded matcher in attribute
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_matcher_attr.html",
@@ -366,7 +366,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded regex in attribute", func(t *testing.T) {
 		// given: an expected HTML file with embedded regex in attribute
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_regex_attr.html",
@@ -380,7 +380,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded matcher mismatch", func(t *testing.T) {
 		// given: an expected HTML file with embedded regex that won't match
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with non-matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_regex_attr.html",
@@ -394,7 +394,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("multiple embedded matchers", func(t *testing.T) {
 		// given: an expected HTML file with multiple embedded matchers
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/multiple_embedded.html",
@@ -408,7 +408,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded matcher in text content", func(t *testing.T) {
 		// given: an expected HTML file with embedded matcher in text content
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_text.html",
@@ -422,7 +422,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyInt", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyInt matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_anyint.html",
@@ -436,7 +436,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyFloat", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyFloat matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_anyfloat.html",
@@ -450,7 +450,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyBool", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyBool matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_anybool.html",
@@ -464,7 +464,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded anyValue", func(t *testing.T) {
 		// given: an expected HTML file with embedded anyValue matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_anyvalue.html",
@@ -478,7 +478,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded ignore", func(t *testing.T) {
 		// given: an expected HTML file with embedded ignore matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_ignore.html",
@@ -492,7 +492,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded oneOf", func(t *testing.T) {
 		// given: an expected HTML file with embedded oneOf matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_oneof.html",
@@ -506,7 +506,7 @@ func TestAssertHTML(t *testing.T) {
 
 	t.Run("embedded oneOf mismatch", func(t *testing.T) {
 		// given: an expected HTML file with embedded oneOf matcher
-		mt := &htmlMockT{}
+		mt := &mockT{}
 
 		// when: asserting with non-matching HTML
 		testastic.AssertHTML(mt, "testdata/html/embedded_oneof_limited.html",
@@ -519,23 +519,36 @@ func TestAssertHTML(t *testing.T) {
 	})
 }
 
-// htmlMockT is a mock testing.TB for testing HTML assertions.
-type htmlMockT struct {
-	testing.TB
-	failed  bool
-	message string
+func TestAssertHTML_UnsupportedOptions(t *testing.T) {
+	t.Run("json options rejected", func(t *testing.T) {
+		// given: JSON/YAML-only options passed to AssertHTML
+		mt := &mockT{}
+
+		// when: asserting with unsupported options
+		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
+			`<div class="card"><span>Hello</span></div>`, testastic.IgnoreArrayOrder())
+
+		// then: the test fails and mentions the unsupported option
+		if !mt.failed {
+			t.Error("expected test to fail for unsupported options")
+		}
+
+		if !strings.Contains(mt.message, "IgnoreArrayOrder") {
+			t.Errorf("expected output to mention IgnoreArrayOrder, got: %s", mt.message)
+		}
+	})
+
+	t.Run("supported options accepted", func(t *testing.T) {
+		// given: supported options for AssertHTML
+		mt := &mockT{}
+
+		// when: asserting with IgnoreHTMLComments
+		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
+			`<div class="card"><span>Hello</span></div>`, testastic.IgnoreHTMLComments())
+
+		// then: the test passes without unsupported option error
+		if mt.failed {
+			t.Errorf("expected no failure, got: %s", mt.message)
+		}
+	})
 }
-
-func (m *htmlMockT) Helper() {}
-
-func (m *htmlMockT) Fatalf(format string, args ...any) {
-	m.failed = true
-	m.message = format
-}
-
-func (m *htmlMockT) Errorf(format string, args ...any) {
-	m.failed = true
-	m.message = format
-}
-
-func (m *htmlMockT) Logf(format string, args ...any) {}

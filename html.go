@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -29,6 +30,12 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	}
 
 	cfg := buildConfig(opts)
+
+	if unsupported := cfg.validateOptions(assertHTML); len(unsupported) > 0 {
+		tb.Fatalf("testastic: unsupported options for AssertHTML: %s", strings.Join(unsupported, ", "))
+
+		return
+	}
 
 	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedHTMLFile) {
 		return

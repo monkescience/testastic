@@ -2,7 +2,6 @@ package testastic_test
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -18,31 +17,6 @@ func (e *testError) Error() string {
 	return e.msg
 }
 
-// mockT captures test failures without actually failing.
-type assertMockT struct {
-	testing.TB
-	failed  bool
-	message string
-}
-
-func (m *assertMockT) Helper() {}
-
-func (m *assertMockT) Errorf(format string, args ...any) {
-	m.failed = true
-	m.message = fmt.Sprintf(format, args...)
-}
-
-func (m *assertMockT) Fatalf(format string, args ...any) {
-	m.failed = true
-	m.message = fmt.Sprintf(format, args...)
-}
-
-func (m *assertMockT) Logf(_ string, _ ...any) {}
-
-func newMockT() *assertMockT {
-	return &assertMockT{}
-}
-
 func TestEqual(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
 		// given: two equal values of various types
@@ -55,7 +29,7 @@ func TestEqual(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: two unequal integers
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting equality
 		testastic.Equal(mt, 42, 43)
@@ -78,7 +52,7 @@ func TestNotEqual(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: two equal integers
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting inequality
 		testastic.NotEqual(mt, 42, 42)
@@ -101,7 +75,7 @@ func TestDeepEqual(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: two slices with different content
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting deep equality
 		testastic.DeepEqual(mt, []int{1, 2, 3}, []int{1, 2, 4})
@@ -129,7 +103,7 @@ func TestNil(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a non-nil value
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting nil
 		testastic.Nil(mt, 42)
@@ -153,7 +127,7 @@ func TestNotNil(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a nil value
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting not nil
 		testastic.NotNil(mt, nil)
@@ -176,7 +150,7 @@ func TestTrue(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a false value
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting true
 		testastic.True(mt, false)
@@ -199,7 +173,7 @@ func TestFalse(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a true value
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting false
 		testastic.False(mt, true)
@@ -221,7 +195,7 @@ func TestNoError(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a non-nil error
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting no error
 		testastic.NoError(mt, errors.New("some error"))
@@ -243,7 +217,7 @@ func TestError(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a nil error
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting error
 		testastic.Error(mt, nil)
@@ -269,7 +243,7 @@ func TestErrorIs(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: two different errors
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting one error is another
 		testastic.ErrorIs(mt, errors.New("one"), errors.New("two"))
@@ -291,7 +265,7 @@ func TestErrorContains(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: an error not containing the substring
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting error contains the substring
 		testastic.ErrorContains(mt, errors.New("file not found"), "permission denied")
@@ -314,7 +288,7 @@ func TestGreater(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: values where first is less than second
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting greater
 		testastic.Greater(mt, 5, 10)
@@ -337,7 +311,7 @@ func TestGreaterOrEqual(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: values where first is less than second
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting greater or equal
 		testastic.GreaterOrEqual(mt, 5, 10)
@@ -360,7 +334,7 @@ func TestLess(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: values where first is greater than second
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting less
 		testastic.Less(mt, 10, 5)
@@ -383,7 +357,7 @@ func TestLessOrEqual(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: values where first is greater than second
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting less or equal
 		testastic.LessOrEqual(mt, 10, 5)
@@ -407,7 +381,7 @@ func TestBetween(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a value outside the range
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting between
 		testastic.Between(mt, 15, 1, 10)
@@ -429,7 +403,7 @@ func TestContains(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a string not containing a substring
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting contains
 		testastic.Contains(mt, "hello world", "foo")
@@ -451,7 +425,7 @@ func TestNotContains(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a string containing a substring
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting not contains
 		testastic.NotContains(mt, "hello world", "world")
@@ -473,7 +447,7 @@ func TestHasPrefix(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a string without the specified prefix
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting has prefix
 		testastic.HasPrefix(mt, "hello world", "world")
@@ -495,7 +469,7 @@ func TestHasSuffix(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a string without the specified suffix
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting has suffix
 		testastic.HasSuffix(mt, "hello world", "hello")
@@ -517,7 +491,7 @@ func TestMatches(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a string not matching a regex pattern
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting matches
 		testastic.Matches(mt, "hello", `^\d+$`)
@@ -539,7 +513,7 @@ func TestStringEmpty(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a non-empty string
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting string empty
 		testastic.StringEmpty(mt, "not empty")
@@ -561,7 +535,7 @@ func TestStringNotEmpty(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: an empty string
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting string not empty
 		testastic.StringNotEmpty(mt, "")
@@ -585,7 +559,7 @@ func TestLen(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a collection with a different length than expected
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting length
 		testastic.Len(mt, []int{1, 2, 3}, 5)
@@ -609,7 +583,7 @@ func TestEmpty(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a non-empty collection
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting empty
 		testastic.Empty(mt, []int{1})
@@ -633,7 +607,7 @@ func TestNotEmpty(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: an empty collection
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting not empty
 		testastic.NotEmpty(mt, []int{})
@@ -656,7 +630,7 @@ func TestSliceContains(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a slice not containing a specific element
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting slice contains
 		testastic.SliceContains(mt, []int{1, 2, 3}, 5)
@@ -678,7 +652,7 @@ func TestSliceNotContains(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a slice containing a specific element
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting slice not contains
 		testastic.SliceNotContains(mt, []int{1, 2, 3}, 2)
@@ -701,7 +675,7 @@ func TestSliceEqual(t *testing.T) {
 
 	t.Run("fail length", func(t *testing.T) {
 		// given: two slices of different lengths
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting slice equal
 		testastic.SliceEqual(mt, []int{1, 2, 3}, []int{1, 2})
@@ -714,7 +688,7 @@ func TestSliceEqual(t *testing.T) {
 
 	t.Run("fail content", func(t *testing.T) {
 		// given: two slices with different content
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting slice equal
 		testastic.SliceEqual(mt, []int{1, 2, 3}, []int{1, 2, 4})
@@ -736,7 +710,7 @@ func TestMapHasKey(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a map not containing a specific key
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting map has key
 		testastic.MapHasKey(mt, map[string]int{"a": 1}, "b")
@@ -758,7 +732,7 @@ func TestMapNotHasKey(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a map containing a specific key
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting map not has key
 		testastic.MapNotHasKey(mt, map[string]int{"a": 1}, "a")
@@ -780,7 +754,7 @@ func TestMapEqual(t *testing.T) {
 
 	t.Run("fail length", func(t *testing.T) {
 		// given: two maps of different sizes
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting map equal
 		testastic.MapEqual(mt, map[string]int{"a": 1}, map[string]int{"a": 1, "b": 2})
@@ -793,7 +767,7 @@ func TestMapEqual(t *testing.T) {
 
 	t.Run("fail value", func(t *testing.T) {
 		// given: two maps with different values
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting map equal
 		testastic.MapEqual(mt, map[string]int{"a": 1}, map[string]int{"a": 2})
@@ -819,7 +793,7 @@ func TestErrorAs(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: an error that does not match target type
-		mt := newMockT()
+		mt := &mockT{}
 
 		var target *testError
 
@@ -843,7 +817,7 @@ func TestErrorIsWithNilTarget(t *testing.T) {
 
 	t.Run("non-nil error does not match nil target", func(t *testing.T) {
 		// given: non-nil error and nil target
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting ErrorIs
 		testastic.ErrorIs(mt, errors.New("some error"), nil)
@@ -867,7 +841,7 @@ func TestPanics(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a function that does not panic
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting panics
 		testastic.Panics(mt, func() {})
@@ -889,7 +863,7 @@ func TestNotPanics(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a function that panics
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting not panics
 		testastic.NotPanics(mt, func() {
@@ -913,7 +887,7 @@ func TestMapHasValue(t *testing.T) {
 
 	t.Run("fail", func(t *testing.T) {
 		// given: a map not containing the value
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting map has value
 		testastic.MapHasValue(mt, map[string]int{"a": 1, "b": 2}, 5)
@@ -928,7 +902,7 @@ func TestMapHasValue(t *testing.T) {
 func TestErrorMessageFormat(t *testing.T) {
 	t.Run("contains testastic prefix and assertion name", func(t *testing.T) {
 		// given: two unequal values
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: asserting equality
 		testastic.Equal(mt, "expected", "actual")

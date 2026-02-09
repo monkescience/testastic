@@ -47,7 +47,7 @@ func TestEventually(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a condition that never becomes true
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling Eventually with short timeout
 		testastic.Eventually(mt, func() bool {
@@ -66,7 +66,7 @@ func TestEventually(t *testing.T) {
 
 	t.Run("with message", func(t *testing.T) {
 		// given: a condition that fails with a custom message
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling Eventually with WithMessage
 		testastic.Eventually(mt, func() bool {
@@ -93,7 +93,7 @@ func TestEventually(t *testing.T) {
 			return false
 		}
 
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling Eventually with 50ms interval for 150ms
 		testastic.Eventually(mt, condition, 150*time.Millisecond, testastic.WithInterval(50*time.Millisecond))
@@ -142,7 +142,7 @@ func TestEventuallyFalse(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a condition that stays true
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling EventuallyFalse
 		testastic.EventuallyFalse(mt, func() bool {
@@ -191,7 +191,7 @@ func TestEventuallyEqual(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a value that never matches
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling EventuallyEqual
 		testastic.EventuallyEqual(mt, "expected", func() string {
@@ -261,7 +261,7 @@ func TestEventuallyNil(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a value that is never nil
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling EventuallyNil
 		testastic.EventuallyNil(mt, func() any {
@@ -301,7 +301,7 @@ func TestEventuallyNotNil(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a value that is always nil
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling EventuallyNotNil
 		testastic.EventuallyNotNil(mt, func() any {
@@ -344,7 +344,7 @@ func TestEventuallyNoError(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a function that always returns an error
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling EventuallyNoError
 		testastic.EventuallyNoError(mt, func() error {
@@ -391,7 +391,7 @@ func TestEventuallyError(t *testing.T) {
 
 	t.Run("timeout", func(t *testing.T) {
 		// given: a function that never returns an error
-		mt := newMockT()
+		mt := &mockT{}
 
 		// when: calling EventuallyError
 		testastic.EventuallyError(mt, func() error {

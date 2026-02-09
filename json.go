@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -27,6 +28,12 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	}
 
 	cfg := buildConfig(opts)
+
+	if unsupported := cfg.validateOptions(assertJSON); len(unsupported) > 0 {
+		tb.Fatalf("testastic: unsupported options for AssertJSON: %s", strings.Join(unsupported, ", "))
+
+		return
+	}
 
 	if handleMissingExpectedFile(tb, expectedFile, actualBytes, cfg.Update, createExpectedFile) {
 		return

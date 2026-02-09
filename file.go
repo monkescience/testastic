@@ -31,6 +31,12 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 
 	cfg := buildConfig(opts)
 
+	if unsupported := cfg.validateOptions(assertFile); len(unsupported) > 0 {
+		tb.Fatalf("testastic: unsupported options for AssertFile: %s", strings.Join(unsupported, ", "))
+
+		return
+	}
+
 	if handleMissingExpectedFile(tb, expectedFile, []byte(actualStr), cfg.Update, createExpectedFile) {
 		return
 	}

@@ -36,12 +36,12 @@ func TestAssertJSON(t *testing.T) {
 			t.Error("expected test to fail")
 		}
 
-		if !strings.Contains(mt.output, `"name"`) {
-			t.Errorf("expected diff to mention name field, got: %s", mt.output)
+		if !strings.Contains(mt.message, `"name"`) {
+			t.Errorf("expected diff to mention name field, got: %s", mt.message)
 		}
 
-		if !strings.Contains(mt.output, `"age"`) {
-			t.Errorf("expected diff to mention age field, got: %s", mt.output)
+		if !strings.Contains(mt.message, `"age"`) {
+			t.Errorf("expected diff to mention age field, got: %s", mt.message)
 		}
 	})
 
@@ -180,8 +180,8 @@ func TestAssertJSON(t *testing.T) {
 			t.Error("expected test to fail due to extra field")
 		}
 
-		if !strings.Contains(mt.output, `"extra"`) {
-			t.Errorf("expected diff to mention extra field, got: %s", mt.output)
+		if !strings.Contains(mt.message, `"extra"`) {
+			t.Errorf("expected diff to mention extra field, got: %s", mt.message)
 		}
 	})
 
@@ -197,41 +197,40 @@ func TestAssertJSON(t *testing.T) {
 			t.Error("expected test to fail due to missing field")
 		}
 
-		if !strings.Contains(mt.output, `"age"`) {
-			t.Errorf("expected diff to mention age field, got: %s", mt.output)
+		if !strings.Contains(mt.message, `"age"`) {
+			t.Errorf("expected diff to mention age field, got: %s", mt.message)
 		}
 	})
 }
 
-// mockT is a mock testing.TB for capturing test failures.
-type mockT struct {
-	testing.TB
-	failed bool
-	output string
-}
+func TestAssertJSON_UnsupportedOptions(t *testing.T) {
+	t.Run("html options rejected", func(t *testing.T) {
+		// given: HTML-only options passed to AssertJSON
+		mt := &mockT{}
 
-func (m *mockT) Helper() {}
+		// when: asserting with unsupported options
+		testastic.AssertJSON(mt, "testdata/json/exact_match.json", testJSONAliceAge30Full,
+			testastic.IgnoreHTMLComments(), testastic.PreserveWhitespace())
 
-func (m *mockT) Fatalf(format string, args ...any) {
-	m.failed = true
-	m.output = strings.TrimSpace(strings.ReplaceAll(format, "%v", ""))
-
-	for _, arg := range args {
-		if s, ok := arg.(string); ok {
-			m.output += " " + s
+		// then: the test fails and mentions both unsupported options
+		if !mt.failed {
+			t.Error("expected test to fail for unsupported options")
 		}
-	}
-}
 
-func (m *mockT) Errorf(format string, args ...any) {
-	m.failed = true
-	m.output = strings.TrimSpace(strings.ReplaceAll(format, "%v", ""))
-
-	for _, arg := range args {
-		if s, ok := arg.(string); ok {
-			m.output += " " + s
+		if !strings.Contains(mt.message, "IgnoreHTMLComments") {
+			t.Errorf("expected output to mention IgnoreHTMLComments, got: %s", mt.message)
 		}
-	}
-}
 
-func (m *mockT) Logf(format string, args ...any) {}
+		if !strings.Contains(mt.message, "PreserveWhitespace") {
+			t.Errorf("expected output to mention PreserveWhitespace, got: %s", mt.message)
+		}
+	})
+
+	t.Run("supported options accepted", func(t *testing.T) {
+		// given: supported options for AssertJSON
+		// when: asserting with IgnoreFields
+		// then: the test passes without unsupported option error
+		testastic.AssertJSON(t, "testdata/json/exact_match.json", testJSONAliceAge30Full,
+			testastic.IgnoreFields("nonexistent"))
+	})
+}
