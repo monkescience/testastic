@@ -9,6 +9,15 @@ import (
 	"github.com/monkescience/testastic"
 )
 
+// testError is a custom error type for testing ErrorAs.
+type testError struct {
+	msg string
+}
+
+func (e *testError) Error() string {
+	return e.msg
+}
+
 // mockT captures test failures without actually failing.
 type assertMockT struct {
 	testing.TB
@@ -792,6 +801,126 @@ func TestMapEqual(t *testing.T) {
 		// then: the test fails
 		if !mt.failed {
 			t.Error("expected MapEqual to fail due to value")
+		}
+	})
+}
+
+func TestErrorAs(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: a wrapped error matching target type
+		var target *testError
+
+		err := &testError{msg: "something failed"}
+
+		// when: asserting error as target type
+		// then: the test passes
+		testastic.ErrorAs(t, err, &target)
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: an error that does not match target type
+		mt := newMockT()
+
+		var target *testError
+
+		// when: asserting a plain error as a custom type
+		testastic.ErrorAs(mt, errors.New("plain error"), &target)
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected ErrorAs to fail")
+		}
+	})
+}
+
+func TestErrorIsWithNilTarget(t *testing.T) {
+	t.Run("nil error matches nil target", func(t *testing.T) {
+		// given: nil error and nil target
+		// when: asserting ErrorIs
+		// then: the test passes (errors.Is(nil, nil) == true)
+		testastic.ErrorIs(t, nil, nil)
+	})
+
+	t.Run("non-nil error does not match nil target", func(t *testing.T) {
+		// given: non-nil error and nil target
+		mt := newMockT()
+
+		// when: asserting ErrorIs
+		testastic.ErrorIs(mt, errors.New("some error"), nil)
+
+		// then: the test fails without panicking
+		if !mt.failed {
+			t.Error("expected ErrorIs to fail")
+		}
+	})
+}
+
+func TestPanics(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: a function that panics
+		// when: asserting panics
+		// then: the test passes
+		testastic.Panics(t, func() {
+			panic("boom")
+		})
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: a function that does not panic
+		mt := newMockT()
+
+		// when: asserting panics
+		testastic.Panics(mt, func() {})
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected Panics to fail")
+		}
+	})
+}
+
+func TestNotPanics(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: a function that does not panic
+		// when: asserting not panics
+		// then: the test passes
+		testastic.NotPanics(t, func() {})
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: a function that panics
+		mt := newMockT()
+
+		// when: asserting not panics
+		testastic.NotPanics(mt, func() {
+			panic("boom")
+		})
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected NotPanics to fail")
+		}
+	})
+}
+
+func TestMapHasValue(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: a map containing the value
+		// when: asserting map has value
+		// then: the test passes
+		testastic.MapHasValue(t, map[string]int{"a": 1, "b": 2}, 2)
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: a map not containing the value
+		mt := newMockT()
+
+		// when: asserting map has value
+		testastic.MapHasValue(mt, map[string]int{"a": 1, "b": 2}, 5)
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected MapHasValue to fail")
 		}
 	})
 }

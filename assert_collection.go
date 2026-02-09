@@ -158,6 +158,22 @@ func MapNotHasKey[K comparable, V any](tb testing.TB, m map[K]V, key K) {
 	}
 }
 
+// MapHasValue asserts that the map contains the given value.
+func MapHasValue[K comparable, V comparable](tb testing.TB, m map[K]V, value V) {
+	tb.Helper()
+
+	for _, v := range m {
+		if v == value {
+			return
+		}
+	}
+
+	tb.Errorf(
+		"testastic: assertion failed\n\n  MapHasValue\n    map:   %s\n    value: %s (not found)",
+		green(formatMap(m)), red(formatVal(value)),
+	)
+}
+
 // MapEqual asserts that two maps are equal.
 func MapEqual[K comparable, V comparable](tb testing.TB, expected, actual map[K]V) {
 	tb.Helper()

@@ -70,7 +70,11 @@
 //	testastic.NoError(t, err)
 //	testastic.Error(t, err)
 //	testastic.ErrorIs(t, err, target)
+//	testastic.ErrorAs(t, err, &pathErr)
 //	testastic.ErrorContains(t, err, "substring")
+//
+//	testastic.Panics(t, func() { panic("boom") })
+//	testastic.NotPanics(t, func() { safeFunc() })
 //
 // # String Assertions
 //
@@ -85,6 +89,7 @@
 //	testastic.Empty(t, slice)
 //	testastic.SliceContains(t, slice, element)
 //	testastic.MapHasKey(t, m, "key")
+//	testastic.MapHasValue(t, m, "value")
 //
 // # Eventual Assertions
 //

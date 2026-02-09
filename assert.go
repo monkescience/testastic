@@ -116,7 +116,12 @@ func ErrorIs(tb testing.TB, err, target error) {
 			errStr = err.Error()
 		}
 
-		fail(tb, "ErrorIs", target.Error(), errStr)
+		targetStr := nilTypeName
+		if target != nil {
+			targetStr = target.Error()
+		}
+
+		fail(tb, "ErrorIs", targetStr, errStr)
 	}
 }
 
@@ -134,6 +139,25 @@ func ErrorContains(tb testing.TB, err error, substring string) {
 
 	if !strings.Contains(err.Error(), substring) {
 		fail(tb, "ErrorContains", wantMsg, err.Error())
+	}
+}
+
+// ErrorAs asserts that err matches the target type using errors.As.
+// The target must be a non-nil pointer to either an error interface or a concrete type
+// that implements error.
+//
+//	var pathErr *os.PathError
+//	testastic.ErrorAs(t, err, &pathErr)
+func ErrorAs(tb testing.TB, err error, target any) {
+	tb.Helper()
+
+	if !errors.As(err, target) {
+		errStr := nilTypeName
+		if err != nil {
+			errStr = err.Error()
+		}
+
+		fail(tb, "ErrorAs", fmt.Sprintf("error assignable to %T", target), errStr)
 	}
 }
 
@@ -272,6 +296,51 @@ func StringNotEmpty(tb testing.TB, s string) {
 	if s == "" {
 		fail(tb, "StringNotEmpty", "non-empty string", `""`)
 	}
+}
+
+// Panics asserts that the function panics when called.
+//
+//	testastic.Panics(t, func() {
+//	    panic("something went wrong")
+//	})
+func Panics(tb testing.TB, fn func()) {
+	tb.Helper()
+
+	if !didPanic(fn) {
+		tb.Errorf("testastic: assertion failed\n\n  Panics\n    expected: %s\n    actual:   %s",
+			red("function to panic"), green("no panic"))
+	}
+}
+
+// NotPanics asserts that the function does not panic when called.
+//
+//	testastic.NotPanics(t, func() {
+//	    doSomethingSafe()
+//	})
+func NotPanics(tb testing.TB, fn func()) {
+	tb.Helper()
+
+	if didPanic(fn) {
+		tb.Errorf("testastic: assertion failed\n\n  NotPanics\n    expected: %s\n    actual:   %s",
+			red("no panic"), green("function panicked"))
+	}
+}
+
+// didPanic returns true if the function panics when called.
+func didPanic(fn func()) bool {
+	panicked := true
+
+	func() {
+		defer func() {
+			_ = recover()
+		}()
+
+		fn()
+
+		panicked = false
+	}()
+
+	return panicked
 }
 
 // isNil checks if a value is nil, handling interface nil correctly.
