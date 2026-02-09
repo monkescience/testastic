@@ -528,13 +528,14 @@ func TestAssertHTML_UnsupportedOptions(t *testing.T) {
 		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
 			`<div class="card"><span>Hello</span></div>`, testastic.IgnoreArrayOrder())
 
-		// then: the test fatals and mentions the unsupported option
+		// then: the test fatals with a message listing the unsupported option
 		if !mt.fatal {
 			t.Error("expected fatal error for unsupported options")
 		}
 
-		if !strings.Contains(mt.message, "IgnoreArrayOrder") {
-			t.Errorf("expected message to mention IgnoreArrayOrder, got: %s", mt.message)
+		expectedMsg := "testastic: unsupported options for AssertHTML: IgnoreArrayOrder"
+		if mt.message != expectedMsg {
+			t.Errorf("expected message %q, got: %q", expectedMsg, mt.message)
 		}
 	})
 

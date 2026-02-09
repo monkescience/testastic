@@ -1,7 +1,6 @@
 package testastic_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -119,17 +118,14 @@ func TestAssertFile_UnsupportedOptions(t *testing.T) {
 		testastic.AssertFile(mt, "testdata/file/exact_match.txt", "line 1\nline 2\nline 3",
 			testastic.IgnoreArrayOrder(), testastic.IgnoreHTMLComments())
 
-		// then: the test fatals and mentions both unsupported options
+		// then: the test fatals with a message listing both unsupported options
 		if !mt.fatal {
 			t.Error("expected fatal error for unsupported options")
 		}
 
-		if !strings.Contains(mt.message, "IgnoreArrayOrder") {
-			t.Errorf("expected message to mention IgnoreArrayOrder, got: %s", mt.message)
-		}
-
-		if !strings.Contains(mt.message, "IgnoreHTMLComments") {
-			t.Errorf("expected message to mention IgnoreHTMLComments, got: %s", mt.message)
+		expectedMsg := "testastic: unsupported options for AssertFile: IgnoreArrayOrder, IgnoreHTMLComments"
+		if mt.message != expectedMsg {
+			t.Errorf("expected message %q, got: %q", expectedMsg, mt.message)
 		}
 	})
 
