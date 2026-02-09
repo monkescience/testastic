@@ -1,0 +1,210 @@
+//nolint:testpackage // Internal tests for unexported functions.
+package testastic
+
+import (
+	"os"
+	"testing"
+)
+
+func TestDetectColors(t *testing.T) {
+	// Save and restore all relevant env vars and the cached result.
+	envVars := []string{"NO_COLOR", "FORCE_COLOR", "CI", "TERM"}
+	saved := make(map[string]string, len(envVars))
+
+	for _, key := range envVars {
+		saved[key] = os.Getenv(key)
+	}
+
+	savedEnabled := colorsEnabled
+
+	t.Cleanup(func() {
+		for _, key := range envVars {
+			if saved[key] == "" {
+				t.Setenv(key, "")
+				os.Unsetenv(key) //nolint:errcheck // best-effort cleanup
+			} else {
+				t.Setenv(key, saved[key])
+			}
+		}
+
+		colorsEnabled = savedEnabled
+	})
+
+	clearEnv := func() {
+		for _, key := range envVars {
+			os.Unsetenv(key) //nolint:errcheck // best-effort cleanup in test helper
+		}
+		// Reset cached result so detectColors runs fresh
+		colorsEnabled = nil
+	}
+
+	t.Run("NO_COLOR disables colors", func(t *testing.T) {
+		// given: NO_COLOR is set
+		clearEnv()
+		t.Setenv("NO_COLOR", "1")
+
+		// when: detecting colors
+		result := detectColors()
+
+		// then: colors are disabled
+		if result {
+			t.Error("expected colors to be disabled with NO_COLOR set")
+		}
+	})
+
+	t.Run("FORCE_COLOR enables colors", func(t *testing.T) {
+		// given: FORCE_COLOR is set (and NO_COLOR is not)
+		clearEnv()
+		t.Setenv("FORCE_COLOR", "1")
+
+		// when: detecting colors
+		result := detectColors()
+
+		// then: colors are enabled
+		if !result {
+			t.Error("expected colors to be enabled with FORCE_COLOR set")
+		}
+	})
+
+	t.Run("NO_COLOR takes precedence over FORCE_COLOR", func(t *testing.T) {
+		// given: both NO_COLOR and FORCE_COLOR are set
+		clearEnv()
+		t.Setenv("NO_COLOR", "1")
+		t.Setenv("FORCE_COLOR", "1")
+
+		// when: detecting colors
+		result := detectColors()
+
+		// then: colors are disabled (NO_COLOR wins)
+		if result {
+			t.Error("expected NO_COLOR to take precedence over FORCE_COLOR")
+		}
+	})
+
+	t.Run("CI disables colors", func(t *testing.T) {
+		// given: CI is set
+		clearEnv()
+		t.Setenv("CI", "true")
+
+		// when: detecting colors
+		result := detectColors()
+
+		// then: colors are disabled
+		if result {
+			t.Error("expected colors to be disabled in CI")
+		}
+	})
+
+	t.Run("TERM=dumb disables colors", func(t *testing.T) {
+		// given: TERM=dumb
+		clearEnv()
+		t.Setenv("TERM", "dumb")
+
+		// when: detecting colors
+		result := detectColors()
+
+		// then: colors are disabled
+		if result {
+			t.Error("expected colors to be disabled with TERM=dumb")
+		}
+	})
+
+	t.Run("useColors caches result", func(t *testing.T) {
+		// given: cached result is set
+		clearEnv()
+
+		cachedTrue := true
+		colorsEnabled = &cachedTrue
+
+		// when: calling useColors
+		result := useColors()
+
+		// then: returns cached value
+		if !result {
+			t.Error("expected cached true value")
+		}
+
+		// given: change cached value
+		cachedFalse := false
+		colorsEnabled = &cachedFalse
+
+		// when: calling useColors again
+		result = useColors()
+
+		// then: returns new cached value
+		if result {
+			t.Error("expected cached false value")
+		}
+	})
+}
+
+func TestColorize(t *testing.T) {
+	// Save and restore cached color state.
+	savedEnabled := colorsEnabled
+
+	t.Cleanup(func() {
+		colorsEnabled = savedEnabled
+	})
+
+	t.Run("with colors disabled", func(t *testing.T) {
+		// given: colors are disabled
+		disabled := false
+		colorsEnabled = &disabled
+
+		// when: colorizing text
+		result := colorize("hello", colorRed)
+
+		// then: returns plain text
+		if result != "hello" {
+			t.Errorf("expected plain text, got %q", result)
+		}
+	})
+
+	t.Run("with colors enabled", func(t *testing.T) {
+		// given: colors are enabled
+		enabled := true
+		colorsEnabled = &enabled
+
+		// when: colorizing text
+		result := colorize("hello", colorRed)
+
+		// then: returns text wrapped in ANSI codes
+		expected := colorRed + "hello" + colorReset
+
+		if result != expected {
+			t.Errorf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("red helper", func(t *testing.T) {
+		// given: colors are enabled
+		enabled := true
+		colorsEnabled = &enabled
+
+		// when: using red helper
+		result := red("error")
+
+		// then: wrapped in red ANSI codes
+		expected := colorRed + "error" + colorReset
+
+		if result != expected {
+			t.Errorf("expected %q, got %q", expected, result)
+		}
+	})
+
+	t.Run("green helper", func(t *testing.T) {
+		// given: colors are enabled
+		enabled := true
+		colorsEnabled = &enabled
+
+		// when: using green helper
+		result := green("success")
+
+		// then: wrapped in green ANSI codes
+		expected := colorGreen + "success" + colorReset
+
+		if result != expected {
+			t.Errorf("expected %q, got %q", expected, result)
+		}
+	})
+}
