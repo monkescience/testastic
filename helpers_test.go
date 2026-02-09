@@ -8,7 +8,8 @@ import (
 // mockT implements testing.TB for capturing test failures without stopping the test runner.
 type mockT struct {
 	testing.TB
-	failed  bool
+	failed  bool // true if Errorf or Fatalf was called.
+	fatal   bool // true only if Fatalf was called (configuration/setup error).
 	message string
 }
 
@@ -16,6 +17,7 @@ func (m *mockT) Helper() {}
 
 func (m *mockT) Fatalf(format string, args ...any) {
 	m.failed = true
+	m.fatal = true
 	m.message = fmt.Sprintf(format, args...)
 }
 

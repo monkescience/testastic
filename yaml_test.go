@@ -339,13 +339,13 @@ func TestAssertYAML_UnsupportedOptions(t *testing.T) {
 		testastic.AssertYAML(mt, "testdata/yaml/exact_match.yaml",
 			"name: test\nversion: \"1.0\"\n", testastic.IgnoreElements("script"))
 
-		// then: the test fails and mentions the unsupported option
-		if !mt.failed {
-			t.Error("expected test to fail for unsupported options")
+		// then: the test fatals and mentions the unsupported option
+		if !mt.fatal {
+			t.Error("expected fatal error for unsupported options")
 		}
 
 		if !strings.Contains(mt.message, "IgnoreElements") {
-			t.Errorf("expected output to mention IgnoreElements, got: %s", mt.message)
+			t.Errorf("expected message to mention IgnoreElements, got: %s", mt.message)
 		}
 	})
 

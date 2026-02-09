@@ -212,17 +212,17 @@ func TestAssertJSON_UnsupportedOptions(t *testing.T) {
 		testastic.AssertJSON(mt, "testdata/json/exact_match.json", testJSONAliceAge30Full,
 			testastic.IgnoreHTMLComments(), testastic.PreserveWhitespace())
 
-		// then: the test fails and mentions both unsupported options
-		if !mt.failed {
-			t.Error("expected test to fail for unsupported options")
+		// then: the test fatals and mentions both unsupported options
+		if !mt.fatal {
+			t.Error("expected fatal error for unsupported options")
 		}
 
 		if !strings.Contains(mt.message, "IgnoreHTMLComments") {
-			t.Errorf("expected output to mention IgnoreHTMLComments, got: %s", mt.message)
+			t.Errorf("expected message to mention IgnoreHTMLComments, got: %s", mt.message)
 		}
 
 		if !strings.Contains(mt.message, "PreserveWhitespace") {
-			t.Errorf("expected output to mention PreserveWhitespace, got: %s", mt.message)
+			t.Errorf("expected message to mention PreserveWhitespace, got: %s", mt.message)
 		}
 	})
 
