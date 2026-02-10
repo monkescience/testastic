@@ -117,6 +117,32 @@ func TestGenerateUpdatedJSON(t *testing.T) {
 		}
 	})
 
+	t.Run("preserves only targeted path with duplicate keys", func(t *testing.T) {
+		// given: data with duplicate key names at different nesting levels
+		data := map[string]any{
+			"user":    map[string]any{"id": "user-1", "name": "Alice"},
+			"company": map[string]any{"id": "comp-1", "name": "Acme"},
+		}
+		matchers := map[string]string{
+			"$.user.id": "{{anyString}}",
+		}
+
+		// when: generating updated JSON
+		result, err := generateUpdatedJSON(data, matchers)
+		// then: only user.id has the matcher, company.id is unchanged
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if !strings.Contains(result, `"{{anyString}}"`) {
+			t.Error("expected matcher for user.id in output")
+		}
+
+		if !strings.Contains(result, `"comp-1"`) {
+			t.Errorf("expected company.id to be preserved, got:\n%s", result)
+		}
+	})
+
 	t.Run("empty matcher positions", func(t *testing.T) {
 		// given: empty matcher map
 		data := map[string]any{"name": "Alice"}
@@ -197,6 +223,30 @@ func TestReplaceValueAtPath(t *testing.T) {
 		// then: value is replaced
 		if !strings.Contains(result, "{{anyString}}") {
 			t.Errorf("expected matcher in result, got %q", result)
+		}
+	})
+
+	t.Run("only replaces value at target path not duplicates", func(t *testing.T) {
+		// given: JSON with duplicate key names at different paths
+		jsonStr := `{
+  "user": {
+    "name": "Alice"
+  },
+  "company": {
+    "name": "Acme"
+  }
+}`
+
+		// when: replacing only the user name
+		result := replaceValueAtPath(jsonStr, "$.user.name", "{{anyString}}")
+
+		// then: only user.name is replaced, company.name is preserved
+		if !strings.Contains(result, `"{{anyString}}"`) {
+			t.Errorf("expected matcher in result, got %q", result)
+		}
+
+		if !strings.Contains(result, `"Acme"`) {
+			t.Errorf("expected company name to be preserved, got %q", result)
 		}
 	})
 }
