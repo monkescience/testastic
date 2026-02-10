@@ -5,37 +5,24 @@ import (
 )
 
 // diffType represents the type of difference found.
-type diffType int
+type diffType string
 
 const (
 	// diffChanged indicates a value was modified.
-	diffChanged diffType = iota
+	diffChanged diffType = "changed"
 	// diffAdded indicates a value was added (exists in actual but not expected).
-	diffAdded
+	diffAdded diffType = "added"
 	// diffRemoved indicates a value was removed (exists in expected but not actual).
-	diffRemoved
+	diffRemoved diffType = "removed"
 	// diffTypeMismatch indicates the types don't match.
-	diffTypeMismatch
+	diffTypeMismatch diffType = "type mismatch"
 	// diffMatcherFailed indicates a matcher didn't match the actual value.
-	diffMatcherFailed
+	diffMatcherFailed diffType = "matcher failed"
 )
 
 // String returns a human-readable description of the diff type.
 func (d diffType) String() string {
-	switch d {
-	case diffChanged:
-		return "changed"
-	case diffAdded:
-		return "added"
-	case diffRemoved:
-		return "removed"
-	case diffTypeMismatch:
-		return "type mismatch"
-	case diffMatcherFailed:
-		return "matcher failed"
-	default:
-		return "unknown"
-	}
+	return string(d)
 }
 
 // difference represents a single difference between expected and actual JSON.
@@ -60,12 +47,12 @@ func FormatFileDiffInline(expected, actual []string) string {
 }
 
 // diffOp represents a diff operation type.
-type diffOp int
+type diffOp string
 
 const (
-	diffEqual diffOp = iota
-	diffDelete
-	diffInsert
+	diffEqual  diffOp = "equal"
+	diffDelete diffOp = "delete"
+	diffInsert diffOp = "insert"
 )
 
 // computeDiff generates a unified diff between two sets of lines.

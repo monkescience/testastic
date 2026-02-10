@@ -11,17 +11,17 @@ import (
 )
 
 // htmlNodeType represents the type of an HTML node.
-type htmlNodeType int
+type htmlNodeType string
 
 const (
 	// htmlElement represents an HTML element node.
-	htmlElement htmlNodeType = iota
+	htmlElement htmlNodeType = "element"
 	// htmlText represents a text node.
-	htmlText
+	htmlText htmlNodeType = "text"
 	// htmlComment represents a comment node.
-	htmlComment
+	htmlComment htmlNodeType = "comment"
 	// htmlDoctype represents a doctype node.
-	htmlDoctype
+	htmlDoctype htmlNodeType = "doctype"
 )
 
 // htmlNode represents a normalized HTML node for comparison.
