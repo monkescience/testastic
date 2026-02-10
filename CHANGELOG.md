@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.1.0](https://github.com/monkescience/testastic/compare/v0.0.2...v0.1.0) (2026-02-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* migrate to unified functional options pattern
+
+### Features
+
+* add ErrorAs, Panics, NotPanics, MapHasValue assertions and fix ErrorIs nil target ([52b921c](https://github.com/monkescience/testastic/commit/52b921c4e6718acd13773f79c9c422c65eeb4e60))
+* validate options per assertion type and consolidate test mocks ([ed09a98](https://github.com/monkescience/testastic/commit/ed09a98e3ddc237222ff7f88c40fd0f31d2743b3))
+
+
+### Bug Fixes
+
+* **file:** use plain text file creator instead of JSON parser in AssertFile update mode ([507545f](https://github.com/monkescience/testastic/commit/507545f1943f0bb99f75667a778c2b4ebd9536b5))
+* **update:** only replace matcher at target JSON path, not all duplicate keys ([3c408e9](https://github.com/monkescience/testastic/commit/3c408e94979946e944edfced84547c76cbcc2a03))
+* **yaml:** fix double-brace wrapping and strip YAML quotes from matcher expressions on update ([1461ab5](https://github.com/monkescience/testastic/commit/1461ab5df954236e8f67ff5cbf57d57260f0092a))
+
+
+### Code Refactoring
+
+* migrate to unified functional options pattern ([4ad65af](https://github.com/monkescience/testastic/commit/4ad65afce9218a0d598097b8c91e3cf350555892))
+
 ## [0.0.2](https://github.com/monkescience/testastic/compare/v0.0.1...v0.0.2) (2026-02-01)
 
 
