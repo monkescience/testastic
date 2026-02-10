@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// ErrUnsupportedHTMLType is returned when an unsupported type is passed to AssertHTML.
-var ErrUnsupportedHTMLType = errors.New("unsupported type for HTML comparison")
+// errUnsupportedHTMLType is returned when an unsupported type is passed to AssertHTML.
+var errUnsupportedHTMLType = errors.New("unsupported type for HTML comparison")
 
 // AssertHTML compares actual HTML against an expected HTML file.
 // T can be: []byte, string, io.Reader, or any type implementing fmt.Stringer.
@@ -103,7 +103,7 @@ func toHTMLBytes[T any](v T) ([]byte, error) {
 		return []byte(stringer.String()), nil
 	}
 
-	return nil, fmt.Errorf("%w: %T (expected []byte, string, io.Reader, or fmt.Stringer)", ErrUnsupportedHTMLType, v)
+	return nil, fmt.Errorf("%w: %T (expected []byte, string, io.Reader, or fmt.Stringer)", errUnsupportedHTMLType, v)
 }
 
 // createExpectedHTMLFile creates a new expected HTML file with formatted content.

@@ -9,19 +9,19 @@ import (
 	"strings"
 )
 
-// Matcher parsing errors returned by [ParseMatcher].
+// Matcher parsing errors used internally by parseMatcher.
 var (
-	// ErrInvalidRegexSyntax is returned when a regex matcher has invalid syntax.
+	// errInvalidRegexSyntax is returned when a regex matcher has invalid syntax.
 	// Example: {{regex `[invalid`}} - unclosed character class.
-	ErrInvalidRegexSyntax = errors.New("invalid regex syntax")
+	errInvalidRegexSyntax = errors.New("invalid regex syntax")
 
-	// ErrInvalidOneOfSyntax is returned when a oneOf matcher has invalid arguments.
+	// errInvalidOneOfSyntax is returned when a oneOf matcher has invalid arguments.
 	// Arguments must be quoted strings: {{oneOf "a" "b"}}, not {{oneOf a b}}.
-	ErrInvalidOneOfSyntax = errors.New("invalid oneOf syntax")
+	errInvalidOneOfSyntax = errors.New("invalid oneOf syntax")
 
-	// ErrUnknownMatcher is returned when a matcher expression is not recognized.
+	// errUnknownMatcher is returned when a matcher expression is not recognized.
 	// This can occur if a custom matcher was not registered with [RegisterMatcher].
-	ErrUnknownMatcher = errors.New("unknown matcher")
+	errUnknownMatcher = errors.New("unknown matcher")
 )
 
 // Matcher defines the interface for custom value matching.
@@ -370,7 +370,7 @@ func parseMatcher(expr string) (Matcher, error) {
 			return Regex(pattern)
 		}
 
-		return nil, fmt.Errorf("%w: %s", ErrInvalidRegexSyntax, expr)
+		return nil, fmt.Errorf("%w: %s", errInvalidRegexSyntax, expr)
 	}
 
 	// Handle oneOf "a" "b" "c"
@@ -380,10 +380,10 @@ func parseMatcher(expr string) (Matcher, error) {
 			return OneOf(values...), nil
 		}
 
-		return nil, fmt.Errorf("%w: %s", ErrInvalidOneOfSyntax, expr)
+		return nil, fmt.Errorf("%w: %s", errInvalidOneOfSyntax, expr)
 	}
 
-	return nil, fmt.Errorf("%w: %s", ErrUnknownMatcher, expr)
+	return nil, fmt.Errorf("%w: %s", errUnknownMatcher, expr)
 }
 
 // extractBacktickArg extracts content from backticks.

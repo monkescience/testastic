@@ -33,8 +33,8 @@ type difference struct {
 	Type     diffType // Type of difference
 }
 
-// FormatFileDiffInline generates a git-style inline diff for file comparison.
-func FormatFileDiffInline(expected, actual []string) string {
+// formatFileDiffInline generates a git-style inline diff for file comparison.
+func formatFileDiffInline(expected, actual []string) string {
 	diff := computeDiff(expected, actual)
 
 	var sb strings.Builder

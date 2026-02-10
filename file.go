@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-// ErrUnsupportedFileType is returned when an unsupported type is passed to AssertFile.
-var ErrUnsupportedFileType = errors.New("unsupported type, expected string, []byte, or io.Reader")
+// errUnsupportedFileType is returned when an unsupported type is passed to AssertFile.
+var errUnsupportedFileType = errors.New("unsupported type, expected string, []byte, or io.Reader")
 
 // expectedFilePerms is the file permission used when creating/updating expected files.
 const expectedFilePerms = 0o644
@@ -91,7 +91,7 @@ func fileToString[T any](v T) (string, error) {
 
 		return string(data), nil
 	default:
-		return "", fmt.Errorf("%w: %T", ErrUnsupportedFileType, v)
+		return "", fmt.Errorf("%w: %T", errUnsupportedFileType, v)
 	}
 }
 
@@ -131,5 +131,5 @@ func formatFileDiff(expected, actual []string, diffs []difference) string {
 		return ""
 	}
 
-	return FormatFileDiffInline(expected, actual)
+	return formatFileDiffInline(expected, actual)
 }
