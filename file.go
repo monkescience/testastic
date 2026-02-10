@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -37,7 +38,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	if handleMissingExpectedFile(tb, expectedFile, []byte(actualStr), cfg.Update, createExpectedFile) {
+	if handleMissingExpectedFile(tb, expectedFile, []byte(actualStr), cfg.Update, createExpectedTextFile) {
 		return
 	}
 
@@ -92,6 +93,23 @@ func fileToString[T any](v T) (string, error) {
 	default:
 		return "", fmt.Errorf("%w: %T", ErrUnsupportedFileType, v)
 	}
+}
+
+// createExpectedTextFile creates a new expected file from plain text content.
+func createExpectedTextFile(path string, actual []byte) error {
+	dir := filepath.Dir(path)
+
+	mkdirErr := os.MkdirAll(dir, dirPerm)
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to create directory: %w", mkdirErr)
+	}
+
+	writeErr := os.WriteFile(path, actual, filePerm)
+	if writeErr != nil {
+		return fmt.Errorf("failed to write expected file: %w", writeErr)
+	}
+
+	return nil
 }
 
 // splitLines splits content into lines, handling different line endings.

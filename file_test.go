@@ -1,6 +1,8 @@
 package testastic_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -106,6 +108,34 @@ func TestAssertFile(t *testing.T) {
 		// when: asserting with matching value
 		// then: passes (special chars escaped properly)
 		testastic.AssertFile(t, "testdata/file/special_chars.txt", "Price: $100.99 (USD)")
+	})
+}
+
+func TestAssertFile_CreateExpectedFile(t *testing.T) {
+	t.Run("creates expected file for plain text in update mode", func(t *testing.T) {
+		// given: a non-existent expected file and plain text actual content
+		dir := t.TempDir()
+		expectedFile := filepath.Join(dir, "new-expected.txt")
+		actual := "Hello, World!\nThis is plain text.\n"
+
+		mt := &mockT{}
+
+		// when: asserting with Update option (file does not exist yet)
+		testastic.AssertFile(mt, expectedFile, actual, testastic.Update())
+
+		// then: the file is created without errors
+		if mt.failed {
+			t.Errorf("expected no failure when creating file, got: %s", mt.message)
+		}
+
+		content, err := os.ReadFile(expectedFile)
+		if err != nil {
+			t.Fatalf("expected file was not created: %v", err)
+		}
+
+		if string(content) != actual {
+			t.Errorf("expected file content %q, got %q", actual, string(content))
+		}
 	})
 }
 
