@@ -330,6 +330,50 @@ data:
 	})
 }
 
+func TestAssertYAML_UpdatePreservesUnquotedMatchers(t *testing.T) {
+	t.Run("update roundtrip preserves unquoted template expressions", func(t *testing.T) {
+		// given: an expected YAML file with unquoted matchers and a matching actual value
+		dir := t.TempDir()
+		expectedFile := filepath.Join(dir, "expected.yaml")
+
+		originalContent := "name: {{anyString}}\nversion: \"1.0\"\n"
+
+		err := os.WriteFile(expectedFile, []byte(originalContent), 0o644)
+		if err != nil {
+			t.Fatalf("failed to write expected file: %v", err)
+		}
+
+		mt := &mockT{}
+		actual := "name: updated-name\nversion: \"2.0\"\n"
+
+		// when: asserting with update mode (actual differs from expected)
+		testastic.AssertYAML(mt, expectedFile, actual, testastic.Update())
+
+		// then: the updated file preserves unquoted {{anyString}} syntax
+		content, readErr := os.ReadFile(expectedFile)
+		if readErr != nil {
+			t.Fatalf("failed to read updated file: %v", readErr)
+		}
+
+		fileContent := string(content)
+
+		if !strings.Contains(fileContent, "{{anyString}}") {
+			t.Errorf("expected matcher to be preserved, got:\n%s", fileContent)
+		}
+
+		// Matchers must not be double-wrapped: {{{{anyString}}}} is wrong
+		if strings.Contains(fileContent, "{{{{") {
+			t.Errorf("matcher expressions are double-wrapped with braces:\n%s", fileContent)
+		}
+
+		// The matcher line should use unquoted form: name: {{anyString}}
+		// not the YAML-quoted form: name: "{{anyString}}"
+		if strings.Contains(fileContent, `name: "{{anyString}}"`) {
+			t.Errorf("expected unquoted matcher (name: {{anyString}}), got YAML-quoted form:\n%s", fileContent)
+		}
+	})
+}
+
 func TestAssertYAML_UnsupportedOptions(t *testing.T) {
 	t.Run("html options rejected", func(t *testing.T) {
 		// given: HTML-only options passed to AssertYAML

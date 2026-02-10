@@ -3,6 +3,7 @@ package testastic
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -217,7 +218,7 @@ func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) 
 // at positions where the expected file had matchers.
 func restoreYAMLMatchers(data any, matchers map[string]string, path string) any {
 	if expr, ok := matchers[path]; ok {
-		return "{{" + expr + "}}"
+		return expr
 	}
 
 	switch v := data.(type) {
@@ -244,11 +245,15 @@ func restoreYAMLMatchers(data any, matchers map[string]string, path string) any 
 	}
 }
 
-// restoreYAMLTemplateExpressions converts quoted template expressions back to unquoted.
+// restoreYAMLTemplateExpressions strips YAML-added quotes from template expressions.
+// The YAML marshaler quotes strings containing {{ }} (since {{ starts a YAML flow mapping),
+// producing e.g. "{{anyString}}" or '{{anyString}}'. This function restores the unquoted
+// form so the file reads naturally: name: {{anyString}}.
 func restoreYAMLTemplateExpressions(content string, _ map[string]string) string {
-	// YAML marshaling may quote the {{...}} expressions, we need to handle this
-	// The expressions should already be in the right format from restoreYAMLMatchers
-	return content
+	// Match double-quoted or single-quoted {{...}} expressions and strip the quotes.
+	re := regexp.MustCompile(`["'](\{\{(?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+\}\})["']`)
+
+	return re.ReplaceAllString(content, "$1")
 }
 
 // writeYAMLFile writes data to a file with proper error wrapping.
