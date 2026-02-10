@@ -10,17 +10,12 @@ import (
 	"golang.org/x/net/html"
 )
 
-// htmlNodeType represents the type of an HTML node.
 type htmlNodeType string
 
 const (
-	// htmlElement represents an HTML element node.
 	htmlElement htmlNodeType = "element"
-	// htmlText represents a text node.
-	htmlText htmlNodeType = "text"
-	// htmlComment represents a comment node.
+	htmlText    htmlNodeType = "text"
 	htmlComment htmlNodeType = "comment"
-	// htmlDoctype represents a doctype node.
 	htmlDoctype htmlNodeType = "doctype"
 )
 
@@ -34,14 +29,12 @@ type htmlNode struct {
 	Path       string
 }
 
-// expectedHTML represents a parsed expected HTML file with matchers.
 type expectedHTML struct {
 	Root     *htmlNode
 	Matchers map[string]string
 	Raw      string
 }
 
-// templateSegment represents part of a template string.
 type templateSegment struct {
 	Literal string  // Literal text (empty if Matcher is set).
 	Matcher Matcher // Matcher (nil if Literal is set).
@@ -54,7 +47,6 @@ type templateString struct {
 	regex    *regexp.Regexp // Pre-compiled regex for matching.
 }
 
-// Match checks if the actual string matches the template pattern.
 func (t *templateString) Match(actual string) bool {
 	if t.regex == nil {
 		return false
@@ -63,12 +55,10 @@ func (t *templateString) Match(actual string) bool {
 	return t.regex.MatchString(actual)
 }
 
-// String returns the original template representation.
 func (t *templateString) String() string {
 	return t.Original
 }
 
-// buildRegex compiles the regex pattern from segments.
 func (t *templateString) buildRegex() error {
 	var pattern strings.Builder
 
@@ -94,7 +84,6 @@ func (t *templateString) buildRegex() error {
 	return nil
 }
 
-// matcherToRegex converts a matcher to its regex equivalent.
 func matcherToRegex(m Matcher) string {
 	switch v := m.(type) {
 	case anyStringMatcher:
@@ -118,7 +107,6 @@ func matcherToRegex(m Matcher) string {
 	}
 }
 
-// oneOfToRegex converts oneOf values to a regex alternation.
 func oneOfToRegex(values []any) string {
 	if len(values) == 0 {
 		return "(?!)" // Match nothing.
@@ -133,11 +121,11 @@ func oneOfToRegex(values []any) string {
 	return "(" + strings.Join(parts, "|") + ")"
 }
 
-// htmlMatcherPlaceholderPrefix is the prefix used for HTML matcher placeholders.
 const htmlMatcherPlaceholderPrefix = "__TESTASTIC_HTML_MATCHER_"
 
 // htmlTemplateExprRegex matches {{...}} expressions in HTML.
 // Handles backtick-quoted content that may contain } characters.
+// Effective pattern: \{\{((?:[^}`]+|`[^`]*`)+)\}\}.
 var htmlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
 
 // parseExpectedHTMLFile reads and parses an expected HTML file, replacing template expressions with matchers.
@@ -150,17 +138,14 @@ func parseExpectedHTMLFile(path string) (*expectedHTML, error) {
 	return parseExpectedHTMLString(string(content))
 }
 
-// parseExpectedHTMLString parses an expected HTML string with template expressions.
 func parseExpectedHTMLString(content string) (*expectedHTML, error) {
 	expected := &expectedHTML{
 		Matchers: make(map[string]string),
 		Raw:      content,
 	}
 
-	// Find all template expressions and replace with placeholders
 	matcherIndex := 0
 	processedContent := htmlTemplateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract the expression (remove {{ and }})
 		expr := match
 		expr = strings.TrimPrefix(expr, "{{")
 		expr = strings.TrimSuffix(expr, "}}")
@@ -173,19 +158,16 @@ func parseExpectedHTMLString(content string) (*expectedHTML, error) {
 		return placeholder
 	})
 
-	// Parse HTML
 	doc, err := html.Parse(strings.NewReader(processedContent))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected HTML: %w", err)
 	}
 
-	// Convert to htmlNode tree with matchers
 	expected.Root = convertTohtmlNode(doc, expected.Matchers, "")
 
 	return expected, nil
 }
 
-// parseActualHTMLBytes parses actual HTML bytes into an htmlNode tree.
 func parseActualHTMLBytes(data []byte) (*htmlNode, error) {
 	doc, err := html.Parse(strings.NewReader(string(data)))
 	if err != nil {
@@ -213,12 +195,10 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 			Attributes: make(map[string]any),
 		}
 
-		// Process attributes
 		for _, attr := range n.Attr {
 			node.Attributes[attr.Key] = resolveHTMLMatcherInValue(attr.Val, matchers)
 		}
 
-		// Process children
 		childCounts := make(map[string]int)
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			child := convertChildTohtmlNode(c, matchers, path, childCounts)
@@ -313,7 +293,6 @@ func convertChildTohtmlNode(
 	}
 
 	if n.Type == html.ElementNode {
-		// Track element index for path building
 		tag := n.Data
 		index := childCounts[tag]
 		childCounts[tag]++
@@ -326,12 +305,10 @@ func convertChildTohtmlNode(
 			Attributes: make(map[string]any),
 		}
 
-		// Process attributes
 		for _, attr := range n.Attr {
 			node.Attributes[attr.Key] = resolveHTMLMatcherInValue(attr.Val, matchers)
 		}
 
-		// Process children recursively
 		nestedCounts := make(map[string]int)
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			child := convertChildTohtmlNode(c, matchers, path, nestedCounts)
@@ -343,11 +320,9 @@ func convertChildTohtmlNode(
 		return node
 	}
 
-	// For non-element nodes, delegate to standard conversion
 	return convertTohtmlNode(n, matchers, parentPath)
 }
 
-// buildElementPath builds an HTML path for an element.
 func buildElementPath(parentPath, tag string) string {
 	if parentPath == "" {
 		return tag
@@ -405,7 +380,6 @@ func resolveHTMLMatcherInValue(value string, matchers map[string]string) any {
 	return value
 }
 
-// tryParseSingleMatcher attempts to parse a value as a single matcher placeholder.
 func tryParseSingleMatcher(value string, matchers map[string]string) Matcher {
 	if !strings.HasPrefix(value, htmlMatcherPlaceholderPrefix) || !strings.HasSuffix(value, "__") {
 		return nil
@@ -424,14 +398,12 @@ func tryParseSingleMatcher(value string, matchers map[string]string) Matcher {
 	return matcher
 }
 
-// placeholderPos represents a placeholder position in a template string.
 type placeholderPos struct {
 	start int
 	end   int
 	expr  string
 }
 
-// parsetemplateString parses a value with embedded matcher placeholders into a templateString.
 func parsetemplateString(value string, matchers map[string]string) templateString {
 	original := buildOriginalDisplay(value, matchers)
 	positions := findPlaceholderPositions(value, matchers)
@@ -448,7 +420,6 @@ func parsetemplateString(value string, matchers map[string]string) templateStrin
 	return ts
 }
 
-// buildOriginalDisplay creates the display string with {{expr}} format.
 func buildOriginalDisplay(value string, matchers map[string]string) string {
 	original := value
 	for placeholder, expr := range matchers {
@@ -488,7 +459,6 @@ func findPlaceholderPositions(value string, matchers map[string]string) []placeh
 	return positions
 }
 
-// buildSegments creates template segments from placeholder positions.
 func buildSegments(value string, positions []placeholderPos) []templateSegment {
 	var segments []templateSegment
 

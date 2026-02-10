@@ -1,6 +1,5 @@
 package testastic
 
-// compareFileLines compares expected and actual lines.
 func compareFileLines(expected, actual []string) []difference {
 	var diffs []difference
 
@@ -45,7 +44,6 @@ func compareFileLines(expected, actual []string) []difference {
 			continue
 		}
 
-		// Both lines exist - compare them
 		if expLine != actLine {
 			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
@@ -59,7 +57,6 @@ func compareFileLines(expected, actual []string) []difference {
 	return diffs
 }
 
-// lineNumberPath returns a path string for a line number.
 func lineNumberPath(lineNum int) string {
 	return "line " + itoa(lineNum)
 }
@@ -99,7 +96,6 @@ func itoa(i int) string {
 func compareFileLinesWithMatchers(expected, actual []string) []difference {
 	var diffs []difference
 
-	// Parse expected lines into line matchers
 	parsedLines := make([]*lineMatcher, len(expected))
 
 	for i, line := range expected {
@@ -166,7 +162,6 @@ func compareFileLinesWithMatchers(expected, actual []string) []difference {
 			continue
 		}
 
-		// Both lines exist - compare them
 		if expLine.pattern == nil {
 			// Exact match mode
 			if expLine.original != actLine {

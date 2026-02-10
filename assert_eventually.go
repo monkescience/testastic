@@ -10,13 +10,13 @@ const (
 	defaultEventuallyInterval = 100 * time.Millisecond
 )
 
-// eventuallyConfig holds configuration for Eventually assertions.
 type eventuallyConfig struct {
 	Interval time.Duration
 	Message  string
 }
 
-// EventuallyOption configures Eventually behavior.
+// EventuallyOption configures Eventually behavior using functional options
+// (see [WithInterval] and [WithMessage]).
 type EventuallyOption func(*eventuallyConfig)
 
 // WithInterval sets the polling interval between condition checks.
@@ -27,14 +27,14 @@ func WithInterval(d time.Duration) EventuallyOption {
 	}
 }
 
-// WithMessage adds context to failure messages.
+// WithMessage adds context to the timeout failure message, helping identify
+// which Eventually assertion failed when a test has multiple.
 func WithMessage(msg string) EventuallyOption {
 	return func(c *eventuallyConfig) {
 		c.Message = msg
 	}
 }
 
-// newEventuallyConfig creates a config with defaults and applies options.
 func newEventuallyConfig(opts ...EventuallyOption) *eventuallyConfig {
 	cfg := &eventuallyConfig{
 		Interval: defaultEventuallyInterval,

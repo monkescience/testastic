@@ -32,7 +32,6 @@ type Matcher interface {
 	String() string
 }
 
-// anyStringMatcher matches any string value.
 type anyStringMatcher struct{}
 
 func (m anyStringMatcher) Match(actual any) bool {
@@ -83,7 +82,6 @@ func (m anyFloatMatcher) String() string {
 	return "{{anyFloat}}"
 }
 
-// anyBoolMatcher matches any boolean value.
 type anyBoolMatcher struct{}
 
 func (m anyBoolMatcher) Match(actual any) bool {
@@ -118,14 +116,12 @@ func (m ignoreMatcher) String() string {
 	return "{{ignore}}"
 }
 
-// isIgnore returns true if the matcher is an ignore matcher.
 func isIgnore(m Matcher) bool {
 	_, ok := m.(ignoreMatcher)
 
 	return ok
 }
 
-// regexMatcher matches string values against a regular expression.
 type regexMatcher struct {
 	pattern string
 	re      *regexp.Regexp
@@ -144,7 +140,6 @@ func (m *regexMatcher) String() string {
 	return fmt.Sprintf("{{regex `%s`}}", m.pattern)
 }
 
-// oneOfMatcher matches if the value equals one of the allowed values.
 type oneOfMatcher struct {
 	values []any
 }
@@ -193,7 +188,6 @@ func (m *anyDateTimeMatcher) String() string {
 	return "{{anyDateTime}}"
 }
 
-// anyURLMatcher matches URL strings.
 type anyURLMatcher struct {
 	re *regexp.Regexp
 }
@@ -214,22 +208,23 @@ func (m *anyURLMatcher) String() string {
 // Template function constructors for creating matchers.
 // These are used by the template parser.
 
-// AnyString returns a matcher that matches any string value.
+// AnyString returns a [Matcher] that accepts any string value.
 func AnyString() Matcher {
 	return anyStringMatcher{}
 }
 
-// AnyInt returns a matcher that matches any integer value.
+// AnyInt returns a [Matcher] that accepts any integer value,
+// including float64 values with no fractional part (as produced by JSON unmarshaling).
 func AnyInt() Matcher {
 	return anyIntMatcher{}
 }
 
-// AnyFloat returns a matcher that matches any numeric value.
+// AnyFloat returns a [Matcher] that accepts any numeric value (int or float types).
 func AnyFloat() Matcher {
 	return anyFloatMatcher{}
 }
 
-// AnyBool returns a matcher that matches any boolean value.
+// AnyBool returns a [Matcher] that accepts any boolean value.
 func AnyBool() Matcher {
 	return anyBoolMatcher{}
 }
@@ -244,7 +239,8 @@ func Ignore() Matcher {
 	return ignoreMatcher{}
 }
 
-// Regex returns a matcher that matches strings against a regex pattern.
+// Regex returns a [Matcher] that accepts strings matching the given regular expression.
+// Returns an error if the pattern fails to compile.
 func Regex(pattern string) (Matcher, error) {
 	re, err := regexp.Compile(pattern)
 	if err != nil {
@@ -254,15 +250,18 @@ func Regex(pattern string) (Matcher, error) {
 	return &regexMatcher{pattern: pattern, re: re}, nil
 }
 
-// OneOf returns a matcher that matches if the value equals one of the given values.
+// OneOf returns a [Matcher] that accepts values equal to one of the given values.
 func OneOf(values ...any) Matcher {
 	return &oneOfMatcher{values: values}
 }
 
 var (
-	uuidRegex     = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	// uuidRegex matches lowercase hex UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.
+	uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+	// dateTimeRegex matches ISO 8601 dates with optional time: YYYY-MM-DD[T]HH:MM:SS[.fractional][Z|+HH:MM].
 	dateTimeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$`)
-	urlRegex      = regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
+	// urlRegex matches HTTP/HTTPS URLs: scheme://host with optional path.
+	urlRegex = regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
 )
 
 // AnyUUID returns a matcher that matches UUID strings (RFC 4122).
@@ -275,7 +274,7 @@ func AnyDateTime() Matcher {
 	return &anyDateTimeMatcher{re: dateTimeRegex}
 }
 
-// AnyURL returns a matcher that matches URL strings.
+// AnyURL returns a [Matcher] that accepts strings matching common HTTP/HTTPS URL patterns.
 func AnyURL() Matcher {
 	return &anyURLMatcher{re: urlRegex}
 }
@@ -349,7 +348,7 @@ func parseMatcher(expr string) (Matcher, error) {
 		return factory("")
 	}
 
-	const matcherArgParts = 2
+	const matcherArgParts = 2 // Splits "name args" into at most [name, args].
 
 	parts := strings.SplitN(expr, " ", matcherArgParts)
 	if len(parts) == matcherArgParts {
@@ -386,7 +385,6 @@ func parseMatcher(expr string) (Matcher, error) {
 	return nil, fmt.Errorf("%w: %s", errUnknownMatcher, expr)
 }
 
-// extractBacktickArg extracts content from backticks.
 func extractBacktickArg(s string) string {
 	s = trimSpace(s)
 	if len(s) >= 2 && s[0] == '`' {
@@ -399,7 +397,6 @@ func extractBacktickArg(s string) string {
 	return ""
 }
 
-// extractQuotedArg extracts content from quotes.
 func extractQuotedArg(s string) string {
 	s = trimSpace(s)
 	if len(s) >= 2 && s[0] == '"' {
@@ -426,7 +423,6 @@ func extractQuotedArgs(s string) []any {
 
 	// Handle JSON-escaped quotes: \" or \\"
 	if strings.Contains(s, `\"`) || strings.Contains(s, `\\"`) {
-		// Replace escaped quotes with regular quotes
 		s = strings.ReplaceAll(s, `\\"`, `"`)
 		s = strings.ReplaceAll(s, `\"`, `"`)
 	}

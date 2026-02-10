@@ -4,7 +4,6 @@ import (
 	"strings"
 )
 
-// diffType represents the type of difference found.
 type diffType string
 
 const (
@@ -20,7 +19,6 @@ const (
 	diffMatcherFailed diffType = "matcher failed"
 )
 
-// String returns a human-readable description of the diff type.
 func (d diffType) String() string {
 	return string(d)
 }
@@ -33,7 +31,6 @@ type difference struct {
 	Type     diffType // Type of difference
 }
 
-// formatFileDiffInline generates a git-style inline diff for file comparison.
 func formatFileDiffInline(expected, actual []string) string {
 	diff := computeDiff(expected, actual)
 
@@ -46,7 +43,6 @@ func formatFileDiffInline(expected, actual []string) string {
 	return sb.String()
 }
 
-// diffOp represents a diff operation type.
 type diffOp string
 
 const (

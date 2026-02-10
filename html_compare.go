@@ -6,13 +6,10 @@ import (
 	"strings"
 )
 
-// maxTextDisplayLen is the maximum length for displaying text values.
 const maxTextDisplayLen = 30
 
-// nilDisplay is the string representation for nil values.
 const nilDisplay = "(nil)"
 
-// htmlDifference represents a single difference between expected and actual HTML.
 type htmlDifference struct {
 	Path     string
 	Expected any
@@ -20,8 +17,6 @@ type htmlDifference struct {
 	Type     diffType
 }
 
-// compareHTML compares expected and actual HTML nodes.
-// Returns a list of differences found.
 func compareHTML(expected, actual *htmlNode, cfg *config) []htmlDifference {
 	if expected == nil && actual == nil {
 		return nil
@@ -52,7 +47,6 @@ func compareHTML(expected, actual *htmlNode, cfg *config) []htmlDifference {
 //
 //nolint:funlen // Complex type dispatch is clearer in one function.
 func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
-	// Check if element should be ignored
 	if cfg.isElementIgnored(expected.Tag) {
 		return nil
 	}
@@ -91,7 +85,6 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 		}
 	}
 
-	// Compare node types
 	if expected.Type != actual.Type {
 		return []htmlDifference{{
 			Path:     path,
@@ -105,7 +98,6 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 
 	switch expected.Type {
 	case htmlElement:
-		// Compare tag names
 		if !strings.EqualFold(expected.Tag, actual.Tag) {
 			diffs = append(diffs, htmlDifference{
 				Path:     path,
@@ -117,17 +109,13 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 			return diffs // Different tags, no point comparing further
 		}
 
-		// Compare attributes
 		diffs = append(diffs, compareHTMLAttributes(expected.Attributes, actual.Attributes, path, cfg)...)
-
-		// Compare children
 		diffs = append(diffs, compareHTMLChildren(expected.Children, actual.Children, path, cfg)...)
 
 	case htmlText:
 		expText := getTextContent(expected)
 		actText := getTextContent(actual)
 
-		// Normalize whitespace unless preserving
 		if !cfg.PreserveWhitespace {
 			expText = normalizeWhitespace(expText)
 			actText = normalizeWhitespace(actText)
@@ -171,13 +159,10 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 	return diffs
 }
 
-// compareHTMLAttributes compares HTML element attributes.
-//
 //nolint:funlen // Attribute comparison needs explicit handling for all cases.
 func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *config) []htmlDifference {
 	var diffs []htmlDifference
 
-	// Check expected attributes
 	for name, expVal := range expected {
 		if cfg.isAttributeIgnored(path, name) {
 			continue
@@ -262,9 +247,7 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *co
 	return diffs
 }
 
-// compareHTMLChildren compares child nodes of an HTML element.
 func compareHTMLChildren(expected, actual []*htmlNode, path string, cfg *config) []htmlDifference {
-	// Filter out nodes that should be ignored
 	expFiltered := filterSignificantChildren(expected, cfg)
 	actFiltered := filterSignificantChildren(actual, cfg)
 
@@ -275,7 +258,6 @@ func compareHTMLChildren(expected, actual []*htmlNode, path string, cfg *config)
 	return compareChildrenOrdered(expFiltered, actFiltered, path, cfg)
 }
 
-// compareChildrenOrdered compares children where order matters.
 func compareChildrenOrdered(expected, actual []*htmlNode, path string, cfg *config) []htmlDifference {
 	var diffs []htmlDifference
 
@@ -308,7 +290,6 @@ func compareChildrenOrdered(expected, actual []*htmlNode, path string, cfg *conf
 	return diffs
 }
 
-// compareChildrenUnordered compares children where order doesn't matter.
 func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *config) []htmlDifference {
 	if len(expected) != len(actual) {
 		return []htmlDifference{{
@@ -348,7 +329,6 @@ func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *co
 	return diffs
 }
 
-// filterSignificantChildren filters out insignificant nodes.
 func filterSignificantChildren(nodes []*htmlNode, cfg *config) []*htmlNode {
 	result := make([]*htmlNode, 0, len(nodes))
 
@@ -357,12 +337,10 @@ func filterSignificantChildren(nodes []*htmlNode, cfg *config) []*htmlNode {
 			continue
 		}
 
-		// Skip ignored elements
 		if node.Type == htmlElement && cfg.isElementIgnored(node.Tag) {
 			continue
 		}
 
-		// Skip comments if ignored
 		if node.Type == htmlComment && cfg.IgnoreComments {
 			continue
 		}
@@ -381,7 +359,6 @@ func filterSignificantChildren(nodes []*htmlNode, cfg *config) []*htmlNode {
 	return result
 }
 
-// buildChildPath builds a path for a child node.
 func buildChildPath(parentPath string, node *htmlNode, _ int) string {
 	if node.Type == htmlText {
 		return parentPath + " (text)"
@@ -398,7 +375,6 @@ func buildChildPath(parentPath string, node *htmlNode, _ int) string {
 	return fmt.Sprintf("%s > %s", parentPath, node.Tag)
 }
 
-// describeNode returns a human-readable description of a node.
 func describeNode(node *htmlNode) string {
 	if node == nil {
 		return nilDisplay
@@ -423,7 +399,6 @@ func describeNode(node *htmlNode) string {
 	}
 }
 
-// describeNodeType returns a human-readable type name.
 func describeNodeType(t htmlNodeType) string {
 	switch t {
 	case htmlElement:
@@ -439,7 +414,6 @@ func describeNodeType(t htmlNodeType) string {
 	}
 }
 
-// getTextContent extracts text content from a node.
 func getTextContent(node *htmlNode) string {
 	if node == nil {
 		return ""
@@ -460,7 +434,6 @@ func getTextContent(node *htmlNode) string {
 	return ""
 }
 
-// getString converts a value to string.
 func getString(v any) string {
 	if v == nil {
 		return ""
@@ -481,7 +454,6 @@ func getString(v any) string {
 	return fmt.Sprintf("%v", v)
 }
 
-// formatAttrValue formats an attribute value for display.
 func formatAttrValue(v any) string {
 	if v == nil {
 		return nilDisplay
@@ -494,15 +466,13 @@ func formatAttrValue(v any) string {
 	return fmt.Sprintf("%q", getString(v))
 }
 
-// normalizeWhitespace collapses whitespace in text.
+// normalizeWhitespace collapses runs of whitespace into a single space and trims edges.
 func normalizeWhitespace(s string) string {
-	// Collapse multiple whitespace to single space
 	fields := strings.Fields(s)
 
 	return strings.Join(fields, " ")
 }
 
-// sortHTMLDiffs sorts differences by path for consistent output.
 func sortHTMLDiffs(diffs []htmlDifference) {
 	sort.Slice(diffs, func(i, j int) bool {
 		return diffs[i].Path < diffs[j].Path

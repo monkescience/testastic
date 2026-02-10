@@ -12,14 +12,12 @@ import (
 // errUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
 var errUnknownPlaceholder = errors.New("unknown placeholder")
 
-// expectedJSON represents a parsed expected file with matchers.
 type expectedJSON struct {
 	Data     any               // Parsed JSON with Matcher objects in place of template expressions
 	Matchers map[string]string // Map of placeholder to original template expression
 	Raw      string            // Original file content for update operations
 }
 
-// jsonMatcherPlaceholderPrefix is the prefix used for matcher placeholders.
 const jsonMatcherPlaceholderPrefix = "__TESTASTIC_MATCHER_"
 
 // jsonTemplateExprRegex matches {{...}} expressions.
@@ -37,7 +35,6 @@ func parseExpectedJSONFile(path string) (*expectedJSON, error) {
 	return parseExpectedJSONString(string(content))
 }
 
-// parseExpectedJSONString parses an expected JSON string with template expressions.
 func parseExpectedJSONString(content string) (*expectedJSON, error) {
 	expected := &expectedJSON{
 		Matchers: make(map[string]string),
@@ -147,7 +144,6 @@ func (e *expectedJSON) extractMatcherPositions() map[string]string {
 	return positions
 }
 
-// extractJSONMatcherPaths recursively finds all Matcher positions in the data structure.
 func extractJSONMatcherPaths(data any, path string, positions map[string]string) {
 	switch v := data.(type) {
 	case map[string]any:

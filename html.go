@@ -93,7 +93,6 @@ func handleHTMLDiffs(
 	return false
 }
 
-// toHTMLBytes converts various input types to []byte.
 func toHTMLBytes[T any](v T) ([]byte, error) {
 	if data, handled, err := bytesFromCommonInput(v); handled {
 		return data, err
@@ -106,7 +105,6 @@ func toHTMLBytes[T any](v T) ([]byte, error) {
 	return nil, fmt.Errorf("%w: %T (expected []byte, string, io.Reader, or fmt.Stringer)", errUnsupportedHTMLType, v)
 }
 
-// createExpectedHTMLFile creates a new expected HTML file with formatted content.
 func createExpectedHTMLFile(path string, actual []byte) error {
 	// Parse and re-render for consistent formatting
 	node, err := parseActualHTMLBytes(actual)
@@ -120,7 +118,6 @@ func createExpectedHTMLFile(path string, actual []byte) error {
 	return writeHTMLFile(path, []byte(formatted))
 }
 
-// updateExpectedHTMLFile updates an existing expected HTML file.
 func updateExpectedHTMLFile(path string, actual []byte) error {
 	// Parse and re-render for consistent formatting
 	node, err := parseActualHTMLBytes(actual)
@@ -134,7 +131,6 @@ func updateExpectedHTMLFile(path string, actual []byte) error {
 	return writeHTMLFile(path, []byte(formatted))
 }
 
-// writeHTMLFile writes data to a file with proper error wrapping.
 func writeHTMLFile(path string, data []byte) error {
 	err := os.WriteFile(path, data, filePerm)
 	if err != nil {

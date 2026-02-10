@@ -13,7 +13,6 @@ import (
 // errUnsupportedFileType is returned when an unsupported type is passed to AssertFile.
 var errUnsupportedFileType = errors.New("unsupported type, expected string, []byte, or io.Reader")
 
-// expectedFilePerms is the file permission used when creating/updating expected files.
 const expectedFilePerms = 0o644
 
 // AssertFile compares actual content against an expected file with template matcher support.
@@ -76,7 +75,6 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		msg, formatFileDiff(expectedLines, actualLines, diffs))
 }
 
-// fileToString converts various input types to string.
 func fileToString[T any](v T) (string, error) {
 	switch val := any(v).(type) {
 	case string:
@@ -95,7 +93,6 @@ func fileToString[T any](v T) (string, error) {
 	}
 }
 
-// createExpectedTextFile creates a new expected file from plain text content.
 func createExpectedTextFile(path string, actual []byte) error {
 	dir := filepath.Dir(path)
 
@@ -118,14 +115,12 @@ func splitLines(content string) []string {
 		return nil
 	}
 
-	// Normalize line endings
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	content = strings.ReplaceAll(content, "\r", "\n")
 
 	return strings.Split(content, "\n")
 }
 
-// formatFileDiff formats differences for display using inline diff style.
 func formatFileDiff(expected, actual []string, diffs []difference) string {
 	if len(diffs) == 0 {
 		return ""

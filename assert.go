@@ -10,7 +10,6 @@ import (
 	"testing"
 )
 
-// nilTypeName is the type name for nil values.
 const nilTypeName = "nil"
 
 // fail reports an assertion failure with expected and actual values.
@@ -22,7 +21,8 @@ func fail(tb testing.TB, name, expected, actual string) {
 	)
 }
 
-// Equal asserts that expected and actual are equal.
+// Equal asserts that expected and actual are equal using the == operator.
+// Reports a non-fatal error on failure, allowing the test to continue.
 func Equal[T comparable](tb testing.TB, expected, actual T) {
 	tb.Helper()
 
@@ -31,7 +31,8 @@ func Equal[T comparable](tb testing.TB, expected, actual T) {
 	}
 }
 
-// NotEqual asserts that expected and actual are not equal.
+// NotEqual asserts that expected and actual are not equal using the == operator.
+// Reports a non-fatal error on failure, allowing the test to continue.
 func NotEqual[T comparable](tb testing.TB, unexpected, actual T) {
 	tb.Helper()
 
@@ -52,7 +53,8 @@ func DeepEqual[T any](tb testing.TB, expected, actual T) {
 	}
 }
 
-// Nil asserts that value is nil.
+// Nil asserts that value is nil. Handles interface nil correctly by
+// checking the underlying pointer for pointer, map, slice, channel, and func types.
 func Nil(tb testing.TB, value any) {
 	tb.Helper()
 
@@ -61,7 +63,8 @@ func Nil(tb testing.TB, value any) {
 	}
 }
 
-// NotNil asserts that value is not nil.
+// NotNil asserts that value is not nil. Handles interface nil correctly by
+// checking the underlying pointer for pointer, map, slice, channel, and func types.
 func NotNil(tb testing.TB, value any) {
 	tb.Helper()
 
@@ -71,6 +74,7 @@ func NotNil(tb testing.TB, value any) {
 }
 
 // True asserts that value is true.
+// Reports a non-fatal error on failure, allowing the test to continue.
 func True(tb testing.TB, value bool) {
 	tb.Helper()
 
@@ -80,6 +84,7 @@ func True(tb testing.TB, value bool) {
 }
 
 // False asserts that value is false.
+// Reports a non-fatal error on failure, allowing the test to continue.
 func False(tb testing.TB, value bool) {
 	tb.Helper()
 
@@ -89,6 +94,7 @@ func False(tb testing.TB, value bool) {
 }
 
 // NoError asserts that err is nil.
+// Reports a non-fatal error on failure, displaying the error message.
 func NoError(tb testing.TB, err error) {
 	tb.Helper()
 
@@ -98,6 +104,7 @@ func NoError(tb testing.TB, err error) {
 }
 
 // Error asserts that err is not nil.
+// Reports a non-fatal error on failure, allowing the test to continue.
 func Error(tb testing.TB, err error) {
 	tb.Helper()
 
@@ -125,7 +132,7 @@ func ErrorIs(tb testing.TB, err, target error) {
 	}
 }
 
-// ErrorContains asserts that err contains the given substring.
+// ErrorContains asserts that err is non-nil and its message contains the given substring.
 func ErrorContains(tb testing.TB, err error, substring string) {
 	tb.Helper()
 
@@ -170,7 +177,7 @@ func failCmp(tb testing.TB, name, expectOp, actualOp, a, b string) {
 	)
 }
 
-// Greater asserts that a > b.
+// Greater asserts that a > b using [cmp.Ordered] comparison.
 func Greater[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
 
@@ -179,7 +186,7 @@ func Greater[T cmp.Ordered](tb testing.TB, a, b T) {
 	}
 }
 
-// GreaterOrEqual asserts that a >= b.
+// GreaterOrEqual asserts that a >= b using [cmp.Ordered] comparison.
 func GreaterOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
 
@@ -188,7 +195,7 @@ func GreaterOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 	}
 }
 
-// Less asserts that a < b.
+// Less asserts that a < b using [cmp.Ordered] comparison.
 func Less[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
 
@@ -197,7 +204,7 @@ func Less[T cmp.Ordered](tb testing.TB, a, b T) {
 	}
 }
 
-// LessOrEqual asserts that a <= b.
+// LessOrEqual asserts that a <= b using [cmp.Ordered] comparison.
 func LessOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
 
@@ -225,7 +232,8 @@ func failStr(tb testing.TB, name, label, s, search, status string) {
 	)
 }
 
-// Contains asserts that s contains substring.
+// Contains asserts that s contains the given substring.
+// Reports a non-fatal error on failure, displaying the string and missing substring.
 func Contains(tb testing.TB, s, substring string) {
 	tb.Helper()
 
@@ -234,7 +242,7 @@ func Contains(tb testing.TB, s, substring string) {
 	}
 }
 
-// NotContains asserts that s does not contain substring.
+// NotContains asserts that s does not contain the given substring.
 func NotContains(tb testing.TB, s, substring string) {
 	tb.Helper()
 
@@ -243,7 +251,7 @@ func NotContains(tb testing.TB, s, substring string) {
 	}
 }
 
-// HasPrefix asserts that s has the given prefix.
+// HasPrefix asserts that s starts with the given prefix.
 func HasPrefix(tb testing.TB, s, prefix string) {
 	tb.Helper()
 
@@ -252,7 +260,7 @@ func HasPrefix(tb testing.TB, s, prefix string) {
 	}
 }
 
-// HasSuffix asserts that s has the given suffix.
+// HasSuffix asserts that s ends with the given suffix.
 func HasSuffix(tb testing.TB, s, suffix string) {
 	tb.Helper()
 
@@ -280,7 +288,7 @@ func Matches(tb testing.TB, s, pattern string) {
 	}
 }
 
-// StringEmpty asserts that s is an empty string.
+// StringEmpty asserts that s is an empty string ("").
 func StringEmpty(tb testing.TB, s string) {
 	tb.Helper()
 
@@ -289,7 +297,7 @@ func StringEmpty(tb testing.TB, s string) {
 	}
 }
 
-// StringNotEmpty asserts that s is not an empty string.
+// StringNotEmpty asserts that s is not an empty string ("").
 func StringNotEmpty(tb testing.TB, s string) {
 	tb.Helper()
 

@@ -122,7 +122,6 @@ func compare(expected, actual any, path string, cfg *config) []difference {
 	}
 }
 
-// compareObjects compares two JSON objects (maps).
 func compareObjects(expected map[string]any, actual any, path string, cfg *config) []difference {
 	actMap, ok := actual.(map[string]any)
 	if !ok {
@@ -180,7 +179,6 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *confi
 	return diffs
 }
 
-// compareArrays compares two JSON arrays.
 func compareArrays(expected []any, actual any, path string, cfg *config) []difference {
 	actArr, ok := actual.([]any)
 	if !ok {
@@ -199,7 +197,6 @@ func compareArrays(expected []any, actual any, path string, cfg *config) []diffe
 	return compareArraysOrdered(expected, actArr, path, cfg)
 }
 
-// compareArraysOrdered compares arrays where order matters.
 func compareArraysOrdered(expected, actual []any, path string, cfg *config) []difference {
 	var diffs []difference
 
@@ -268,7 +265,6 @@ func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) 
 	return unmatchedExp, unusedAct
 }
 
-// compareArraysUnordered compares arrays where order doesn't matter.
 func compareArraysUnordered(expected, actual []any, path string, cfg *config) []difference {
 	if len(expected) != len(actual) {
 		return []difference{{
@@ -309,6 +305,8 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config) []
 }
 
 // compareNumbers compares numeric values, handling JSON number quirks.
+// JSON deserializes all numbers as float64, so this function normalizes other
+// numeric types (int, int32, int64, float32) to float64 before comparison.
 func compareNumbers(expected float64, actual any, path string) []difference {
 	var actNum float64
 
@@ -344,7 +342,6 @@ func compareNumbers(expected float64, actual any, path string) []difference {
 	return nil
 }
 
-// parseActualJSON converts the actual value to a comparable JSON structure.
 func parseActualJSON(data []byte) (any, error) {
 	var result any
 
@@ -356,7 +353,6 @@ func parseActualJSON(data []byte) (any, error) {
 	return result, nil
 }
 
-// sortDiffs sorts differences by path for consistent output.
 func sortDiffs(diffs []difference) {
 	sort.Slice(diffs, func(i, j int) bool {
 		return diffs[i].Path < diffs[j].Path

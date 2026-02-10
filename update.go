@@ -18,7 +18,6 @@ const (
 // updateExpectedFile updates the expected file with the actual value.
 // It preserves template matchers from the original file.
 func updateExpectedFile(path string, actual []byte, expected *expectedJSON) error {
-	// Parse actual JSON
 	var actualData any
 
 	unmarshalErr := json.Unmarshal(actual, &actualData)
@@ -26,16 +25,13 @@ func updateExpectedFile(path string, actual []byte, expected *expectedJSON) erro
 		return fmt.Errorf("failed to parse actual JSON for update: %w", unmarshalErr)
 	}
 
-	// Get matcher positions from original expected file
 	matcherPositions := expected.extractMatcherPositions()
 
-	// Generate updated JSON with matchers preserved
 	updatedJSON, err := generateUpdatedJSON(actualData, matcherPositions)
 	if err != nil {
 		return fmt.Errorf("failed to generate updated JSON: %w", err)
 	}
 
-	// Ensure directory exists
 	dir := filepath.Dir(path)
 
 	mkdirErr := os.MkdirAll(dir, dirPerm)
@@ -43,7 +39,6 @@ func updateExpectedFile(path string, actual []byte, expected *expectedJSON) erro
 		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
-	// Write to file
 	writeErr := os.WriteFile(path, []byte(updatedJSON), filePerm)
 	if writeErr != nil {
 		return fmt.Errorf("failed to write expected file: %w", writeErr)
@@ -52,9 +47,7 @@ func updateExpectedFile(path string, actual []byte, expected *expectedJSON) erro
 	return nil
 }
 
-// createExpectedFile creates a new expected file from actual data.
 func createExpectedFile(path string, actual []byte) error {
-	// Pretty-print the JSON
 	var data any
 
 	unmarshalErr := json.Unmarshal(actual, &data)
@@ -67,7 +60,6 @@ func createExpectedFile(path string, actual []byte) error {
 		return fmt.Errorf("failed to format JSON: %w", err)
 	}
 
-	// Ensure directory exists
 	dir := filepath.Dir(path)
 
 	mkdirErr := os.MkdirAll(dir, dirPerm)
@@ -75,7 +67,6 @@ func createExpectedFile(path string, actual []byte) error {
 		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
-	// Write to file
 	writeErr := os.WriteFile(path, append(prettyJSON, '\n'), filePerm)
 	if writeErr != nil {
 		return fmt.Errorf("failed to write expected file: %w", writeErr)
@@ -176,7 +167,6 @@ func replaceValueAtPath(jsonStr, path, matcherExpr string) string {
 	// then replacing only the target key within that parent's scope.
 	parentKey := parts[len(parts)-2]
 
-	// Handle array index in parent key
 	if idx := strings.Index(parentKey, "["); idx > 0 {
 		parentKey = parentKey[:idx]
 	}

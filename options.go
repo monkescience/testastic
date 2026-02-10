@@ -49,7 +49,6 @@ type config struct {
 	applied []optionMeta
 }
 
-// buildConfig creates a config from the provided options.
 func buildConfig(opts []Option) *config {
 	cfg := &config{Update: shouldUpdate()}
 	for _, opt := range opts {
@@ -60,6 +59,8 @@ func buildConfig(opts []Option) *config {
 }
 
 // ShouldIgnoreArrayOrder checks if array order should be ignored at the given path.
+// Returns true if global IgnoreArrayOrder is set, or if the path is at or under
+// any path specified via [IgnoreArrayOrderAt].
 func (c *config) ShouldIgnoreArrayOrder(path string) bool {
 	if c.IgnoreArrayOrder {
 		return true
@@ -111,7 +112,6 @@ func (c *config) validateOptions(target assertType) []string {
 	return unsupported
 }
 
-// isElementIgnored checks if an element with the given tag should be ignored (HTML only).
 func (c *config) isElementIgnored(tag string) bool {
 	for _, t := range c.IgnoredElements {
 		if strings.EqualFold(t, tag) {
@@ -122,7 +122,6 @@ func (c *config) isElementIgnored(tag string) bool {
 	return false
 }
 
-// isAttributeIgnored checks if an attribute should be ignored (HTML only).
 func (c *config) isAttributeIgnored(path, attr string) bool {
 	for _, a := range c.IgnoredAttributes {
 		if strings.EqualFold(a, attr) {
@@ -135,7 +134,6 @@ func (c *config) isAttributeIgnored(path, attr string) bool {
 	return slices.Contains(c.IgnoredAttributePaths, pathAttr)
 }
 
-// shouldIgnoreChildOrder checks if child order should be ignored at the given path (HTML only).
 func (c *config) shouldIgnoreChildOrder(path string) bool {
 	return c.ShouldIgnoreArrayOrder(path)
 }
@@ -143,12 +141,10 @@ func (c *config) shouldIgnoreChildOrder(path string) bool {
 // shouldUpdate checks if expected files should be updated.
 // Checks for -update flag or TESTASTIC_UPDATE environment variable.
 func shouldUpdate() bool {
-	// Check environment variable.
 	if env := os.Getenv("TESTASTIC_UPDATE"); env != "" {
 		return strings.ToLower(env) == "true" || env == "1"
 	}
 
-	// Check for -update flag.
 	for _, arg := range os.Args[1:] {
 		if arg == "-update" || arg == "--update" {
 			return true
@@ -249,7 +245,7 @@ func Message(msg string) Option {
 	}
 }
 
-// IgnoreHTMLComments excludes HTML comments from comparison.
+// IgnoreHTMLComments excludes HTML comment nodes (<!-- ... -->) from comparison.
 func IgnoreHTMLComments() Option {
 	return func(c *config) {
 		c.IgnoreComments = true
@@ -272,6 +268,7 @@ func PreserveWhitespace() Option {
 }
 
 // IgnoreChildOrder makes child element comparison order-insensitive globally in HTML.
+// Child elements are compared as sets rather than sequences.
 func IgnoreChildOrder() Option {
 	return func(c *config) {
 		c.IgnoreArrayOrder = true
@@ -282,7 +279,7 @@ func IgnoreChildOrder() Option {
 	}
 }
 
-// IgnoreChildOrderAt makes child comparison order-insensitive at the specified HTML path.
+// IgnoreChildOrderAt makes child element comparison order-insensitive at the specified HTML path.
 func IgnoreChildOrderAt(path string) Option {
 	return func(c *config) {
 		c.IgnoreArrayOrderPaths = append(c.IgnoreArrayOrderPaths, path)
@@ -294,6 +291,7 @@ func IgnoreChildOrderAt(path string) Option {
 }
 
 // IgnoreElements excludes elements matching the specified tag names from HTML comparison.
+// Tag matching is case-insensitive.
 func IgnoreElements(tags ...string) Option {
 	return func(c *config) {
 		c.IgnoredElements = append(c.IgnoredElements, tags...)
@@ -316,6 +314,7 @@ func IgnoreAttributes(attrs ...string) Option {
 }
 
 // IgnoreAttributeAt excludes a specific attribute at a given HTML path.
+// The pathAttr format is "path@attribute", e.g., "html > body > div@class".
 func IgnoreAttributeAt(pathAttr string) Option {
 	return func(c *config) {
 		c.IgnoredAttributePaths = append(c.IgnoredAttributePaths, pathAttr)

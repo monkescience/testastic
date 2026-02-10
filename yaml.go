@@ -106,7 +106,6 @@ func toYAMLBytes[T any](v T) ([]byte, error) {
 	return data, nil
 }
 
-// parseActualYAML converts the actual YAML bytes to a comparable structure.
 func parseActualYAML(data []byte) (any, error) {
 	var result any
 
@@ -167,7 +166,6 @@ func normalizeYAMLData(data any) any {
 	}
 }
 
-// createExpectedYAMLFile creates a new expected YAML file.
 func createExpectedYAMLFile(path string, actual []byte) error {
 	// Parse and re-render for consistent formatting
 	var data any
@@ -186,9 +184,7 @@ func createExpectedYAMLFile(path string, actual []byte) error {
 	return writeYAMLFile(path, formatted)
 }
 
-// updateExpectedYAMLFile updates an existing expected YAML file.
 func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) error {
-	// Parse actual to preserve any matchers from expected
 	var actualData any
 
 	err := yaml.Unmarshal(actual, &actualData)
@@ -196,19 +192,14 @@ func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) 
 		return writeYAMLFile(path, actual)
 	}
 
-	// Get matcher positions from expected
 	matcherPositions := expected.extractMatcherPositions()
-
-	// Restore matchers in actual data
 	mergedData := restoreYAMLMatchers(actualData, matcherPositions, "$")
 
-	// Marshal back to YAML
 	formatted, err := yaml.Marshal(mergedData)
 	if err != nil {
 		return writeYAMLFile(path, actual)
 	}
 
-	// Replace matcher placeholders back to template syntax
 	content := restoreYAMLTemplateExpressions(string(formatted), matcherPositions)
 
 	return writeYAMLFile(path, []byte(content))
@@ -250,13 +241,11 @@ func restoreYAMLMatchers(data any, matchers map[string]string, path string) any 
 // producing e.g. "{{anyString}}" or '{{anyString}}'. This function restores the unquoted
 // form so the file reads naturally: name: {{anyString}}.
 func restoreYAMLTemplateExpressions(content string, _ map[string]string) string {
-	// Match double-quoted or single-quoted {{...}} expressions and strip the quotes.
 	re := regexp.MustCompile(`["'](\{\{(?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+\}\})["']`)
 
 	return re.ReplaceAllString(content, "$1")
 }
 
-// writeYAMLFile writes data to a file with proper error wrapping.
 func writeYAMLFile(path string, data []byte) error {
 	err := os.WriteFile(path, data, filePerm)
 	if err != nil {

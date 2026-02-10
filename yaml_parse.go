@@ -9,14 +9,12 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// expectedYAML represents a parsed expected YAML file with matchers.
 type expectedYAML struct {
 	Data     any               // Parsed YAML with Matcher objects in place of template expressions
 	Matchers map[string]string // Map of placeholder to original template expression
 	Raw      string            // Original file content for update operations
 }
 
-// yamlMatcherPlaceholderPrefix is the prefix used for YAML matcher placeholders.
 const yamlMatcherPlaceholderPrefix = "__TESTASTIC_YAML_MATCHER_"
 
 // yamlTemplateExprRegex matches {{...}} expressions in YAML.
@@ -32,17 +30,14 @@ func parseExpectedYAMLFile(path string) (*expectedYAML, error) {
 	return parseExpectedYAMLString(string(content))
 }
 
-// parseExpectedYAMLString parses an expected YAML string with template expressions.
 func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 	expected := &expectedYAML{
 		Matchers: make(map[string]string),
 		Raw:      content,
 	}
 
-	// Find all template expressions and replace with placeholders
 	matcherIndex := 0
 	processedContent := yamlTemplateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
-		// Extract the expression (remove {{ and }})
 		expr := match
 		expr = strings.TrimPrefix(expr, "{{")
 		expr = strings.TrimSuffix(expr, "}}")
@@ -55,7 +50,6 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 		return placeholder
 	})
 
-	// Parse YAML
 	var data any
 
 	err := yaml.Unmarshal([]byte(processedContent), &data)
@@ -63,7 +57,6 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 
-	// Normalize and replace placeholders with matchers
 	normalized := normalizeYAMLData(data)
 
 	replaced, err := replaceYAMLPlaceholders(normalized, expected.Matchers)
@@ -129,7 +122,6 @@ func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) 
 	}
 }
 
-// extractMatcherPositions returns a map of YAML paths to their original template expressions.
 func (e *expectedYAML) extractMatcherPositions() map[string]string {
 	positions := make(map[string]string)
 	extractYAMLMatcherPaths(e.Data, "$", positions)
@@ -137,7 +129,6 @@ func (e *expectedYAML) extractMatcherPositions() map[string]string {
 	return positions
 }
 
-// extractYAMLMatcherPaths recursively finds all Matcher positions in the data structure.
 func extractYAMLMatcherPaths(data any, path string, positions map[string]string) {
 	switch v := data.(type) {
 	case map[string]any:

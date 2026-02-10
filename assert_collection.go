@@ -83,7 +83,8 @@ func NotEmpty(tb testing.TB, collection any) {
 	}
 }
 
-// SliceContains asserts that slice contains element.
+// SliceContains asserts that slice contains element using == comparison.
+// Reports a non-fatal error on failure, allowing the test to continue.
 func SliceContains[T comparable](tb testing.TB, slice []T, element T) {
 	tb.Helper()
 
@@ -97,7 +98,7 @@ func SliceContains[T comparable](tb testing.TB, slice []T, element T) {
 	)
 }
 
-// SliceNotContains asserts that slice does not contain element.
+// SliceNotContains asserts that slice does not contain element using == comparison.
 func SliceNotContains[T comparable](tb testing.TB, slice []T, element T) {
 	tb.Helper()
 
@@ -134,7 +135,7 @@ func SliceEqual[T comparable](tb testing.TB, expected, actual []T) {
 	}
 }
 
-// MapHasKey asserts that the map contains the given key.
+// MapHasKey asserts that the map contains the given key using map index lookup.
 func MapHasKey[K comparable, V any](tb testing.TB, m map[K]V, key K) {
 	tb.Helper()
 
@@ -146,7 +147,7 @@ func MapHasKey[K comparable, V any](tb testing.TB, m map[K]V, key K) {
 	}
 }
 
-// MapNotHasKey asserts that the map does not contain the given key.
+// MapNotHasKey asserts that the map does not contain the given key using map index lookup.
 func MapNotHasKey[K comparable, V any](tb testing.TB, m map[K]V, key K) {
 	tb.Helper()
 
@@ -158,7 +159,8 @@ func MapNotHasKey[K comparable, V any](tb testing.TB, m map[K]V, key K) {
 	}
 }
 
-// MapHasValue asserts that the map contains the given value.
+// MapHasValue asserts that the map contains the given value using == comparison.
+// Performs a linear scan of all map values.
 func MapHasValue[K comparable, V comparable](tb testing.TB, m map[K]V, value V) {
 	tb.Helper()
 
@@ -174,7 +176,8 @@ func MapHasValue[K comparable, V comparable](tb testing.TB, m map[K]V, value V) 
 	)
 }
 
-// MapEqual asserts that two maps are equal.
+// MapEqual asserts that two maps have the same keys and values using == comparison.
+// Reports the first differing key found.
 func MapEqual[K comparable, V comparable](tb testing.TB, expected, actual map[K]V) {
 	tb.Helper()
 

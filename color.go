@@ -37,26 +37,21 @@ func detectColors() bool {
 		return false
 	}
 
-	// Check if forced on
 	if os.Getenv("FORCE_COLOR") != "" {
 		return true
 	}
 
-	// Check if in CI environment
 	if os.Getenv("CI") != "" {
 		return false
 	}
 
-	// Check TERM
 	if os.Getenv("TERM") == "dumb" {
 		return false
 	}
 
-	// Check if stdout is a terminal
 	return term.IsTerminal(int(os.Stderr.Fd()))
 }
 
-// colorize wraps text in ANSI color codes if colors are enabled.
 func colorize(text, color string) string {
 	if !useColors() {
 		return text

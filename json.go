@@ -119,7 +119,6 @@ func handleJSONDiffs(
 	return false
 }
 
-// formatAssertionMessage creates the assertion header with optional custom message.
 func formatAssertionMessage(assertType, file, customMsg string) string {
 	if customMsg != "" {
 		return assertType + " (" + file + "): " + customMsg
