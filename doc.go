@@ -1,16 +1,17 @@
 // Package testastic provides expressive testing utilities for Go.
 //
-// Testastic offers structured comparison for JSON, YAML, and HTML documents
-// with support for template-based matchers, alongside general-purpose assertions
-// for values, errors, strings, and collections.
+// Testastic offers structured comparison for JSON, YAML, HTML, and plain text
+// documents with support for template-based matchers, alongside general-purpose
+// assertions for values, errors, strings, and collections.
 //
-// # JSON, YAML, and HTML Assertions
+// # JSON, YAML, HTML, and File Assertions
 //
 // Compare API responses or documents against expected files with flexible matching:
 //
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertHTML(t, "testdata/page.expected.html", renderedHTML)
+//	testastic.AssertFile(t, "testdata/output.expected.txt", actualString)
 //
 // Expected files support template matchers for dynamic values:
 //
@@ -46,6 +47,20 @@
 //	    testastic.Message("user creation response"), // custom failure message
 //	)
 //
+// # HTML-Specific Options
+//
+// Additional options are available for HTML comparison:
+//
+//	testastic.AssertHTML(t, expected, actual,
+//	    testastic.IgnoreHTMLComments(),                     // exclude comments
+//	    testastic.PreserveWhitespace(),                     // disable whitespace normalization
+//	    testastic.IgnoreChildOrder(),                       // order-insensitive globally
+//	    testastic.IgnoreChildOrderAt("html > body > ul"),   // order-insensitive at path
+//	    testastic.IgnoreElements("script", "style"),        // exclude elements by tag
+//	    testastic.IgnoreAttributes("class", "style"),       // exclude attributes globally
+//	    testastic.IgnoreAttributeAt("html > body > div@id"), // exclude attribute at path
+//	)
+//
 // # Updating Expected Files
 //
 // When API responses change, update expected files automatically:
@@ -67,29 +82,49 @@
 //	testastic.True(t, condition)
 //	testastic.False(t, condition)
 //
+// # Error Assertions
+//
 //	testastic.NoError(t, err)
 //	testastic.Error(t, err)
 //	testastic.ErrorIs(t, err, target)
 //	testastic.ErrorAs(t, err, &pathErr)
 //	testastic.ErrorContains(t, err, "substring")
 //
+// # Panic Assertions
+//
 //	testastic.Panics(t, func() { panic("boom") })
 //	testastic.NotPanics(t, func() { safeFunc() })
+//
+// # Comparison Assertions
+//
+//	testastic.Greater(t, a, b)
+//	testastic.GreaterOrEqual(t, a, b)
+//	testastic.Less(t, a, b)
+//	testastic.LessOrEqual(t, a, b)
+//	testastic.Between(t, value, min, max)
 //
 // # String Assertions
 //
 //	testastic.Contains(t, s, "substring")
+//	testastic.NotContains(t, s, "substring")
 //	testastic.HasPrefix(t, s, "prefix")
 //	testastic.HasSuffix(t, s, "suffix")
 //	testastic.Matches(t, s, `^\d+$`)
+//	testastic.StringEmpty(t, s)
+//	testastic.StringNotEmpty(t, s)
 //
 // # Collection Assertions
 //
 //	testastic.Len(t, slice, 3)
 //	testastic.Empty(t, slice)
+//	testastic.NotEmpty(t, slice)
 //	testastic.SliceContains(t, slice, element)
+//	testastic.SliceNotContains(t, slice, element)
+//	testastic.SliceEqual(t, expected, actual)
 //	testastic.MapHasKey(t, m, "key")
+//	testastic.MapNotHasKey(t, m, "key")
 //	testastic.MapHasValue(t, m, "value")
+//	testastic.MapEqual(t, expected, actual)
 //
 // # Eventual Assertions
 //
@@ -99,9 +134,41 @@
 //	    return server.IsReady()
 //	}, 5*time.Second)
 //
+//	testastic.EventuallyTrue(t, func() bool {
+//	    return isReady
+//	}, 3*time.Second)
+//
+//	testastic.EventuallyFalse(t, func() bool {
+//	    return server.IsProcessing()
+//	}, 5*time.Second)
+//
 //	testastic.EventuallyEqual(t, "ready", func() string {
 //	    return service.Status()
 //	}, 3*time.Second, testastic.WithInterval(50*time.Millisecond))
+//
+//	testastic.EventuallyNil(t, func() any {
+//	    return cache.Get("key")
+//	}, 2*time.Second)
+//
+//	testastic.EventuallyNotNil(t, func() any {
+//	    return cache.Get("key")
+//	}, 2*time.Second)
+//
+//	testastic.EventuallyNoError(t, func() error {
+//	    _, err := client.Ping()
+//	    return err
+//	}, 5*time.Second)
+//
+//	testastic.EventuallyError(t, func() error {
+//	    return service.HealthCheck()
+//	}, 3*time.Second)
+//
+// Configure polling with [WithInterval] and [WithMessage]:
+//
+//	testastic.Eventually(t, condition, 5*time.Second,
+//	    testastic.WithInterval(50*time.Millisecond),
+//	    testastic.WithMessage("waiting for server startup"),
+//	)
 //
 // # Custom Matchers
 //
