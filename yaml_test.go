@@ -282,6 +282,32 @@ data:
 		}
 	})
 
+	t.Run("create expected file in nested directory", func(t *testing.T) {
+		// given: a non-existent expected file path in nested directories
+		dir := t.TempDir()
+		expectedFile := filepath.Join(dir, "nested", "path", "new-expected.yaml")
+
+		mt := &mockT{}
+		actual := "name: my-app\nversion: \"1.0\"\n"
+
+		// when: asserting with update option
+		testastic.AssertYAML(mt, expectedFile, actual, testastic.Update())
+
+		// then: the test passes and the nested file is created
+		if mt.failed {
+			t.Errorf("expected no failure when creating nested file, got: %s", mt.message)
+		}
+
+		content, err := os.ReadFile(expectedFile)
+		if err != nil {
+			t.Fatalf("expected nested file was not created: %v", err)
+		}
+
+		if !strings.Contains(string(content), "my-app") {
+			t.Errorf("expected file content incorrect: %s", content)
+		}
+	})
+
 	t.Run("byte slice input", func(t *testing.T) {
 		// given: an expected YAML file and actual as []byte
 		mt := &mockT{}

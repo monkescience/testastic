@@ -3,6 +3,7 @@ package testastic
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -247,6 +248,13 @@ func restoreYAMLTemplateExpressions(content string, _ map[string]string) string 
 }
 
 func writeYAMLFile(path string, data []byte) error {
+	dir := filepath.Dir(path)
+
+	mkdirErr := os.MkdirAll(dir, dirPerm)
+	if mkdirErr != nil {
+		return fmt.Errorf("failed to create directory: %w", mkdirErr)
+	}
+
 	err := os.WriteFile(path, data, filePerm)
 	if err != nil {
 		return fmt.Errorf("failed to write YAML file: %w", err)

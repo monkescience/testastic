@@ -7,6 +7,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 // Matcher parsing errors used internally by parseMatcher.
@@ -289,7 +290,10 @@ func AnyURL() Matcher {
 // and reported during template parsing.
 type MatcherFactory func(args string) (Matcher, error)
 
-var customMatchers = make(map[string]MatcherFactory)
+var (
+	customMatchersMu sync.RWMutex
+	customMatchers   = make(map[string]MatcherFactory)
+)
 
 // RegisterMatcher registers a custom matcher factory with the given name.
 // Once registered, the matcher can be used in expected files as {{name}} or {{name args}}.
@@ -317,7 +321,19 @@ var customMatchers = make(map[string]MatcherFactory)
 //
 // Custom matchers must implement the [Matcher] interface.
 func RegisterMatcher(name string, factory MatcherFactory) {
+	customMatchersMu.Lock()
+	defer customMatchersMu.Unlock()
+
 	customMatchers[name] = factory
+}
+
+func getCustomMatcherFactory(name string) (MatcherFactory, bool) {
+	customMatchersMu.RLock()
+	defer customMatchersMu.RUnlock()
+
+	factory, ok := customMatchers[name]
+
+	return factory, ok
 }
 
 // parseMatcher creates a Matcher from a template expression.
@@ -344,7 +360,7 @@ func parseMatcher(expr string) (Matcher, error) {
 		return AnyURL(), nil
 	}
 
-	if factory, ok := customMatchers[expr]; ok {
+	if factory, ok := getCustomMatcherFactory(expr); ok {
 		return factory("")
 	}
 
@@ -352,7 +368,7 @@ func parseMatcher(expr string) (Matcher, error) {
 
 	parts := strings.SplitN(expr, " ", matcherArgParts)
 	if len(parts) == matcherArgParts {
-		if factory, ok := customMatchers[parts[0]]; ok {
+		if factory, ok := getCustomMatcherFactory(parts[0]); ok {
 			return factory(parts[1])
 		}
 	}

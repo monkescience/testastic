@@ -36,7 +36,11 @@ testastic.AssertHTML(t, "testdata/page.expected.html", renderedHTML)
 testastic.AssertFile(t, "testdata/output.expected.txt", actualString)
 ```
 
-All `Assert*` functions accept `string`, `[]byte`, `io.Reader`, or any struct as the actual value.
+Input types by assertion:
+
+- `AssertJSON` and `AssertYAML` accept `string`, `[]byte`, `io.Reader`, or any struct (auto-marshaled).
+- `AssertHTML` accepts `string`, `[]byte`, `io.Reader`, or `fmt.Stringer`.
+- `AssertFile` accepts `string`, `[]byte`, or `io.Reader`.
 
 ## Matchers
 

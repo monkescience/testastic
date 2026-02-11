@@ -294,6 +294,32 @@ func TestAssertHTML(t *testing.T) {
 		}
 	})
 
+	t.Run("create expected file in nested directory", func(t *testing.T) {
+		// given: a non-existent expected file path in nested directories
+		dir := t.TempDir()
+		expectedFile := filepath.Join(dir, "nested", "path", "new-expected.html")
+
+		mt := &mockT{}
+		actual := `<div class="card"><span>Content</span></div>`
+
+		// when: asserting with update option
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.Update())
+
+		// then: the test passes and the nested file is created
+		if mt.failed {
+			t.Errorf("expected no failure when creating nested file, got: %s", mt.message)
+		}
+
+		content, err := os.ReadFile(expectedFile)
+		if err != nil {
+			t.Fatalf("expected nested file was not created: %v", err)
+		}
+
+		if !strings.Contains(string(content), "card") {
+			t.Errorf("expected file content incorrect: %s", content)
+		}
+	})
+
 	t.Run("byte slice input", func(t *testing.T) {
 		// given: an expected HTML file and actual as []byte
 		mt := &mockT{}

@@ -6,12 +6,17 @@
 //
 // # JSON, YAML, HTML, and File Assertions
 //
-// Compare API responses or documents against expected files with flexible matching:
+// Compare API responses or rendered documents against expected files with flexible matching:
 //
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertHTML(t, "testdata/page.expected.html", renderedHTML)
 //	testastic.AssertFile(t, "testdata/output.expected.txt", actualString)
+//
+// Input types by assertion:
+//   - AssertJSON and AssertYAML: string, []byte, io.Reader, or any struct (auto-marshaled)
+//   - AssertHTML: string, []byte, io.Reader, or fmt.Stringer
+//   - AssertFile: string, []byte, or io.Reader
 //
 // Expected files support template matchers for dynamic values:
 //
@@ -128,7 +133,8 @@
 //
 // # Eventual Assertions
 //
-// For asynchronous operations, retry until a condition is met:
+// For asynchronous operations, retry until a condition is met or timeout is reached.
+// The condition is checked immediately, then at regular intervals (default 100ms).
 //
 //	testastic.Eventually(t, func() bool {
 //	    return server.IsReady()
