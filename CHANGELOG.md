@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/monkescience/testastic/compare/v0.1.0...v0.1.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* harden expected file writes and matcher registry ([535cebb](https://github.com/monkescience/testastic/commit/535cebbbc497d79219e9ba11a32c30a97592b317))
+
 ## [0.1.0](https://github.com/monkescience/testastic/compare/v0.0.2...v0.1.0) (2026-02-10)
 
 
