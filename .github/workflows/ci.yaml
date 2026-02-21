@@ -6,12 +6,20 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 env:
   GOLANGCI_LINT_VERSION: v2.8.0 # renovate: datasource=github-releases depName=golangci/golangci-lint
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   lint:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6
@@ -20,9 +28,11 @@ jobs:
       - uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9
         with:
           version: ${{ env.GOLANGCI_LINT_VERSION }}
+          args: --timeout=5m
 
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
@@ -35,33 +45,72 @@ jobs:
       - name: Run tests with coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Check coverage
+      - name: Publish coverage summary
+        shell: bash
         run: |
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
-          echo "**Coverage:** ${COVERAGE}%" >> $GITHUB_STEP_SUMMARY
+          set -euo pipefail
+
+          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
+          {
+            echo "## Test Coverage"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---:|"
+            echo "| Current run | ${COVERAGE}% |"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Check coverage delta
         if: github.event_name == 'pull_request'
+        shell: bash
         run: |
-          PR_COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          set -euo pipefail
 
-          git checkout ${{ github.base_ref }}
-          go test -race -coverprofile=base_coverage.out -covermode=atomic ./... || true
+          coverage_from_file() {
+            go tool cover -func="$1" | awk '/^total:/ {gsub("%", "", $3); print $3}'
+          }
 
-          if [ -f base_coverage.out ]; then
-            BASE_COVERAGE=$(go tool cover -func=base_coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          PR_COVERAGE=$(coverage_from_file coverage.out)
+
+          BASE_DIR="$(mktemp -d)"
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          git worktree add "$BASE_DIR" "origin/${{ github.base_ref }}"
+          trap 'git worktree remove --force "$BASE_DIR"' EXIT
+
+          pushd "$BASE_DIR" >/dev/null
+          if go test -race -coverprofile=base_coverage.out -covermode=atomic ./...; then
+            BASE_COVERAGE=$(coverage_from_file base_coverage.out)
           else
-            BASE_COVERAGE=0
+            echo "::warning::Base branch tests failed; using PR coverage as baseline"
+            BASE_COVERAGE="$PR_COVERAGE"
           fi
+          popd >/dev/null
 
           echo "Base branch coverage: ${BASE_COVERAGE}%"
           echo "PR coverage: ${PR_COVERAGE}%"
-          echo "| Branch | Coverage |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Base (${{ github.base_ref }}) | ${BASE_COVERAGE}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| PR | ${PR_COVERAGE}% |" >> $GITHUB_STEP_SUMMARY
+          DELTA=$(awk "BEGIN { printf \"%+.2f\", $PR_COVERAGE - $BASE_COVERAGE }")
 
-          if (( $(echo "$PR_COVERAGE < $BASE_COVERAGE" | bc -l) )); then
-            echo "::error::Coverage decreased from ${BASE_COVERAGE}% to ${PR_COVERAGE}%"
+          RESULT="PASS"
+
+          if awk "BEGIN { exit !($PR_COVERAGE < $BASE_COVERAGE) }"; then
+            RESULT="FAIL"
+            echo "::error title=Coverage gate failed::Coverage decreased from ${BASE_COVERAGE}% to ${PR_COVERAGE}% (delta: ${DELTA}%)"
+          else
+            echo "::notice title=Coverage gate passed::Coverage is ${PR_COVERAGE}% (base: ${BASE_COVERAGE}%, delta: ${DELTA}%)"
+          fi
+
+          {
+            echo ""
+            echo "## Coverage Gate"
+            echo ""
+            echo "| Metric | Value |"
+            echo "|---|---:|"
+            echo "| Base (${{ github.base_ref }}) | ${BASE_COVERAGE}% |"
+            echo "| PR | ${PR_COVERAGE}% |"
+            echo "| Delta | ${DELTA}% |"
+            echo "| Rule | PR >= Base |"
+            echo "| Result | ${RESULT} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$RESULT" = "FAIL" ]; then
             exit 1
           fi
