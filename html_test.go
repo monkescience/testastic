@@ -72,7 +72,7 @@ func TestAssertHTML(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with a value not matching the regex
-		testastic.AssertHTML(mt, "testdata/html/with_regex.html",
+		testastic.AssertHTML(mt, "testdata/html/with_regex_fails.html",
 			`<div><span>invalid-format</span></div>`)
 
 		// then: the test fails
@@ -214,7 +214,7 @@ func TestAssertHTML(t *testing.T) {
 		actual := `<div><span>Hello   World</span></div>`
 
 		// when: asserting with PreserveWhitespace option
-		testastic.AssertHTML(mt, "testdata/html/whitespace.html", actual,
+		testastic.AssertHTML(mt, "testdata/html/whitespace_preserve.html", actual,
 			testastic.PreserveWhitespace())
 
 		// then: the test fails (whitespace differences are detected)
@@ -339,8 +339,8 @@ func TestAssertHTML(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with io.Reader input
-		testastic.AssertHTML(mt, "testdata/html/bytes.html",
-			strings.NewReader(`<div><span>Hello</span></div>`))
+		testastic.AssertHTML(mt, "testdata/html/bytes_reader.html",
+			strings.NewReader(`<article><span>Hello Reader</span></article>`))
 
 		// then: the test passes
 		if mt.failed {
@@ -409,7 +409,7 @@ func TestAssertHTML(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with non-matching HTML
-		testastic.AssertHTML(mt, "testdata/html/embedded_regex_attr.html",
+		testastic.AssertHTML(mt, "testdata/html/embedded_regex_attr_mismatch.html",
 			`<div style="border-left: 6px solid red;">Content</div>`)
 
 		// then: the test fails
@@ -551,8 +551,8 @@ func TestAssertHTML_UnsupportedOptions(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with unsupported options
-		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
-			`<div class="card"><span>Hello</span></div>`, testastic.IgnoreArrayOrder())
+		testastic.AssertHTML(mt, "testdata/html/exact_match_unsupported_options.html",
+			`<section class="card"><span>Hello Unsupported</span></section>`, testastic.IgnoreArrayOrder())
 
 		// then: the test fatals with a message listing the unsupported option
 		if !mt.fatal {
@@ -570,8 +570,8 @@ func TestAssertHTML_UnsupportedOptions(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with IgnoreHTMLComments
-		testastic.AssertHTML(mt, "testdata/html/exact_match.html",
-			`<div class="card"><span>Hello</span></div>`, testastic.IgnoreHTMLComments())
+		testastic.AssertHTML(mt, "testdata/html/exact_match_supported_options.html",
+			`<div class="panel"><span>Hello Options</span></div>`, testastic.IgnoreHTMLComments())
 
 		// then: the test passes without unsupported option error
 		if mt.failed {

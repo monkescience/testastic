@@ -1,0 +1,2 @@
+name: my-app-fail
+environment: {{oneOf "dev" "stage" "prod"}}

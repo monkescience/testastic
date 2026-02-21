@@ -35,6 +35,8 @@ type Matcher interface {
 
 type anyStringMatcher struct{}
 
+const anyStringMatcherValue = "{{anyString}}"
+
 func (m anyStringMatcher) Match(actual any) bool {
 	_, ok := actual.(string)
 
@@ -42,7 +44,7 @@ func (m anyStringMatcher) Match(actual any) bool {
 }
 
 func (m anyStringMatcher) String() string {
-	return "{{anyString}}" //nolint:goconst // Canonical matcher representation, same pattern as other matchers.
+	return anyStringMatcherValue
 }
 
 // anyIntMatcher matches any integer value (including float64 with no decimal part).

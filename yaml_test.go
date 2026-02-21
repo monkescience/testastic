@@ -80,7 +80,7 @@ data:
 		actual := "name: invalid-123\nversion: \"1.0\"\n"
 
 		// when: asserting with a value not matching the regex
-		testastic.AssertYAML(mt, "testdata/yaml/with_regex.yaml", actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_regex_fails.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -133,10 +133,10 @@ data:
 	t.Run("with oneOf matcher fails", func(t *testing.T) {
 		// given: an expected YAML file with oneOf matcher
 		mt := &mockT{}
-		actual := "name: my-app\nenvironment: test\n"
+		actual := "name: my-app-fail\nenvironment: test\n"
 
 		// when: asserting with a value not in the oneOf list
-		testastic.AssertYAML(mt, "testdata/yaml/with_oneof.yaml", actual)
+		testastic.AssertYAML(mt, "testdata/yaml/with_oneof_fails.yaml", actual)
 
 		// then: the test fails
 		if !mt.failed {
@@ -175,7 +175,7 @@ data:
 	t.Run("extra field", func(t *testing.T) {
 		// given: an expected YAML file with specific fields
 		mt := &mockT{}
-		actual := "name: my-app\nversion: \"1.0\"\nextra: unexpected-field\n"
+		actual := "name: expected-extra\nversion: \"1.0\"\nextra: unexpected-field\n"
 
 		// when: asserting with YAML containing an extra field
 		testastic.AssertYAML(mt, "testdata/yaml/extra_field.yaml", actual)
@@ -217,10 +217,10 @@ data:
 	t.Run("array ignore order", func(t *testing.T) {
 		// given: an expected YAML file with an array
 		mt := &mockT{}
-		actual := "items:\n  - name: second\n  - name: first\n"
+		actual := "items:\n  - name: beta\n  - name: alpha\n"
 
 		// when: asserting with IgnoreArrayOrder option
-		testastic.AssertYAML(mt, "testdata/yaml/array_order.yaml", actual, testastic.IgnoreArrayOrder())
+		testastic.AssertYAML(mt, "testdata/yaml/array_order_ignore_order.yaml", actual, testastic.IgnoreArrayOrder())
 
 		// then: the test passes
 		if mt.failed {
@@ -311,7 +311,7 @@ data:
 	t.Run("byte slice input", func(t *testing.T) {
 		// given: an expected YAML file and actual as []byte
 		mt := &mockT{}
-		actual := []byte("name: test\nversion: \"1.0\"\n")
+		actual := []byte("name: byte-test\nversion: \"2.0\"\n")
 
 		// when: asserting with []byte input
 		testastic.AssertYAML(mt, "testdata/yaml/byte_slice.yaml", actual)
@@ -330,7 +330,7 @@ data:
 		}
 
 		mt := &mockT{}
-		actual := Config{Name: "my-app", Version: "1.0"}
+		actual := Config{Name: "struct-app", Version: "2.0"}
 
 		// when: asserting with struct input (auto-marshaled)
 		testastic.AssertYAML(mt, "testdata/yaml/struct_input.yaml", actual)
@@ -344,7 +344,7 @@ data:
 	t.Run("reader input", func(t *testing.T) {
 		// given: an expected YAML file and actual as io.Reader
 		mt := &mockT{}
-		actual := strings.NewReader("name: test\nversion: \"1.0\"\n")
+		actual := strings.NewReader("name: reader-test\nversion: \"3.0\"\n")
 
 		// when: asserting with io.Reader input
 		testastic.AssertYAML(mt, "testdata/yaml/reader_input.yaml", actual)
@@ -406,8 +406,8 @@ func TestAssertYAML_UnsupportedOptions(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with unsupported options
-		testastic.AssertYAML(mt, "testdata/yaml/exact_match.yaml",
-			"name: test\nversion: \"1.0\"\n", testastic.IgnoreElements("script"))
+		testastic.AssertYAML(mt, "testdata/yaml/exact_match_unsupported_options.yaml",
+			"name: test-unsupported\nversion: \"1.2\"\n", testastic.IgnoreElements("script"))
 
 		// then: the test fatals with a message listing the unsupported option
 		if !mt.fatal {
@@ -424,7 +424,7 @@ func TestAssertYAML_UnsupportedOptions(t *testing.T) {
 		// given: supported options for AssertYAML
 		// when: asserting with IgnoreArrayOrder
 		// then: the test passes without unsupported option error
-		testastic.AssertYAML(t, "testdata/yaml/exact_match.yaml",
-			"name: test\nversion: \"1.0\"\n", testastic.IgnoreArrayOrder())
+		testastic.AssertYAML(t, "testdata/yaml/exact_match_supported_options.yaml",
+			"name: test-supported\nversion: \"1.1\"\n", testastic.IgnoreArrayOrder())
 	})
 }

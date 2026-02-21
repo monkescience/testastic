@@ -53,7 +53,7 @@ func TestParseLine(t *testing.T) {
 			t.Fatalf("expected 1 matcher, got %d", len(result.matchers))
 		}
 
-		if result.matchers[0].String() != "{{anyString}}" {
+		if result.matchers[0].String() != anyStringMatcherValue {
 			t.Errorf("expected {{anyString}} matcher, got %s", result.matchers[0].String())
 		}
 
@@ -86,7 +86,7 @@ func TestParseLine(t *testing.T) {
 			t.Fatalf("expected 2 matchers, got %d", len(result.matchers))
 		}
 
-		if result.matchers[0].String() != "{{anyString}}" {
+		if result.matchers[0].String() != anyStringMatcherValue {
 			t.Errorf("expected first matcher {{anyString}}, got %s", result.matchers[0].String())
 		}
 

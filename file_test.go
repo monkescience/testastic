@@ -90,14 +90,14 @@ func TestAssertFile(t *testing.T) {
 		testastic.AssertFile(t, "testdata/file/empty.txt", "")
 	})
 
-	t.Run("empty expected non-empty actual", func(t *testing.T) {
-		// given: empty expected, non-empty actual
+	t.Run("non-empty expected non-empty actual", func(t *testing.T) {
+		// given: non-empty expected and mismatched actual
 		mt := &mockT{}
 
 		// when: asserting
-		testastic.AssertFile(mt, "testdata/file/empty.txt", "some content")
+		testastic.AssertFile(mt, "testdata/file/empty_non_empty_actual.txt", "some content")
 
-		// then: test fails (extra content)
+		// then: test fails (content mismatch)
 		if !mt.failed {
 			t.Error("expected test to fail")
 		}
@@ -145,7 +145,7 @@ func TestAssertFile_UnsupportedOptions(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with unsupported options
-		testastic.AssertFile(mt, "testdata/file/exact_match.txt", "line 1\nline 2\nline 3",
+		testastic.AssertFile(mt, "testdata/file/exact_match_unsupported_options.txt", "row 1\nrow 2\nrow 3",
 			testastic.IgnoreArrayOrder(), testastic.IgnoreHTMLComments())
 
 		// then: the test fatals with a message listing both unsupported options
@@ -163,7 +163,7 @@ func TestAssertFile_UnsupportedOptions(t *testing.T) {
 		// given: supported options for AssertFile
 		// when: asserting with Message option
 		// then: the test passes without unsupported option error
-		testastic.AssertFile(t, "testdata/file/exact_match.txt", "line 1\nline 2\nline 3",
+		testastic.AssertFile(t, "testdata/file/exact_match_supported_options.txt", "line a\nline b\nline c\n",
 			testastic.Message("custom message"))
 	})
 }

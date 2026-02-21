@@ -8,19 +8,12 @@ import (
 	"github.com/monkescience/testastic"
 )
 
-// Test data constants.
-const (
-	testJSONAliceAge30     = `{"name": "Alice", "age": 30}`
-	testJSONAliceOnly      = `{"name": "Alice"}`
-	testJSONAliceAge30Full = `{"name": "Alice", "age": 30, "active": true}`
-)
-
 func TestAssertJSON(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		// given: an expected JSON file with exact values
 		// when: asserting with matching JSON
 		// then: the test passes without failure
-		testastic.AssertJSON(t, "testdata/json/exact_match.json", testJSONAliceAge30Full)
+		testastic.AssertJSON(t, "testdata/json/exact_match.json", `{"name": "Alice", "age": 30, "active": true}`)
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
@@ -151,7 +144,7 @@ func TestAssertJSON(t *testing.T) {
 			Age  int    `json:"age"`
 		}
 
-		actual := User{Name: "Alice", Age: 30}
+		actual := User{Name: "StructUser", Age: 35}
 
 		// when: asserting with the struct as actual value
 		// then: the test passes (struct is serialized and matches)
@@ -160,7 +153,7 @@ func TestAssertJSON(t *testing.T) {
 
 	t.Run("from reader", func(t *testing.T) {
 		// given: an expected JSON file and an io.Reader with matching content
-		actual := bytes.NewReader([]byte(testJSONAliceOnly))
+		actual := bytes.NewReader([]byte(`{"name": "Reader User"}`))
 
 		// when: asserting with the io.Reader as actual value
 		// then: the test passes (reader content matches)
@@ -190,7 +183,7 @@ func TestAssertJSON(t *testing.T) {
 		mt := &mockT{}
 
 		// when: asserting with JSON missing the age field
-		testastic.AssertJSON(mt, "testdata/json/missing_field.json", testJSONAliceOnly)
+		testastic.AssertJSON(mt, "testdata/json/missing_field.json", `{"name": "Alice"}`)
 
 		// then: the test fails and diff mentions the missing field
 		if !mt.failed {
@@ -207,9 +200,10 @@ func TestAssertJSON_UnsupportedOptions(t *testing.T) {
 	t.Run("html options rejected", func(t *testing.T) {
 		// given: HTML-only options passed to AssertJSON
 		mt := &mockT{}
+		actual := `{"name": "Alice Unsupported", "age": 32, "active": false}`
 
 		// when: asserting with unsupported options
-		testastic.AssertJSON(mt, "testdata/json/exact_match.json", testJSONAliceAge30Full,
+		testastic.AssertJSON(mt, "testdata/json/exact_match_unsupported_options.json", actual,
 			testastic.IgnoreHTMLComments(), testastic.PreserveWhitespace())
 
 		// then: the test fatals with a message listing both unsupported options
@@ -225,9 +219,11 @@ func TestAssertJSON_UnsupportedOptions(t *testing.T) {
 
 	t.Run("supported options accepted", func(t *testing.T) {
 		// given: supported options for AssertJSON
+		actual := `{"name": "Alice Supported", "age": 31, "active": true}`
+
 		// when: asserting with IgnoreFields
 		// then: the test passes without unsupported option error
-		testastic.AssertJSON(t, "testdata/json/exact_match.json", testJSONAliceAge30Full,
+		testastic.AssertJSON(t, "testdata/json/exact_match_supported_options.json", actual,
 			testastic.IgnoreFields("nonexistent"))
 	})
 }

@@ -49,7 +49,21 @@ func detectColors() bool {
 		return false
 	}
 
-	return term.IsTerminal(int(os.Stderr.Fd()))
+	fd, ok := stderrFD()
+	if !ok {
+		return false
+	}
+
+	return term.IsTerminal(fd)
+}
+
+func stderrFD() (int, bool) {
+	fd := os.Stderr.Fd()
+	if fd > uintptr(^uint(0)>>1) {
+		return 0, false
+	}
+
+	return int(fd), true
 }
 
 func colorize(text, color string) string {
