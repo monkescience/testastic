@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/monkescience/testastic/compare/v0.1.1...v0.1.2) (2026-03-06)
+
+
+### Features
+
+* **assert:** add negative prefix and suffix assertions ([21a2615](https://github.com/monkescience/testastic/commit/21a26155245560fa1c4049579ef0367182c612ee))
+* **assert:** support string-like inputs and map value absence checks ([f389179](https://github.com/monkescience/testastic/commit/f3891795618e9c33e20aa7876a4b5dcaea3aa111))
+
 ## [0.1.1](https://github.com/monkescience/testastic/compare/v0.1.0...v0.1.1) (2026-02-11)
 
 
