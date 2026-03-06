@@ -113,13 +113,15 @@
 //	testastic.Contains(t, s, "substring")
 //	testastic.NotContains(t, s, "substring")
 //	testastic.HasPrefix(t, s, "prefix")
+//	testastic.NotHasPrefix(t, s, "prefix")
 //	testastic.HasSuffix(t, s, "suffix")
+//	testastic.NotHasSuffix(t, s, "suffix")
 //	testastic.Matches(t, s, `^\d+$`)
 //	testastic.StringEmpty(t, s)
 //	testastic.StringNotEmpty(t, s)
 //
-// Contains, NotContains, HasPrefix, HasSuffix, and Matches accept string,
-// []byte, or fmt.Stringer inputs.
+// Contains, NotContains, HasPrefix, NotHasPrefix, HasSuffix, NotHasSuffix,
+// and Matches accept string, []byte, or fmt.Stringer inputs.
 //
 // # Collection Assertions
 //

@@ -490,6 +490,30 @@ func TestHasPrefix(t *testing.T) {
 	})
 }
 
+func TestNotHasPrefix(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: supported string-like values without a specific prefix
+		// when: asserting not has prefix
+		// then: the test passes
+		testastic.NotHasPrefix(t, "hello world", "world")
+		testastic.NotHasPrefix(t, []byte("hello world"), "world")
+		testastic.NotHasPrefix(t, testStringer{value: "hello world"}, "world")
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: a string with the specified prefix
+		mt := &mockT{}
+
+		// when: asserting not has prefix
+		testastic.NotHasPrefix(mt, "hello world", "hello")
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected NotHasPrefix to fail")
+		}
+	})
+}
+
 func TestHasSuffix(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
 		// given: supported string-like values with a specific suffix
@@ -510,6 +534,30 @@ func TestHasSuffix(t *testing.T) {
 		// then: the test fails
 		if !mt.failed {
 			t.Error("expected HasSuffix to fail")
+		}
+	})
+}
+
+func TestNotHasSuffix(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: supported string-like values without a specific suffix
+		// when: asserting not has suffix
+		// then: the test passes
+		testastic.NotHasSuffix(t, "hello world", "hello")
+		testastic.NotHasSuffix(t, []byte("hello world"), "hello")
+		testastic.NotHasSuffix(t, testStringer{value: "hello world"}, "hello")
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: a string with the specified suffix
+		mt := &mockT{}
+
+		// when: asserting not has suffix
+		testastic.NotHasSuffix(mt, "hello world", "world")
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected NotHasSuffix to fail")
 		}
 	})
 }

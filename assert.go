@@ -304,6 +304,22 @@ func HasPrefix(tb testing.TB, value any, prefix string) {
 	}
 }
 
+// NotHasPrefix asserts that a string, byte slice, or Stringer does not start with the given prefix.
+func NotHasPrefix(tb testing.TB, value any, prefix string) {
+	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "NotHasPrefix", value)
+
+		return
+	}
+
+	if strings.HasPrefix(s, prefix) {
+		failStr(tb, "NotHasPrefix", "prefix", s, prefix, "found")
+	}
+}
+
 // HasSuffix asserts that a string, byte slice, or Stringer ends with the given suffix.
 func HasSuffix(tb testing.TB, value any, suffix string) {
 	tb.Helper()
@@ -317,6 +333,22 @@ func HasSuffix(tb testing.TB, value any, suffix string) {
 
 	if !strings.HasSuffix(s, suffix) {
 		failStr(tb, "HasSuffix", "suffix", s, suffix, "not found")
+	}
+}
+
+// NotHasSuffix asserts that a string, byte slice, or Stringer does not end with the given suffix.
+func NotHasSuffix(tb testing.TB, value any, suffix string) {
+	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "NotHasSuffix", value)
+
+		return
+	}
+
+	if strings.HasSuffix(s, suffix) {
+		failStr(tb, "NotHasSuffix", "suffix", s, suffix, "found")
 	}
 }
 
