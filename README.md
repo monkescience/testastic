@@ -184,6 +184,8 @@ testastic.StringEmpty(t, s)
 testastic.StringNotEmpty(t, s)
 ```
 
+`Contains`, `NotContains`, `HasPrefix`, `HasSuffix`, and `Matches` accept `string`, `[]byte`, or `fmt.Stringer` inputs.
+
 ### Collections
 
 ```go
@@ -196,6 +198,7 @@ testastic.SliceEqual(t, expected, actual)
 testastic.MapHasKey(t, m, key)
 testastic.MapNotHasKey(t, m, key)
 testastic.MapHasValue(t, m, value)
+testastic.MapNotHasValue(t, m, value)
 testastic.MapEqual(t, expected, actual)
 ```
 

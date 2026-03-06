@@ -17,6 +17,14 @@ func (e *testError) Error() string {
 	return e.msg
 }
 
+type testStringer struct {
+	value string
+}
+
+func (s testStringer) String() string {
+	return s.value
+}
+
 func TestEqual(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
 		// given: two equal values of various types
@@ -395,10 +403,12 @@ func TestBetween(t *testing.T) {
 
 func TestContains(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
-		// given: a string containing a substring
+		// given: supported string-like values containing a substring
 		// when: asserting contains
 		// then: the test passes
 		testastic.Contains(t, "hello world", "world")
+		testastic.Contains(t, []byte("hello world"), "world")
+		testastic.Contains(t, testStringer{value: "hello world"}, "world")
 	})
 
 	t.Run("fail", func(t *testing.T) {
@@ -413,14 +423,33 @@ func TestContains(t *testing.T) {
 			t.Error("expected Contains to fail")
 		}
 	})
+
+	t.Run("unsupported type", func(t *testing.T) {
+		// given: a non-string-like value
+		mt := &mockT{}
+
+		// when: asserting contains
+		testastic.Contains(mt, 123, "23")
+
+		// then: the test fails with a type error
+		if !mt.failed {
+			t.Error("expected Contains to fail for unsupported type")
+		}
+
+		if !strings.Contains(mt.message, "unsupported type int") {
+			t.Error("expected Contains to report unsupported type")
+		}
+	})
 }
 
 func TestNotContains(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
-		// given: a string not containing a substring
+		// given: supported string-like values not containing a substring
 		// when: asserting not contains
 		// then: the test passes
 		testastic.NotContains(t, "hello world", "foo")
+		testastic.NotContains(t, []byte("hello world"), "foo")
+		testastic.NotContains(t, testStringer{value: "hello world"}, "foo")
 	})
 
 	t.Run("fail", func(t *testing.T) {
@@ -439,10 +468,12 @@ func TestNotContains(t *testing.T) {
 
 func TestHasPrefix(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
-		// given: a string with a specific prefix
+		// given: supported string-like values with a specific prefix
 		// when: asserting has prefix
 		// then: the test passes
 		testastic.HasPrefix(t, "hello world", "hello")
+		testastic.HasPrefix(t, []byte("hello world"), "hello")
+		testastic.HasPrefix(t, testStringer{value: "hello world"}, "hello")
 	})
 
 	t.Run("fail", func(t *testing.T) {
@@ -461,10 +492,12 @@ func TestHasPrefix(t *testing.T) {
 
 func TestHasSuffix(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
-		// given: a string with a specific suffix
+		// given: supported string-like values with a specific suffix
 		// when: asserting has suffix
 		// then: the test passes
 		testastic.HasSuffix(t, "hello world", "world")
+		testastic.HasSuffix(t, []byte("hello world"), "world")
+		testastic.HasSuffix(t, testStringer{value: "hello world"}, "world")
 	})
 
 	t.Run("fail", func(t *testing.T) {
@@ -483,10 +516,12 @@ func TestHasSuffix(t *testing.T) {
 
 func TestMatches(t *testing.T) {
 	t.Run("pass", func(t *testing.T) {
-		// given: a string matching a regex pattern
+		// given: supported string-like values matching a regex pattern
 		// when: asserting matches
 		// then: the test passes
 		testastic.Matches(t, "hello123", `^hello\d+$`)
+		testastic.Matches(t, []byte("hello123"), `^hello\d+$`)
+		testastic.Matches(t, testStringer{value: "hello123"}, `^hello\d+$`)
 	})
 
 	t.Run("fail", func(t *testing.T) {
@@ -895,6 +930,28 @@ func TestMapHasValue(t *testing.T) {
 		// then: the test fails
 		if !mt.failed {
 			t.Error("expected MapHasValue to fail")
+		}
+	})
+}
+
+func TestMapNotHasValue(t *testing.T) {
+	t.Run("pass", func(t *testing.T) {
+		// given: a map not containing the value
+		// when: asserting map not has value
+		// then: the test passes
+		testastic.MapNotHasValue(t, map[string]int{"a": 1, "b": 2}, 5)
+	})
+
+	t.Run("fail", func(t *testing.T) {
+		// given: a map containing the value
+		mt := &mockT{}
+
+		// when: asserting map not has value
+		testastic.MapNotHasValue(mt, map[string]int{"a": 1, "b": 2}, 2)
+
+		// then: the test fails
+		if !mt.failed {
+			t.Error("expected MapNotHasValue to fail")
 		}
 	})
 }

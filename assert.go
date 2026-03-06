@@ -223,6 +223,29 @@ func Between[T cmp.Ordered](tb testing.TB, value, minVal, maxVal T) {
 	}
 }
 
+// stringInputValue converts supported string assertion inputs to a string.
+func stringInputValue(value any) (string, bool) {
+	switch v := value.(type) {
+	case string:
+		return v, true
+	case []byte:
+		return string(v), true
+	case fmt.Stringer:
+		return v.String(), true
+	default:
+		return "", false
+	}
+}
+
+// failStrType reports an unsupported input type for string assertions.
+func failStrType(tb testing.TB, name string, value any) {
+	tb.Helper()
+	tb.Errorf(
+		"testastic: assertion failed\n\n  %s\n    error: unsupported type %T (want string, []byte, or fmt.Stringer)",
+		name, value,
+	)
+}
+
 // failStr reports a string assertion failure.
 func failStr(tb testing.TB, name, label, s, search, status string) {
 	tb.Helper()
@@ -232,46 +255,81 @@ func failStr(tb testing.TB, name, label, s, search, status string) {
 	)
 }
 
-// Contains asserts that s contains the given substring.
+// Contains asserts that a string, byte slice, or Stringer contains the given substring.
 // Reports a non-fatal error on failure, displaying the string and missing substring.
-func Contains(tb testing.TB, s, substring string) {
+func Contains(tb testing.TB, value any, substring string) {
 	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "Contains", value)
+
+		return
+	}
 
 	if !strings.Contains(s, substring) {
 		failStr(tb, "Contains", "substring", s, substring, "not found")
 	}
 }
 
-// NotContains asserts that s does not contain the given substring.
-func NotContains(tb testing.TB, s, substring string) {
+// NotContains asserts that a string, byte slice, or Stringer does not contain the given substring.
+func NotContains(tb testing.TB, value any, substring string) {
 	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "NotContains", value)
+
+		return
+	}
 
 	if strings.Contains(s, substring) {
 		failStr(tb, "NotContains", "substring", s, substring, "found")
 	}
 }
 
-// HasPrefix asserts that s starts with the given prefix.
-func HasPrefix(tb testing.TB, s, prefix string) {
+// HasPrefix asserts that a string, byte slice, or Stringer starts with the given prefix.
+func HasPrefix(tb testing.TB, value any, prefix string) {
 	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "HasPrefix", value)
+
+		return
+	}
 
 	if !strings.HasPrefix(s, prefix) {
 		failStr(tb, "HasPrefix", "prefix", s, prefix, "not found")
 	}
 }
 
-// HasSuffix asserts that s ends with the given suffix.
-func HasSuffix(tb testing.TB, s, suffix string) {
+// HasSuffix asserts that a string, byte slice, or Stringer ends with the given suffix.
+func HasSuffix(tb testing.TB, value any, suffix string) {
 	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "HasSuffix", value)
+
+		return
+	}
 
 	if !strings.HasSuffix(s, suffix) {
 		failStr(tb, "HasSuffix", "suffix", s, suffix, "not found")
 	}
 }
 
-// Matches asserts that s matches the given regular expression pattern.
-func Matches(tb testing.TB, s, pattern string) {
+// Matches asserts that a string, byte slice, or Stringer matches the given regular expression pattern.
+func Matches(tb testing.TB, value any, pattern string) {
 	tb.Helper()
+
+	s, ok := stringInputValue(value)
+	if !ok {
+		failStrType(tb, "Matches", value)
+
+		return
+	}
 
 	re, err := regexp.Compile(pattern)
 	if err != nil {
