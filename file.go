@@ -126,5 +126,19 @@ func formatFileDiff(expected, actual []string, diffs []difference) string {
 		return ""
 	}
 
-	return formatFileDiffInline(expected, actual)
+	matcherAwareExpected := make([]string, len(expected))
+	copy(matcherAwareExpected, expected)
+
+	for idx := range min(len(expected), len(actual)) {
+		parsedLine, err := parseLine(expected[idx])
+		if err != nil || parsedLine.pattern == nil {
+			continue
+		}
+
+		if parsedLine.pattern.MatchString(actual[idx]) {
+			matcherAwareExpected[idx] = actual[idx]
+		}
+	}
+
+	return formatFileDiffInline(matcherAwareExpected, actual)
 }

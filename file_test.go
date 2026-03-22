@@ -3,6 +3,7 @@ package testastic_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -108,6 +109,42 @@ func TestAssertFile(t *testing.T) {
 		// when: asserting with matching value
 		// then: passes (special chars escaped properly)
 		testastic.AssertFile(t, "testdata/file/special_chars.txt", "Price: $100.99 (USD)")
+	})
+
+	t.Run("diff output does not flag matcher lines that already matched", func(t *testing.T) {
+		// given: an expected file with a matcher line and a later mismatched line
+		expectedFile := filepath.Join(t.TempDir(), "matcher_diff.txt")
+
+		err := os.WriteFile(expectedFile, []byte("Version: {{regex `v[0-9]+`}}\nStatus: ready"), 0o644)
+		if err != nil {
+			t.Fatalf("write expected file: %v", err)
+		}
+
+		mt := &mockT{}
+
+		// when: asserting with a matching version and mismatched status
+		testastic.AssertFile(mt, expectedFile, "Version: v1\nStatus: failed")
+
+		// then: the failure message reports only the real mismatched line
+		if !mt.failed {
+			t.Fatal("expected test to fail")
+		}
+
+		if strings.Contains(mt.message, "- Version: {{regex `v[0-9]+`}}") {
+			t.Fatalf("expected matcher line to be omitted from diff, got: %s", mt.message)
+		}
+
+		if strings.Contains(mt.message, "+ Version: v1") {
+			t.Fatalf("expected matched actual line to be omitted from diff, got: %s", mt.message)
+		}
+
+		if !strings.Contains(mt.message, "- Status: ready") {
+			t.Fatalf("expected status removal in diff, got: %s", mt.message)
+		}
+
+		if !strings.Contains(mt.message, "+ Status: failed") {
+			t.Fatalf("expected status addition in diff, got: %s", mt.message)
+		}
 	})
 }
 
