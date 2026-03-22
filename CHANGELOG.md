@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.3](https://github.com/monkescience/testastic/compare/v0.1.2...v0.1.3) (2026-03-22)
+
+
+### Bug Fixes
+
+* **assert:** keep matched AssertFile lines out of diffs ([e55f0d7](https://github.com/monkescience/testastic/commit/e55f0d7d2fb1952a0b5c63ebd56c84b49a8da4d7))
+* **deps:** update module golang.org/x/net to v0.51.0 ([#21](https://github.com/monkescience/testastic/issues/21)) ([7595901](https://github.com/monkescience/testastic/commit/7595901404e7fa7850df6437e0f128851f6d9776))
+
 ## [0.1.2](https://github.com/monkescience/testastic/compare/v0.1.1...v0.1.2) (2026-03-06)
 
 
