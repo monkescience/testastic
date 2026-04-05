@@ -1,0 +1,78 @@
+// Command testservice is a minimal HTTP server used as a test fixture
+// for the service lifecycle tests in the testastic package.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"time"
+)
+
+func main() {
+	port := os.Getenv("PORT")
+	if port == "" {
+		fmt.Fprintln(os.Stderr, "PORT environment variable is required")
+		os.Exit(1)
+	}
+
+	if os.Getenv("EXIT_EARLY") == "true" {
+		fmt.Fprintln(os.Stderr, "exiting early as requested")
+		os.Exit(1)
+	}
+
+	if d := os.Getenv("SLOW_START"); d != "" {
+		dur, err := time.ParseDuration(d)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid SLOW_START duration: %v\n", err)
+			os.Exit(1)
+		}
+
+		time.Sleep(dur)
+	}
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+	mux.HandleFunc("GET /data", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		resp := map[string]string{
+			"message": "hello",
+			"version": "1.0.0",
+		}
+
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+
+	server := &http.Server{
+		Addr:              ":" + port,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
+	go func() {
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Fprintf(os.Stderr, "listen error: %v\n", err)
+			os.Exit(1)
+		}
+	}()
+
+	<-ctx.Done()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		fmt.Fprintf(os.Stderr, "shutdown error: %v\n", err)
+	}
+}
