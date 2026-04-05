@@ -3,6 +3,7 @@ package testastic_test
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -15,7 +16,11 @@ import (
 	"github.com/monkescience/testastic"
 )
 
-// serviceMockT extends mockT with methods needed by StartService.
+// serviceMockT implements testing.TB for StartService tests.
+// Unlike mockT, it calls runtime.Goexit in Fatalf because StartService
+// performs real work (building, starting processes) after validation calls
+// to tb.Fatalf. Without Goexit, execution would continue past the fatal
+// into build/exec, overwriting the error message.
 type serviceMockT struct {
 	testing.TB
 	mu       sync.Mutex
@@ -54,6 +59,8 @@ func (m *serviceMockT) Errorf(format string, args ...any) {
 func (m *serviceMockT) Logf(string, ...any) {}
 
 func (m *serviceMockT) Log(...any) {}
+
+func (m *serviceMockT) Name() string { return "serviceMockT" }
 
 func (m *serviceMockT) Failed() bool {
 	m.mu.Lock()
@@ -104,6 +111,20 @@ func (m *serviceMockT) result() (bool, string) {
 	return m.fatal, m.message
 }
 
+// runExpectingFatal runs fn in a separate goroutine so that runtime.Goexit
+// from serviceMockT.Fatalf terminates only that goroutine.
+func runExpectingFatal(fn func()) {
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		fn()
+	}()
+
+	<-done
+}
+
 // testServicePort tracks the next available port for test services.
 var testServicePort = struct {
 	mu   sync.Mutex
@@ -123,7 +144,7 @@ func nextPort() int {
 func doGet(t *testing.T, url string) *http.Response {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, url, nil)
 	testastic.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
@@ -132,263 +153,443 @@ func doGet(t *testing.T, url string) *http.Response {
 	return resp
 }
 
-func TestStartService_basic(t *testing.T) {
-	port := nextPort()
+func TestStartService(t *testing.T) {
+	t.Run("serves requests after startup", func(t *testing.T) {
+		// given: a valid service config with an import path
+		port := nextPort()
 
-	svc := testastic.StartService(context.Background(), t, testastic.ServiceConfig{
-		ImportPath:    "./testdata/testservice",
-		Port:          port,
-		ReadyEndpoint: "/health",
-		Env:           []string{fmt.Sprintf("PORT=%d", port)},
-		ReadyTimeout:  10 * time.Second,
-	})
-
-	resp := doGet(t, svc.URL()+"/data")
-	defer resp.Body.Close() //nolint:errcheck // test cleanup
-
-	testastic.Equal(t, http.StatusOK, resp.StatusCode)
-	testastic.AssertJSON(t, "testdata/service_data.expected.json", resp.Body)
-}
-
-func TestStartService_coverage_collected(t *testing.T) {
-	port := nextPort()
-
-	svc := testastic.StartService(context.Background(), t, testastic.ServiceConfig{
-		ImportPath:    "./testdata/testservice",
-		Port:          port,
-		ReadyEndpoint: "/health",
-		Env:           []string{fmt.Sprintf("PORT=%d", port)},
-		ReadyTimeout:  10 * time.Second,
-	})
-
-	// Make a request to generate some coverage.
-	resp := doGet(t, svc.URL()+"/data")
-	resp.Body.Close() //nolint:errcheck // test cleanup
-
-	// Stop explicitly to flush coverage data.
-	svc.Stop()
-
-	entries, err := os.ReadDir(svc.CoverDir())
-	testastic.NoError(t, err)
-	testastic.True(t, len(entries) > 0)
-}
-
-func TestStartService_pre_built_binary(t *testing.T) {
-	// Build the binary manually.
-	outputName := "testservice"
-	if runtime.GOOS == "windows" {
-		outputName = "testservice.exe"
-	}
-
-	binaryPath := filepath.Join(t.TempDir(), outputName)
-	cmd := exec.CommandContext(context.Background(), "go", "build", "-cover", "-o", binaryPath, "./testdata/testservice")
-
-	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("manual build failed: %s", output)
-	}
-
-	port := nextPort()
-
-	svc := testastic.StartService(context.Background(), t, testastic.ServiceConfig{
-		BinaryPath:    binaryPath,
-		Port:          port,
-		ReadyEndpoint: "/health",
-		Env:           []string{fmt.Sprintf("PORT=%d", port)},
-		ReadyTimeout:  10 * time.Second,
-	})
-
-	resp := doGet(t, svc.URL()+"/health")
-	resp.Body.Close() //nolint:errcheck // test cleanup
-
-	testastic.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestStartService_custom_ready_func(t *testing.T) {
-	port := nextPort()
-
-	svc := testastic.StartService(context.Background(), t, testastic.ServiceConfig{
-		ImportPath: "./testdata/testservice",
-		Port:       port,
-		Env:        []string{fmt.Sprintf("PORT=%d", port)},
-		ReadyFunc: func() bool {
-			client := &http.Client{Timeout: 500 * time.Millisecond}
-
-			req, err := http.NewRequestWithContext(
-				context.Background(), http.MethodGet, fmt.Sprintf("http://localhost:%d/health", port), nil,
-			)
-			if err != nil {
-				return false
-			}
-
-			resp, err := client.Do(req)
-			if err != nil {
-				return false
-			}
-
-			_ = resp.Body.Close()
-
-			return resp.StatusCode == http.StatusOK
-		},
-		ReadyTimeout: 10 * time.Second,
-	})
-
-	resp := doGet(t, svc.URL()+"/health")
-	resp.Body.Close() //nolint:errcheck // test cleanup
-
-	testastic.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestStartService_stop_idempotent(t *testing.T) {
-	port := nextPort()
-
-	svc := testastic.StartService(context.Background(), t, testastic.ServiceConfig{
-		ImportPath:    "./testdata/testservice",
-		Port:          port,
-		ReadyEndpoint: "/health",
-		Env:           []string{fmt.Sprintf("PORT=%d", port)},
-		ReadyTimeout:  10 * time.Second,
-	})
-
-	svc.Stop()
-	svc.Stop() // Should not panic.
-}
-
-func TestStartService_early_exit(t *testing.T) {
-	mt := newServiceMockT()
-	defer mt.cleanup()
-
-	port := nextPort()
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+		// when: starting the service and making a request
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
 			ImportPath:    "./testdata/testservice",
 			Port:          port,
 			ReadyEndpoint: "/health",
-			Env:           []string{fmt.Sprintf("PORT=%d", port), "EXIT_EARLY=true"},
-			ReadyTimeout:  5 * time.Second,
+			Env:           []string{fmt.Sprintf("PORT=%d", port)},
+			ReadyTimeout:  10 * time.Second,
 		})
-	}()
 
-	<-done
+		resp := doGet(t, svc.URL()+"/data")
+		defer resp.Body.Close() //nolint:errcheck // test cleanup
 
-	fatal, msg := mt.result()
-	testastic.True(t, fatal)
-	testastic.Contains(t, msg, "service exited before becoming ready")
-}
+		// then: the response matches the expected JSON
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+		testastic.AssertJSON(t, "testdata/service_data.expected.json", resp.Body)
+	})
 
-func TestStartService_build_failure(t *testing.T) {
-	mt := newServiceMockT()
-	defer mt.cleanup()
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
-			ImportPath:    "./nonexistent/package",
-			Port:          nextPort(),
+	t.Run("collects coverage data", func(t *testing.T) {
+		// given: a running service with coverage instrumentation
+		port := nextPort()
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
+			ImportPath:    "./testdata/testservice",
+			Port:          port,
 			ReadyEndpoint: "/health",
+			Env:           []string{fmt.Sprintf("PORT=%d", port)},
+			ReadyTimeout:  10 * time.Second,
 		})
-	}()
 
-	<-done
+		// when: making a request and stopping the service to flush coverage
+		resp := doGet(t, svc.URL()+"/data")
+		resp.Body.Close() //nolint:errcheck // test cleanup
+		svc.Stop()
 
-	fatal, msg := mt.result()
-	testastic.True(t, fatal)
-	testastic.Contains(t, msg, "go build failed")
-}
+		// then: coverage data is written and contains actual counter data
+		cmd := exec.CommandContext(t.Context(), "go", "tool", "covdata", "percent", "-i="+svc.CoverDir())
+		output, err := cmd.CombinedOutput()
+		testastic.NoError(t, err)
+		testastic.True(t, len(output) > 0)
+	})
 
-func TestStartService_validation_no_path(t *testing.T) {
-	mt := newServiceMockT()
-	defer mt.cleanup()
+	t.Run("pre-built binary", func(t *testing.T) {
+		// given: a manually built coverage-instrumented binary
+		outputName := "testservice"
 
-	done := make(chan struct{})
+		if runtime.GOOS == "windows" {
+			outputName = "testservice.exe"
+		}
 
-	go func() {
-		defer close(done)
+		binaryPath := filepath.Join(t.TempDir(), outputName)
+		cmd := exec.CommandContext(t.Context(), "go", "build", "-cover", "-o", binaryPath, "./testdata/testservice")
 
-		testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
-			Port: nextPort(),
-		})
-	}()
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("manual build failed: %s", output)
+		}
 
-	<-done
+		port := nextPort()
 
-	fatal, msg := mt.result()
-	testastic.True(t, fatal)
-	testastic.Contains(t, msg, "requires ImportPath or BinaryPath")
-}
-
-func TestStartService_validation_both_paths(t *testing.T) {
-	mt := newServiceMockT()
-	defer mt.cleanup()
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
-			ImportPath: "./cmd/foo",
-			BinaryPath: "/bin/foo",
-			Port:       nextPort(),
-		})
-	}()
-
-	<-done
-
-	fatal, msg := mt.result()
-	testastic.True(t, fatal)
-	testastic.Contains(t, msg, "must not set both ImportPath and BinaryPath")
-}
-
-func TestStartService_validation_both_ready(t *testing.T) {
-	mt := newServiceMockT()
-	defer mt.cleanup()
-
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
-			ImportPath:    "./cmd/foo",
-			Port:          nextPort(),
+		// when: starting with BinaryPath instead of ImportPath
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
+			BinaryPath:    binaryPath,
+			Port:          port,
 			ReadyEndpoint: "/health",
-			ReadyFunc:     func() bool { return true },
+			Env:           []string{fmt.Sprintf("PORT=%d", port)},
+			ReadyTimeout:  10 * time.Second,
 		})
-	}()
 
-	<-done
+		resp := doGet(t, svc.URL()+"/health")
+		resp.Body.Close() //nolint:errcheck // test cleanup
 
-	fatal, msg := mt.result()
-	testastic.True(t, fatal)
-	testastic.Contains(t, msg, "must not set both ReadyEndpoint and ReadyFunc")
+		// then: the service responds successfully
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("custom ready func", func(t *testing.T) {
+		// given: a config with a custom readiness check function
+		port := nextPort()
+
+		// when: starting with ReadyFunc instead of ReadyEndpoint
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
+			ImportPath: "./testdata/testservice",
+			Port:       port,
+			Env:        []string{fmt.Sprintf("PORT=%d", port)},
+			ReadyFunc: func() bool {
+				client := &http.Client{Timeout: 500 * time.Millisecond}
+
+				req, err := http.NewRequestWithContext(
+					context.Background(), http.MethodGet, fmt.Sprintf("http://localhost:%d/health", port), nil,
+				)
+				if err != nil {
+					return false
+				}
+
+				resp, err := client.Do(req)
+				if err != nil {
+					return false
+				}
+
+				_ = resp.Body.Close()
+
+				return resp.StatusCode == http.StatusOK
+			},
+			ReadyTimeout: 10 * time.Second,
+		})
+
+		resp := doGet(t, svc.URL()+"/health")
+		resp.Body.Close() //nolint:errcheck // test cleanup
+
+		// then: the service is reachable
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+	})
+
+	t.Run("stop is idempotent", func(t *testing.T) {
+		// given: a running service
+		port := nextPort()
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
+			ImportPath:    "./testdata/testservice",
+			Port:          port,
+			ReadyEndpoint: "/health",
+			Env:           []string{fmt.Sprintf("PORT=%d", port)},
+			ReadyTimeout:  10 * time.Second,
+		})
+
+		// when: calling Stop twice
+		svc.Stop()
+		svc.Stop()
+
+		// then: no panic occurs (test passes)
+	})
+
+	t.Run("detects early exit", func(t *testing.T) {
+		// given: a service that exits immediately on startup
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		port := nextPort()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath:    "./testdata/testservice",
+				Port:          port,
+				ReadyEndpoint: "/health",
+				Env:           []string{fmt.Sprintf("PORT=%d", port), "EXIT_EARLY=true"},
+				ReadyTimeout:  5 * time.Second,
+			})
+		})
+
+		// then: the test fails with an early exit message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "service exited before becoming ready")
+	})
+
+	t.Run("reports build failure", func(t *testing.T) {
+		// given: a config pointing to a nonexistent package
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath:    "./nonexistent/package",
+				Port:          nextPort(),
+				ReadyEndpoint: "/health",
+			})
+		})
+
+		// then: the test fails with a build error
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "go build failed")
+	})
+
+	t.Run("custom cover dir", func(t *testing.T) {
+		// given: a config with an explicit CoverDir
+		port := nextPort()
+		coverDir := filepath.Join(t.TempDir(), "my-coverage")
+		testastic.NoError(t, os.MkdirAll(coverDir, 0o750))
+
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
+			ImportPath:    "./testdata/testservice",
+			Port:          port,
+			ReadyEndpoint: "/health",
+			Env:           []string{fmt.Sprintf("PORT=%d", port)},
+			CoverDir:      coverDir,
+			ReadyTimeout:  10 * time.Second,
+		})
+
+		// when: making a request and stopping to flush coverage
+		resp := doGet(t, svc.URL()+"/health")
+		resp.Body.Close() //nolint:errcheck // test cleanup
+		svc.Stop()
+
+		// then: the returned CoverDir matches and contains coverage data
+		testastic.Equal(t, coverDir, svc.CoverDir())
+
+		entries, err := os.ReadDir(coverDir)
+		testastic.NoError(t, err)
+		testastic.True(t, len(entries) > 0)
+	})
+
+	t.Run("custom env passed to service", func(t *testing.T) {
+		// given: a config with a custom environment variable
+		port := nextPort()
+		svc := testastic.StartService(t.Context(), t, testastic.ServiceConfig{
+			ImportPath:    "./testdata/testservice",
+			Port:          port,
+			ReadyEndpoint: "/health",
+			Env:           []string{fmt.Sprintf("PORT=%d", port), "MY_TEST_VAR=hello-from-test"},
+			ReadyTimeout:  10 * time.Second,
+		})
+
+		// when: querying the service for the env var value
+		resp := doGet(t, svc.URL()+"/env?key=MY_TEST_VAR")
+		defer resp.Body.Close() //nolint:errcheck // test cleanup
+
+		body, err := io.ReadAll(resp.Body)
+		testastic.NoError(t, err)
+
+		// then: the service sees the custom env var
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+		testastic.Equal(t, "hello-from-test", string(body))
+	})
+
+	t.Run("pre-cancelled context", func(t *testing.T) {
+		// given: a context that is already cancelled
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		port := nextPort()
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		// when: starting the service with the cancelled context
+		runExpectingFatal(func() {
+			testastic.StartService(ctx, mt, testastic.ServiceConfig{
+				ImportPath:    "./testdata/testservice",
+				Port:          port,
+				ReadyEndpoint: "/health",
+				Env:           []string{fmt.Sprintf("PORT=%d", port)},
+				ReadyTimeout:  2 * time.Second,
+			})
+		})
+
+		// then: the test fails (service never becomes ready)
+		fatal, _ := mt.result()
+		testastic.True(t, fatal)
+	})
+
+	t.Run("context timeout during readiness", func(t *testing.T) {
+		// given: a context that expires before the service can become ready
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		port := nextPort()
+
+		ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+		defer cancel()
+
+		// when: starting a slow service with a short context timeout
+		runExpectingFatal(func() {
+			testastic.StartService(ctx, mt, testastic.ServiceConfig{
+				ImportPath:    "./testdata/testservice",
+				Port:          port,
+				ReadyEndpoint: "/health",
+				Env:           []string{fmt.Sprintf("PORT=%d", port), "SLOW_START=10s"},
+				ReadyTimeout:  10 * time.Second,
+			})
+		})
+
+		// then: the test fails because the context expired during polling
+		fatal, _ := mt.result()
+		testastic.True(t, fatal)
+	})
 }
 
-func TestStartService_validation_no_port(t *testing.T) {
-	mt := newServiceMockT()
-	defer mt.cleanup()
+func TestStartService_validation(t *testing.T) {
+	t.Run("requires import or binary path", func(t *testing.T) {
+		// given: a config with neither ImportPath nor BinaryPath
+		mt := newServiceMockT()
+		defer mt.cleanup()
 
-	done := make(chan struct{})
-
-	go func() {
-		defer close(done)
-
-		testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
-			ImportPath: "./cmd/foo",
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				Port: nextPort(),
+			})
 		})
-	}()
 
-	<-done
+		// then: the test fails with a missing path message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "requires ImportPath or BinaryPath")
+	})
 
-	fatal, msg := mt.result()
-	testastic.True(t, fatal)
-	testastic.Contains(t, msg, "requires Port")
+	t.Run("rejects both import and binary path", func(t *testing.T) {
+		// given: a config with both ImportPath and BinaryPath set
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath: "./cmd/foo",
+				BinaryPath: "/bin/foo",
+				Port:       nextPort(),
+			})
+		})
+
+		// then: the test fails with a mutual exclusivity message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "must not set both ImportPath and BinaryPath")
+	})
+
+	t.Run("rejects both ready endpoint and func", func(t *testing.T) {
+		// given: a config with both ReadyEndpoint and ReadyFunc set
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath:    "./cmd/foo",
+				Port:          nextPort(),
+				ReadyEndpoint: "/health",
+				ReadyFunc:     func() bool { return true },
+			})
+		})
+
+		// then: the test fails with a mutual exclusivity message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "must not set both ReadyEndpoint and ReadyFunc")
+	})
+
+	t.Run("requires port", func(t *testing.T) {
+		// given: a config without a port
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath: "./cmd/foo",
+			})
+		})
+
+		// then: the test fails with a missing port message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "requires Port")
+	})
+
+	t.Run("rejects GOCOVERDIR in env", func(t *testing.T) {
+		// given: a config that includes GOCOVERDIR in the Env slice
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath: "./cmd/foo",
+				Port:       nextPort(),
+				Env:        []string{"GOCOVERDIR=/tmp/cover"},
+			})
+		})
+
+		// then: the test fails with a GOCOVERDIR rejection message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "must not include GOCOVERDIR")
+	})
+
+	t.Run("rejects negative ready timeout", func(t *testing.T) {
+		// given: a config with a negative ReadyTimeout
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath:   "./cmd/foo",
+				Port:         nextPort(),
+				ReadyTimeout: -1 * time.Second,
+			})
+		})
+
+		// then: the test fails with a negative timeout message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "ReadyTimeout must not be negative")
+	})
+
+	t.Run("rejects negative ready interval", func(t *testing.T) {
+		// given: a config with a negative ReadyInterval
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath:    "./cmd/foo",
+				Port:          nextPort(),
+				ReadyInterval: -100 * time.Millisecond,
+			})
+		})
+
+		// then: the test fails with a negative interval message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "ReadyInterval must not be negative")
+	})
+
+	t.Run("rejects negative shutdown timeout", func(t *testing.T) {
+		// given: a config with a negative ShutdownTimeout
+		mt := newServiceMockT()
+		defer mt.cleanup()
+
+		// when: starting the service
+		runExpectingFatal(func() {
+			testastic.StartService(context.Background(), mt, testastic.ServiceConfig{
+				ImportPath:      "./cmd/foo",
+				Port:            nextPort(),
+				ShutdownTimeout: -1 * time.Second,
+			})
+		})
+
+		// then: the test fails with a negative timeout message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "ShutdownTimeout must not be negative")
+	})
 }

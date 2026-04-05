@@ -4,19 +4,17 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 	"time"
 )
-
-// callerDepthStartService is the call depth from applyServiceDefaults to the
-// caller of StartService, used with runtime.Caller to detect the test directory.
-const callerDepthStartService = 2
 
 // Default configuration values for StartService.
 const (
@@ -26,6 +24,37 @@ const (
 	defaultReadyEndpoint   = "/"
 	httpCheckTimeout       = 1 * time.Second
 )
+
+// syncBuffer is a thread-safe wrapper around bytes.Buffer that implements
+// io.Writer. It allows os/exec pipe goroutines to write concurrently while
+// other goroutines read via String().
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+var _ io.Writer = (*syncBuffer)(nil)
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.buf.Write(p) //nolint:wrapcheck // internal type, wrapping adds no value
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.buf.String()
+}
+
+func (b *syncBuffer) Len() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+
+	return b.buf.Len()
+}
 
 // ServiceConfig configures how a service binary is built, started, and monitored.
 type ServiceConfig struct {
@@ -96,10 +125,9 @@ type Service struct {
 	cancel   context.CancelFunc
 	baseURL  string
 	coverDir string
-	stdout   *bytes.Buffer
-	stderr   *bytes.Buffer
+	stdout   *syncBuffer
+	stderr   *syncBuffer
 	exited   chan struct{}
-	exitErr  error
 	mu       sync.Mutex
 	stopped  bool
 }
@@ -121,6 +149,10 @@ type Service struct {
 // When ImportPath is set, the service is built with `go build -cover`.
 // When BinaryPath is set, the build step is skipped. The binary is started as
 // a subprocess with GOCOVERDIR set so that coverage data is written on shutdown.
+//
+// The service must handle SIGTERM (Unix) or interrupt (Windows) for graceful
+// shutdown and coverage data flushing. Services that only handle SIGINT will
+// be forcefully killed after ShutdownTimeout, losing coverage data.
 //
 // The service is polled for readiness using either ReadyEndpoint (HTTP GET
 // returning 2xx) or ReadyFunc. If the process exits before becoming ready,
@@ -144,10 +176,15 @@ type Service struct {
 //	}
 func StartService(ctx context.Context, tb testing.TB, cfg ServiceConfig) *Service {
 	tb.Helper()
-
 	validateServiceConfig(tb, cfg)
-	applyServiceDefaults(&cfg)
 
+	if cfg.WorkDir == "" {
+		if _, file, _, ok := runtime.Caller(1); ok {
+			cfg.WorkDir = filepath.Dir(file)
+		}
+	}
+
+	applyServiceDefaults(&cfg)
 	binaryPath := cfg.BinaryPath
 
 	if cfg.ImportPath != "" {
@@ -156,14 +193,13 @@ func StartService(ctx context.Context, tb testing.TB, cfg ServiceConfig) *Servic
 
 	coverDir := setupCoverDir(tb, cfg.CoverDir)
 	ctx, cancel := context.WithCancel(ctx)
-
 	svc := &Service{
 		tb:       tb,
 		cancel:   cancel,
 		baseURL:  fmt.Sprintf("http://localhost:%d", cfg.Port),
 		coverDir: coverDir,
-		stdout:   &bytes.Buffer{},
-		stderr:   &bytes.Buffer{},
+		stdout:   &syncBuffer{},
+		stderr:   &syncBuffer{},
 		exited:   make(chan struct{}),
 	}
 
@@ -176,8 +212,7 @@ func StartService(ctx context.Context, tb testing.TB, cfg ServiceConfig) *Servic
 	svc.cmd.Stdout = svc.stdout
 	svc.cmd.Stderr = svc.stderr
 
-	svc.cmd.Env = append(os.Environ(), cfg.Env...)
-	svc.cmd.Env = append(svc.cmd.Env, "GOCOVERDIR="+coverDir)
+	svc.cmd.Env = append(append(os.Environ(), cfg.Env...), "GOCOVERDIR="+coverDir)
 
 	if cfg.WorkDir != "" {
 		svc.cmd.Dir = cfg.WorkDir
@@ -189,12 +224,11 @@ func StartService(ctx context.Context, tb testing.TB, cfg ServiceConfig) *Servic
 	}
 
 	go func() {
-		svc.exitErr = svc.cmd.Wait()
+		_ = svc.cmd.Wait()
 		close(svc.exited)
 	}()
 
 	waitForReady(ctx, tb, svc, cfg)
-
 	tb.Cleanup(svc.Stop)
 
 	return svc
@@ -239,8 +273,7 @@ func (s *Service) Stop() {
 }
 
 func (s *Service) logOutput() {
-	ft, ok := s.tb.(interface{ Failed() bool })
-	if !ok || !ft.Failed() {
+	if !s.tb.Failed() {
 		return
 	}
 
@@ -271,6 +304,24 @@ func validateServiceConfig(tb testing.TB, cfg ServiceConfig) {
 	if cfg.Port == 0 {
 		tb.Fatalf("testastic: ServiceConfig requires Port")
 	}
+
+	for _, e := range cfg.Env {
+		if strings.HasPrefix(e, "GOCOVERDIR=") {
+			tb.Fatalf("testastic: ServiceConfig.Env must not include GOCOVERDIR; use CoverDir instead")
+		}
+	}
+
+	if cfg.ReadyTimeout < 0 {
+		tb.Fatalf("testastic: ServiceConfig.ReadyTimeout must not be negative")
+	}
+
+	if cfg.ReadyInterval < 0 {
+		tb.Fatalf("testastic: ServiceConfig.ReadyInterval must not be negative")
+	}
+
+	if cfg.ShutdownTimeout < 0 {
+		tb.Fatalf("testastic: ServiceConfig.ShutdownTimeout must not be negative")
+	}
 }
 
 func applyServiceDefaults(cfg *ServiceConfig) {
@@ -284,12 +335,6 @@ func applyServiceDefaults(cfg *ServiceConfig) {
 
 	if cfg.ShutdownTimeout == 0 {
 		cfg.ShutdownTimeout = defaultShutdownTimeout
-	}
-
-	if cfg.WorkDir == "" {
-		if _, file, _, ok := runtime.Caller(callerDepthStartService); ok {
-			cfg.WorkDir = filepath.Dir(file)
-		}
 	}
 }
 
