@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -38,6 +39,17 @@ func main() {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+	mux.HandleFunc("GET /env", func(w http.ResponseWriter, r *http.Request) {
+		key := r.URL.Query().Get("key")
+		if key == "" {
+			http.Error(w, "missing key parameter", http.StatusBadRequest)
+
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, os.Getenv(key))
+	})
 	mux.HandleFunc("GET /data", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
@@ -57,7 +69,7 @@ func main() {
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	go func() {
