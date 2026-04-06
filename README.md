@@ -245,6 +245,87 @@ testastic.Eventually(t, condition, 5*time.Second,
 )
 ```
 
+## Process Testing
+
+Start and test Go binaries as subprocesses with automatic coverage instrumentation.
+
+### Starting a Process
+
+`StartProcess` builds a Go binary with coverage instrumentation, starts it, and waits for readiness:
+
+```go
+proc := testastic.StartProcess(t.Context(), t,
+    "./cmd/api",
+    testastic.HTTPCheck(8080, "/health"),
+    testastic.WithPort(8080),
+    testastic.WithEnv("DATABASE_URL=postgres://localhost/test"),
+)
+
+resp, err := http.Get(proc.URL() + "/api/users")
+testastic.NoError(t, err)
+defer resp.Body.Close()
+
+testastic.AssertJSON(t, "testdata/users.expected.json", resp.Body)
+```
+
+For pre-built binaries, use `StartProcessBinary`:
+
+```go
+proc := testastic.StartProcessBinary(t.Context(), t,
+    binaryPath,
+    testastic.HTTPCheck(8080, "/health"),
+    testastic.WithPort(8080),
+)
+```
+
+### Process Options
+
+| Option | Description |
+|---|---|
+| `WithPort(port)` | TCP port; enables `proc.URL()` |
+| `WithEnv(vars...)` | Environment variables (`"KEY=VALUE"`) |
+| `WithArgs(args...)` | Command-line arguments |
+| `WithReadyTimeout(d)` | Readiness timeout (default: 10s) |
+| `WithReadyInterval(d)` | Readiness poll interval (default: 100ms) |
+| `WithShutdownTimeout(d)` | Graceful shutdown timeout (default: 5s) |
+| `WithCoverDir(dir)` | Override coverage data directory |
+| `WithBuildArgs(args...)` | Additional `go build` flags |
+| `WithWorkDir(dir)` | Working directory for build and process |
+
+### Custom Ready Checks
+
+Use `ReadyCheckFunc` for custom readiness logic:
+
+```go
+proc := testastic.StartProcess(t.Context(), t,
+    "./cmd/worker",
+    testastic.ReadyCheckFunc(func(ctx context.Context) bool {
+        conn, err := net.DialTimeout("tcp", "localhost:6379", time.Second)
+        if err != nil {
+            return false
+        }
+        conn.Close()
+        return true
+    }),
+)
+```
+
+### Collecting Coverage
+
+By default, subprocess coverage data is written to a temp directory and cleaned up. To collect it into a standard Go coverage profile, add a `TestMain`:
+
+```go
+func TestMain(m *testing.M) {
+    os.Exit(testastic.CollectProcessCoverage(m, "coverage/process.out"))
+}
+```
+
+This produces a text profile compatible with `go tool cover`, codecov, and coveralls:
+
+```bash
+go tool cover -html=coverage/process.out
+```
+
 ## Output
 
 Colored diff output (red for expected, green for actual):
