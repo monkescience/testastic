@@ -95,60 +95,101 @@ func HTTPCheck(port int, path string) ReadyChecker {
 	})
 }
 
-// ProcessConfig configures how a Go binary is built, started, and monitored.
-type ProcessConfig struct {
-	// ImportPath is the Go import path of the binary to build (e.g., "./cmd/myservice").
-	// Mutually exclusive with BinaryPath. One of ImportPath or BinaryPath must be set.
-	ImportPath string
+// ProcessOption configures optional behavior of [StartProcess] and
+// [StartProcessBinary]. Use the provided option constructors (WithPort,
+// WithEnv, etc.) to create options.
+type ProcessOption func(*processConfig)
 
-	// BinaryPath is the path to a pre-built coverage-instrumented binary.
-	// When set, the build step is skipped entirely. The caller is responsible
-	// for ensuring the binary was built with `go build -cover`.
-	// Mutually exclusive with ImportPath.
-	BinaryPath string
+// processConfig holds all configuration for process startup.
+type processConfig struct {
+	importPath      string
+	binaryPath      string
+	args            []string
+	env             []string
+	port            int
+	readyCheck      ReadyChecker
+	readyTimeout    time.Duration
+	readyInterval   time.Duration
+	shutdownTimeout time.Duration
+	coverDir        string
+	buildArgs       []string
+	workDir         string
+}
 
-	// Args are command-line arguments passed to the binary.
-	Args []string
+// WithArgs sets command-line arguments passed to the binary.
+func WithArgs(args ...string) ProcessOption {
+	return func(c *processConfig) {
+		c.args = args
+	}
+}
 
-	// Env is a list of additional environment variables in "KEY=VALUE" format.
-	// These are appended to the current process environment.
-	// GOCOVERDIR is set automatically and must not be included here.
-	Env []string
+// WithEnv sets additional environment variables in "KEY=VALUE" format.
+// These are appended to the current process environment.
+// GOCOVERDIR is set automatically and must not be included here.
+func WithEnv(env ...string) ProcessOption {
+	return func(c *processConfig) {
+		c.env = env
+	}
+}
 
-	// Port is the TCP port the process listens on. Optional.
-	// When set, URL() returns http://localhost:<Port>.
-	// When zero, URL() returns an empty string.
-	Port int
+// WithPort sets the TCP port the process listens on.
+// When set, [Process.URL] returns http://localhost:<port>.
+// When not set, [Process.URL] returns an empty string.
+func WithPort(port int) ProcessOption {
+	return func(c *processConfig) {
+		c.port = port
+	}
+}
 
-	// ReadyCheck determines when the process is ready to accept work.
-	// It is polled repeatedly until it returns true or ReadyTimeout expires.
-	// Required. Use [HTTPCheck] for HTTP endpoints or [ReadyCheckFunc] for custom logic.
-	ReadyCheck ReadyChecker
+// WithReadyTimeout sets how long to wait for the process to become ready.
+// Default: 10 seconds.
+func WithReadyTimeout(d time.Duration) ProcessOption {
+	return func(c *processConfig) {
+		c.readyTimeout = d
+	}
+}
 
-	// ReadyTimeout is how long to wait for the process to become ready.
-	// Default: 10 seconds.
-	ReadyTimeout time.Duration
+// WithReadyInterval sets the polling interval between readiness checks.
+// Default: 100 milliseconds.
+func WithReadyInterval(d time.Duration) ProcessOption {
+	return func(c *processConfig) {
+		c.readyInterval = d
+	}
+}
 
-	// ReadyInterval is the polling interval between readiness checks.
-	// Default: 100 milliseconds.
-	ReadyInterval time.Duration
+// WithShutdownTimeout sets how long to wait for graceful shutdown after
+// sending an interrupt signal before sending a kill signal.
+// Default: 5 seconds.
+func WithShutdownTimeout(d time.Duration) ProcessOption {
+	return func(c *processConfig) {
+		c.shutdownTimeout = d
+	}
+}
 
-	// ShutdownTimeout is how long to wait for graceful shutdown after sending
-	// an interrupt signal before sending a kill signal.
-	// Default: 5 seconds.
-	ShutdownTimeout time.Duration
+// WithCoverDir overrides the directory where coverage data files are written.
+// Default: a subdirectory created under t.TempDir().
+func WithCoverDir(dir string) ProcessOption {
+	return func(c *processConfig) {
+		c.coverDir = dir
+	}
+}
 
-	// CoverDir overrides the directory where coverage data files are written.
-	// Default: a subdirectory created under t.TempDir().
-	CoverDir string
+// WithBuildArgs sets additional arguments passed to `go build`
+// (e.g., "-ldflags", "-tags"). The flags -cover and -o are always added
+// automatically. Only meaningful with [StartProcess]; ignored by
+// [StartProcessBinary].
+func WithBuildArgs(args ...string) ProcessOption {
+	return func(c *processConfig) {
+		c.buildArgs = args
+	}
+}
 
-	// BuildArgs are additional arguments passed to `go build` (e.g., "-ldflags", "-tags").
-	// The flags -cover and -o are always added automatically.
-	BuildArgs []string
-
-	// WorkDir is the working directory for both `go build` and the process.
-	// Default: the directory containing the test file (detected via runtime.Caller).
-	WorkDir string
+// WithWorkDir sets the working directory for both `go build` and the process.
+// Default: the directory containing the test file (detected via runtime.Caller).
+func WithWorkDir(dir string) ProcessOption {
+	return func(c *processConfig) {
+		c.workDir = dir
+	}
 }
 
 // Process represents a running process with coverage instrumentation.
@@ -166,9 +207,12 @@ type Process struct {
 	stopped  bool
 }
 
-// StartProcess builds (if needed) and starts a Go binary with coverage
+// StartProcess builds and starts a Go binary from importPath with coverage
 // instrumentation, waits for it to become ready, and registers t.Cleanup for
 // automatic shutdown and coverage collection.
+//
+// The binary is built with `go build -cover` and started as a subprocess with
+// GOCOVERDIR set so that coverage data is written on shutdown.
 //
 // The provided context controls the process lifetime. When the context is
 // cancelled, the process receives a graceful shutdown signal (SIGTERM on Unix,
@@ -178,11 +222,10 @@ type Process struct {
 //
 //	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Minute)
 //	defer cancel()
-//	proc := testastic.StartProcess(ctx, t, testastic.ProcessConfig{...})
-//
-// When ImportPath is set, the binary is built with `go build -cover`.
-// When BinaryPath is set, the build step is skipped. The binary is started as
-// a subprocess with GOCOVERDIR set so that coverage data is written on shutdown.
+//	proc := testastic.StartProcess(ctx, t, "./cmd/api",
+//	    testastic.HTTPCheck(8080, "/health"),
+//	    testastic.WithPort(8080),
+//	)
 //
 // The process must handle SIGTERM (Unix) or interrupt (Windows) for graceful
 // shutdown and coverage data flushing. Processes that only handle SIGINT will
@@ -195,12 +238,11 @@ type Process struct {
 // Example:
 //
 //	func TestAPI(t *testing.T) {
-//	    proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-//	        ImportPath: "./cmd/api",
-//	        Port:       8080,
-//	        ReadyCheck: testastic.HTTPCheck(8080, "/health"),
-//	        Env:        []string{"DATABASE_URL=postgres://localhost/test"},
-//	    })
+//	    proc := testastic.StartProcess(t.Context(), t, "./cmd/api",
+//	        testastic.HTTPCheck(8080, "/health"),
+//	        testastic.WithPort(8080),
+//	        testastic.WithEnv("DATABASE_URL=postgres://localhost/test"),
+//	    )
 //
 //	    resp, err := http.Get(proc.URL() + "/api/users")
 //	    testastic.NoError(t, err)
@@ -208,29 +250,83 @@ type Process struct {
 //
 //	    testastic.AssertJSON(t, "testdata/users.expected.json", resp.Body)
 //	}
-func StartProcess(ctx context.Context, tb testing.TB, cfg ProcessConfig) *Process {
+func StartProcess(
+	ctx context.Context, tb testing.TB,
+	importPath string, readyCheck ReadyChecker, opts ...ProcessOption,
+) *Process {
 	tb.Helper()
-	validateProcessConfig(tb, cfg)
 
-	if cfg.WorkDir == "" {
+	cfg := newProcessConfig(opts)
+	cfg.importPath = importPath
+	cfg.readyCheck = readyCheck
+
+	if cfg.workDir == "" {
 		if _, file, _, ok := runtime.Caller(1); ok {
-			cfg.WorkDir = filepath.Dir(file)
+			cfg.workDir = filepath.Dir(file)
 		}
 	}
 
-	applyProcessDefaults(&cfg)
-	binaryPath := cfg.BinaryPath
+	return startProcess(ctx, tb, cfg)
+}
 
-	if cfg.ImportPath != "" {
+// StartProcessBinary starts a pre-built coverage-instrumented binary, waits
+// for it to become ready, and registers t.Cleanup for automatic shutdown and
+// coverage collection. The caller is responsible for ensuring the binary was
+// built with `go build -cover`.
+//
+// See [StartProcess] for full lifecycle documentation.
+//
+// Example:
+//
+//	proc := testastic.StartProcessBinary(t.Context(), t, binaryPath,
+//	    testastic.HTTPCheck(8080, "/health"),
+//	    testastic.WithPort(8080),
+//	)
+func StartProcessBinary(
+	ctx context.Context, tb testing.TB,
+	binaryPath string, readyCheck ReadyChecker, opts ...ProcessOption,
+) *Process {
+	tb.Helper()
+
+	cfg := newProcessConfig(opts)
+	cfg.binaryPath = binaryPath
+	cfg.readyCheck = readyCheck
+
+	if cfg.workDir == "" {
+		if _, file, _, ok := runtime.Caller(1); ok {
+			cfg.workDir = filepath.Dir(file)
+		}
+	}
+
+	return startProcess(ctx, tb, cfg)
+}
+
+func newProcessConfig(opts []ProcessOption) *processConfig {
+	cfg := &processConfig{}
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	return cfg
+}
+
+func startProcess(ctx context.Context, tb testing.TB, cfg *processConfig) *Process {
+	tb.Helper()
+	validateProcessConfig(tb, cfg)
+	applyProcessDefaults(cfg)
+
+	binaryPath := cfg.binaryPath
+
+	if cfg.importPath != "" {
 		binaryPath = buildProcess(ctx, tb, cfg)
 	}
 
-	coverDir := setupCoverDir(tb, cfg.CoverDir)
+	coverDir := setupCoverDir(tb, cfg.coverDir)
 	ctx, cancel := context.WithCancel(ctx)
 	proc := &Process{
 		tb:       tb,
 		cancel:   cancel,
-		baseURL:  formatBaseURL(cfg.Port),
+		baseURL:  formatBaseURL(cfg.port),
 		coverDir: coverDir,
 		stdout:   &syncBuffer{},
 		stderr:   &syncBuffer{},
@@ -238,18 +334,18 @@ func StartProcess(ctx context.Context, tb testing.TB, cfg ProcessConfig) *Proces
 	}
 
 	//nolint:gosec // args are from test config, not user input
-	proc.cmd = exec.CommandContext(ctx, binaryPath, cfg.Args...)
+	proc.cmd = exec.CommandContext(ctx, binaryPath, cfg.args...)
 	proc.cmd.Cancel = func() error {
 		return interruptProcess(proc.cmd.Process)
 	}
-	proc.cmd.WaitDelay = cfg.ShutdownTimeout
+	proc.cmd.WaitDelay = cfg.shutdownTimeout
 	proc.cmd.Stdout = proc.stdout
 	proc.cmd.Stderr = proc.stderr
 
-	proc.cmd.Env = append(append(os.Environ(), cfg.Env...), "GOCOVERDIR="+coverDir)
+	proc.cmd.Env = append(append(os.Environ(), cfg.env...), "GOCOVERDIR="+coverDir)
 
-	if cfg.WorkDir != "" {
-		proc.cmd.Dir = cfg.WorkDir
+	if cfg.workDir != "" {
+		proc.cmd.Dir = cfg.workDir
 	}
 
 	err := proc.cmd.Start()
@@ -269,7 +365,7 @@ func StartProcess(ctx context.Context, tb testing.TB, cfg ProcessConfig) *Proces
 }
 
 // URL returns the base URL of the running process (e.g., "http://localhost:8080").
-// Returns an empty string when Port is not set in ProcessConfig.
+// Returns an empty string when [WithPort] is not set.
 func (p *Process) URL() string {
 	return p.baseURL
 }
@@ -321,51 +417,47 @@ func (p *Process) logOutput() {
 	}
 }
 
-func validateProcessConfig(tb testing.TB, cfg ProcessConfig) {
+func validateProcessConfig(tb testing.TB, cfg *processConfig) {
 	tb.Helper()
 
-	if cfg.ImportPath == "" && cfg.BinaryPath == "" {
-		tb.Fatalf("testastic: ProcessConfig requires ImportPath or BinaryPath")
+	if cfg.importPath == "" && cfg.binaryPath == "" {
+		tb.Fatalf("testastic: StartProcess requires importPath or binaryPath")
 	}
 
-	if cfg.ImportPath != "" && cfg.BinaryPath != "" {
-		tb.Fatalf("testastic: ProcessConfig must not set both ImportPath and BinaryPath")
+	if cfg.readyCheck == nil {
+		tb.Fatalf("testastic: StartProcess requires readyCheck")
 	}
 
-	if cfg.ReadyCheck == nil {
-		tb.Fatalf("testastic: ProcessConfig requires ReadyCheck")
-	}
-
-	for _, e := range cfg.Env {
+	for _, e := range cfg.env {
 		if strings.HasPrefix(e, "GOCOVERDIR=") {
-			tb.Fatalf("testastic: ProcessConfig.Env must not include GOCOVERDIR; use CoverDir instead")
+			tb.Fatalf("testastic: WithEnv must not include GOCOVERDIR; use WithCoverDir instead")
 		}
 	}
 
-	if cfg.ReadyTimeout < 0 {
-		tb.Fatalf("testastic: ProcessConfig.ReadyTimeout must not be negative")
+	if cfg.readyTimeout < 0 {
+		tb.Fatalf("testastic: WithReadyTimeout must not be negative")
 	}
 
-	if cfg.ReadyInterval < 0 {
-		tb.Fatalf("testastic: ProcessConfig.ReadyInterval must not be negative")
+	if cfg.readyInterval < 0 {
+		tb.Fatalf("testastic: WithReadyInterval must not be negative")
 	}
 
-	if cfg.ShutdownTimeout < 0 {
-		tb.Fatalf("testastic: ProcessConfig.ShutdownTimeout must not be negative")
+	if cfg.shutdownTimeout < 0 {
+		tb.Fatalf("testastic: WithShutdownTimeout must not be negative")
 	}
 }
 
-func applyProcessDefaults(cfg *ProcessConfig) {
-	if cfg.ReadyTimeout == 0 {
-		cfg.ReadyTimeout = defaultReadyTimeout
+func applyProcessDefaults(cfg *processConfig) {
+	if cfg.readyTimeout == 0 {
+		cfg.readyTimeout = defaultReadyTimeout
 	}
 
-	if cfg.ReadyInterval == 0 {
-		cfg.ReadyInterval = defaultReadyInterval
+	if cfg.readyInterval == 0 {
+		cfg.readyInterval = defaultReadyInterval
 	}
 
-	if cfg.ShutdownTimeout == 0 {
-		cfg.ShutdownTimeout = defaultShutdownTimeout
+	if cfg.shutdownTimeout == 0 {
+		cfg.shutdownTimeout = defaultShutdownTimeout
 	}
 }
 
@@ -384,6 +476,10 @@ func setupCoverDir(tb testing.TB, coverDir string) string {
 		return coverDir
 	}
 
+	if sharedCoverDir != "" {
+		return sharedCoverDir
+	}
+
 	coverDir = filepath.Join(tb.TempDir(), "coverage")
 
 	const dirPerm = 0o750
@@ -396,7 +492,7 @@ func setupCoverDir(tb testing.TB, coverDir string) string {
 	return coverDir
 }
 
-func buildProcess(ctx context.Context, tb testing.TB, cfg ProcessConfig) string {
+func buildProcess(ctx context.Context, tb testing.TB, cfg *processConfig) string {
 	tb.Helper()
 
 	outputName := "process"
@@ -406,13 +502,13 @@ func buildProcess(ctx context.Context, tb testing.TB, cfg ProcessConfig) string 
 
 	outputPath := filepath.Join(tb.TempDir(), outputName)
 
-	args := make([]string, 0, 4+len(cfg.BuildArgs)+1)
+	args := make([]string, 0, 4+len(cfg.buildArgs)+1)
 	args = append(args, "build", "-cover", "-o", outputPath)
-	args = append(args, cfg.BuildArgs...)
-	args = append(args, cfg.ImportPath)
+	args = append(args, cfg.buildArgs...)
+	args = append(args, cfg.importPath)
 
 	cmd := exec.CommandContext(ctx, "go", args...) //nolint:gosec // args are from test config
-	cmd.Dir = cfg.WorkDir
+	cmd.Dir = cfg.workDir
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -422,11 +518,11 @@ func buildProcess(ctx context.Context, tb testing.TB, cfg ProcessConfig) string 
 	return outputPath
 }
 
-func waitForReady(ctx context.Context, tb testing.TB, proc *Process, cfg ProcessConfig) {
+func waitForReady(ctx context.Context, tb testing.TB, proc *Process, cfg *processConfig) {
 	tb.Helper()
 
-	deadline := time.Now().Add(cfg.ReadyTimeout)
-	ticker := time.NewTicker(cfg.ReadyInterval)
+	deadline := time.Now().Add(cfg.readyTimeout)
+	ticker := time.NewTicker(cfg.readyInterval)
 
 	defer ticker.Stop()
 
@@ -442,14 +538,14 @@ func waitForReady(ctx context.Context, tb testing.TB, proc *Process, cfg Process
 		default:
 		}
 
-		if cfg.ReadyCheck.Check(ctx) {
+		if cfg.readyCheck.Check(ctx) {
 			return
 		}
 
 		if time.Now().After(deadline) {
 			tb.Fatalf(
 				"testastic: process not ready after %v\nstdout:\n%s\nstderr:\n%s",
-				cfg.ReadyTimeout, proc.stdout.String(), proc.stderr.String(),
+				cfg.readyTimeout, proc.stdout.String(), proc.stderr.String(),
 			)
 
 			return

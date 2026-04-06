@@ -159,13 +159,13 @@ func TestStartProcess(t *testing.T) {
 		port := nextPort()
 
 		// when: starting the process and making a request
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath:   "./testdata/testservice",
-			Port:         port,
-			ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-			Env:          []string{fmt.Sprintf("PORT=%d", port)},
-			ReadyTimeout: 10 * time.Second,
-		})
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		resp := doGet(t, proc.URL()+"/data")
 		defer resp.Body.Close() //nolint:errcheck // test cleanup
@@ -178,13 +178,13 @@ func TestStartProcess(t *testing.T) {
 	t.Run("collects coverage data", func(t *testing.T) {
 		// given: a running process with coverage instrumentation
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath:   "./testdata/testservice",
-			Port:         port,
-			ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-			Env:          []string{fmt.Sprintf("PORT=%d", port)},
-			ReadyTimeout: 10 * time.Second,
-		})
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		// when: making a request and stopping the process to flush coverage
 		resp := doGet(t, proc.URL()+"/data")
@@ -217,13 +217,13 @@ func TestStartProcess(t *testing.T) {
 		port := nextPort()
 
 		// when: starting with BinaryPath instead of ImportPath
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			BinaryPath:   binaryPath,
-			Port:         port,
-			ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-			Env:          []string{fmt.Sprintf("PORT=%d", port)},
-			ReadyTimeout: 10 * time.Second,
-		})
+		proc := testastic.StartProcessBinary(t.Context(), t,
+			binaryPath,
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		resp := doGet(t, proc.URL()+"/health")
 		resp.Body.Close() //nolint:errcheck // test cleanup
@@ -237,11 +237,9 @@ func TestStartProcess(t *testing.T) {
 		port := nextPort()
 
 		// when: starting with a ReadyCheckFunc
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath: "./testdata/testservice",
-			Port:       port,
-			Env:        []string{fmt.Sprintf("PORT=%d", port)},
-			ReadyCheck: testastic.ReadyCheckFunc(func(ctx context.Context) bool {
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.ReadyCheckFunc(func(ctx context.Context) bool {
 				client := &http.Client{Timeout: 500 * time.Millisecond}
 
 				req, err := http.NewRequestWithContext(
@@ -260,8 +258,10 @@ func TestStartProcess(t *testing.T) {
 
 				return resp.StatusCode == http.StatusOK
 			}),
-			ReadyTimeout: 10 * time.Second,
-		})
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		resp := doGet(t, proc.URL()+"/health")
 		resp.Body.Close() //nolint:errcheck // test cleanup
@@ -275,10 +275,9 @@ func TestStartProcess(t *testing.T) {
 		port := nextPort()
 
 		// when: starting without Port
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath: "./testdata/testservice",
-			Env:        []string{fmt.Sprintf("PORT=%d", port)},
-			ReadyCheck: testastic.ReadyCheckFunc(func(ctx context.Context) bool {
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.ReadyCheckFunc(func(ctx context.Context) bool {
 				req, err := http.NewRequestWithContext(
 					ctx, http.MethodGet, fmt.Sprintf("http://localhost:%d/health", port), nil,
 				)
@@ -295,8 +294,9 @@ func TestStartProcess(t *testing.T) {
 
 				return resp.StatusCode == http.StatusOK
 			}),
-			ReadyTimeout: 10 * time.Second,
-		})
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		// then: URL returns empty and the process is running
 		testastic.Equal(t, "", proc.URL())
@@ -305,13 +305,13 @@ func TestStartProcess(t *testing.T) {
 	t.Run("stop is idempotent", func(t *testing.T) {
 		// given: a running process
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath:   "./testdata/testservice",
-			Port:         port,
-			ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-			Env:          []string{fmt.Sprintf("PORT=%d", port)},
-			ReadyTimeout: 10 * time.Second,
-		})
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		// when: calling Stop twice
 		proc.Stop()
@@ -329,13 +329,13 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath:   "./testdata/testservice",
-				Port:         port,
-				ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-				Env:          []string{fmt.Sprintf("PORT=%d", port), "EXIT_EARLY=true"},
-				ReadyTimeout: 5 * time.Second,
-			})
+			testastic.StartProcess(context.Background(), mt,
+				"./testdata/testservice",
+				testastic.HTTPCheck(port, "/health"),
+				testastic.WithPort(port),
+				testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "EXIT_EARLY=true"),
+				testastic.WithReadyTimeout(5*time.Second),
+			)
 		})
 
 		// then: the test fails with an early exit message
@@ -351,10 +351,10 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath: "./nonexistent/package",
-				ReadyCheck: testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-			})
+			testastic.StartProcess(context.Background(), mt,
+				"./nonexistent/package",
+				testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
+			)
 		})
 
 		// then: the test fails with a build error
@@ -369,14 +369,14 @@ func TestStartProcess(t *testing.T) {
 		coverDir := filepath.Join(t.TempDir(), "my-coverage")
 		testastic.NoError(t, os.MkdirAll(coverDir, 0o750))
 
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath:   "./testdata/testservice",
-			Port:         port,
-			ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-			Env:          []string{fmt.Sprintf("PORT=%d", port)},
-			CoverDir:     coverDir,
-			ReadyTimeout: 10 * time.Second,
-		})
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithCoverDir(coverDir),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		// when: making a request and stopping to flush coverage
 		resp := doGet(t, proc.URL()+"/health")
@@ -394,13 +394,13 @@ func TestStartProcess(t *testing.T) {
 	t.Run("custom env passed to process", func(t *testing.T) {
 		// given: a config with a custom environment variable
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t, testastic.ProcessConfig{
-			ImportPath:   "./testdata/testservice",
-			Port:         port,
-			ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-			Env:          []string{fmt.Sprintf("PORT=%d", port), "MY_TEST_VAR=hello-from-test"},
-			ReadyTimeout: 10 * time.Second,
-		})
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "MY_TEST_VAR=hello-from-test"),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
 
 		// when: querying the process for the env var value
 		resp := doGet(t, proc.URL()+"/env?key=MY_TEST_VAR")
@@ -425,13 +425,13 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting the process with the cancelled context
 		runExpectingFatal(func() {
-			testastic.StartProcess(ctx, mt, testastic.ProcessConfig{
-				ImportPath:   "./testdata/testservice",
-				Port:         port,
-				ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-				Env:          []string{fmt.Sprintf("PORT=%d", port)},
-				ReadyTimeout: 2 * time.Second,
-			})
+			testastic.StartProcess(ctx, mt,
+				"./testdata/testservice",
+				testastic.HTTPCheck(port, "/health"),
+				testastic.WithPort(port),
+				testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+				testastic.WithReadyTimeout(2*time.Second),
+			)
 		})
 
 		// then: the test fails (process never becomes ready)
@@ -451,13 +451,13 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting a slow process with a short context timeout
 		runExpectingFatal(func() {
-			testastic.StartProcess(ctx, mt, testastic.ProcessConfig{
-				ImportPath:   "./testdata/testservice",
-				Port:         port,
-				ReadyCheck:   testastic.HTTPCheck(port, "/health"),
-				Env:          []string{fmt.Sprintf("PORT=%d", port), "SLOW_START=10s"},
-				ReadyTimeout: 10 * time.Second,
-			})
+			testastic.StartProcess(ctx, mt,
+				"./testdata/testservice",
+				testastic.HTTPCheck(port, "/health"),
+				testastic.WithPort(port),
+				testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "SLOW_START=10s"),
+				testastic.WithReadyTimeout(10*time.Second),
+			)
 		})
 
 		// then: the test fails because the context expired during polling
@@ -466,62 +466,50 @@ func TestStartProcess(t *testing.T) {
 	})
 }
 
+func TestCollectProcessCoverage(t *testing.T) {
+	t.Run("produces text profile from subprocess coverage", func(t *testing.T) {
+		// given: a coverage output path
+		outputPath := filepath.Join(t.TempDir(), "process.out")
+		port := nextPort()
+
+		// Use a mock testing.M-like flow: set shared dir, run process, convert.
+		// We can't use CollectProcessCoverage directly (needs *testing.M),
+		// so we test the same flow manually.
+		sharedDir := filepath.Join(t.TempDir(), "shared-coverage")
+		testastic.NoError(t, os.MkdirAll(sharedDir, 0o750))
+
+		// when: starting a process with WithCoverDir pointing to the shared dir
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithCoverDir(sharedDir),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
+
+		resp := doGet(t, proc.URL()+"/data")
+		resp.Body.Close() //nolint:errcheck // test cleanup
+		proc.Stop()
+
+		// then: converting coverage produces a valid text profile
+		cmd := exec.CommandContext(t.Context(), "go", "tool", "covdata", "textfmt",
+			"-i="+sharedDir, "-o="+outputPath)
+
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("covdata textfmt failed: %s", output)
+		}
+
+		content, err := os.ReadFile(outputPath)
+		testastic.NoError(t, err)
+		testastic.True(t, len(content) > 0)
+		testastic.HasPrefix(t, string(content), "mode:")
+	})
+}
+
 func TestStartProcess_validation(t *testing.T) {
-	t.Run("requires import or binary path", func(t *testing.T) {
-		// given: a config with neither ImportPath nor BinaryPath
-		mt := newProcessMockT()
-		defer mt.cleanup()
-
-		// when: starting the process
-		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ReadyCheck: testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-			})
-		})
-
-		// then: the test fails with a missing path message
-		fatal, msg := mt.result()
-		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "requires ImportPath or BinaryPath")
-	})
-
-	t.Run("rejects both import and binary path", func(t *testing.T) {
-		// given: a config with both ImportPath and BinaryPath set
-		mt := newProcessMockT()
-		defer mt.cleanup()
-
-		// when: starting the process
-		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath: "./cmd/foo",
-				BinaryPath: "/bin/foo",
-				ReadyCheck: testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-			})
-		})
-
-		// then: the test fails with a mutual exclusivity message
-		fatal, msg := mt.result()
-		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "must not set both ImportPath and BinaryPath")
-	})
-
-	t.Run("requires ready check", func(t *testing.T) {
-		// given: a config without a ReadyCheck
-		mt := newProcessMockT()
-		defer mt.cleanup()
-
-		// when: starting the process
-		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath: "./cmd/foo",
-			})
-		})
-
-		// then: the test fails with a missing ready check message
-		fatal, msg := mt.result()
-		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "requires ReadyCheck")
-	})
+	readyCheck := testastic.ReadyCheckFunc(func(context.Context) bool { return true })
 
 	t.Run("rejects GOCOVERDIR in env", func(t *testing.T) {
 		// given: a config that includes GOCOVERDIR in the Env slice
@@ -530,11 +518,11 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath: "./cmd/foo",
-				ReadyCheck: testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-				Env:        []string{"GOCOVERDIR=/tmp/cover"},
-			})
+			testastic.StartProcess(context.Background(), mt,
+				"./cmd/foo",
+				readyCheck,
+				testastic.WithEnv("GOCOVERDIR=/tmp/cover"),
+			)
 		})
 
 		// then: the test fails with a GOCOVERDIR rejection message
@@ -550,17 +538,17 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath:   "./cmd/foo",
-				ReadyCheck:   testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-				ReadyTimeout: -1 * time.Second,
-			})
+			testastic.StartProcess(context.Background(), mt,
+				"./cmd/foo",
+				readyCheck,
+				testastic.WithReadyTimeout(-1*time.Second),
+			)
 		})
 
 		// then: the test fails with a negative timeout message
 		fatal, msg := mt.result()
 		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "ReadyTimeout must not be negative")
+		testastic.Contains(t, msg, "WithReadyTimeout must not be negative")
 	})
 
 	t.Run("rejects negative ready interval", func(t *testing.T) {
@@ -570,17 +558,17 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath:    "./cmd/foo",
-				ReadyCheck:    testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-				ReadyInterval: -100 * time.Millisecond,
-			})
+			testastic.StartProcess(context.Background(), mt,
+				"./cmd/foo",
+				readyCheck,
+				testastic.WithReadyInterval(-100*time.Millisecond),
+			)
 		})
 
 		// then: the test fails with a negative interval message
 		fatal, msg := mt.result()
 		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "ReadyInterval must not be negative")
+		testastic.Contains(t, msg, "WithReadyInterval must not be negative")
 	})
 
 	t.Run("rejects negative shutdown timeout", func(t *testing.T) {
@@ -590,16 +578,16 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, testastic.ProcessConfig{
-				ImportPath:      "./cmd/foo",
-				ReadyCheck:      testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-				ShutdownTimeout: -1 * time.Second,
-			})
+			testastic.StartProcess(context.Background(), mt,
+				"./cmd/foo",
+				readyCheck,
+				testastic.WithShutdownTimeout(-1*time.Second),
+			)
 		})
 
 		// then: the test fails with a negative timeout message
 		fatal, msg := mt.result()
 		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "ShutdownTimeout must not be negative")
+		testastic.Contains(t, msg, "WithShutdownTimeout must not be negative")
 	})
 }
