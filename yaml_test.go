@@ -256,6 +256,24 @@ data:
 		}
 	})
 
+	t.Run("with message", func(t *testing.T) {
+		// given: an expected YAML file and mismatched actual YAML
+		mt := &mockT{}
+		actual := "name: wrong-name\nversion: \"1.0\"\n"
+
+		// when: asserting with a custom message
+		testastic.AssertYAML(mt, "testdata/yaml/mismatch_value.yaml", actual, testastic.Message("custom yaml message"))
+
+		// then: the failure includes the custom message
+		if !mt.failed {
+			t.Error("expected failure for mismatched YAML")
+		}
+
+		if !strings.Contains(mt.message, "custom yaml message") {
+			t.Errorf("expected custom message in failure, got: %s", mt.message)
+		}
+	})
+
 	t.Run("create expected file", func(t *testing.T) {
 		// given: a non-existent expected file path
 		dir := t.TempDir()

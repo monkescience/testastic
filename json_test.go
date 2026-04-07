@@ -160,6 +160,15 @@ func TestAssertJSON(t *testing.T) {
 		testastic.AssertJSON(t, "testdata/json/reader.json", actual)
 	})
 
+	t.Run("from bytes", func(t *testing.T) {
+		// given: an expected JSON file and matching JSON bytes
+		actual := []byte(`{"name": "Alice", "age": 30, "active": true}`)
+
+		// when: asserting with []byte as actual input
+		// then: the test passes without failure
+		testastic.AssertJSON(t, "testdata/json/exact_match.json", actual)
+	})
+
 	t.Run("extra field", func(t *testing.T) {
 		// given: an expected JSON file without an extra field
 		mt := &mockT{}
@@ -192,6 +201,24 @@ func TestAssertJSON(t *testing.T) {
 
 		if !strings.Contains(mt.message, `"age"`) {
 			t.Errorf("expected diff to mention age field, got: %s", mt.message)
+		}
+	})
+
+	t.Run("with message", func(t *testing.T) {
+		// given: an expected JSON file and mismatched actual JSON
+		mt := &mockT{}
+		actual := `{"name": "Bob", "age": 25}`
+
+		// when: asserting with a custom message
+		testastic.AssertJSON(mt, "testdata/json/mismatch.json", actual, testastic.Message("custom json message"))
+
+		// then: the failure includes the custom message
+		if !mt.failed {
+			t.Error("expected test to fail")
+		}
+
+		if !strings.Contains(mt.message, "custom json message") {
+			t.Errorf("expected custom message in failure, got: %s", mt.message)
 		}
 	})
 }

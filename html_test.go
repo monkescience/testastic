@@ -9,6 +9,12 @@ import (
 	"github.com/monkescience/testastic"
 )
 
+type htmlStringer string
+
+func (s htmlStringer) String() string {
+	return string(s)
+}
+
 func TestAssertHTML(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		// given: an expected HTML file with exact content
@@ -268,6 +274,92 @@ func TestAssertHTML(t *testing.T) {
 		}
 	})
 
+	t.Run("ignore child order", func(t *testing.T) {
+		// given: an expected HTML file with ordered children
+		expectedFile := filepath.Join(t.TempDir(), "ignore-child-order.html")
+
+		err := os.WriteFile(expectedFile, []byte("<ul><li>first</li><li>second</li></ul>"), 0o644)
+		if err != nil {
+			t.Fatalf("write expected file: %v", err)
+		}
+
+		mt := &mockT{}
+		actual := `<ul><li>second</li><li>first</li></ul>`
+
+		// when: asserting with IgnoreChildOrder
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreChildOrder())
+
+		// then: the children are compared without order sensitivity
+		if mt.failed {
+			t.Errorf("expected child order to be ignored, got: %s", mt.message)
+		}
+	})
+
+	t.Run("ignore child order at", func(t *testing.T) {
+		// given: an expected HTML file with one ordered and one unordered list
+		expectedFile := filepath.Join(t.TempDir(), "ignore-child-order-at.html")
+
+		err := os.WriteFile(expectedFile, []byte(
+			"<div><ol><li>one</li><li>two</li></ol><ul><li>a</li><li>b</li></ul></div>",
+		), 0o644)
+		if err != nil {
+			t.Fatalf("write expected file: %v", err)
+		}
+
+		mt := &mockT{}
+		actual := `<div><ol><li>one</li><li>two</li></ol><ul><li>b</li><li>a</li></ul></div>`
+
+		// when: asserting with IgnoreChildOrderAt for the ul path
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreChildOrderAt("html > body > div > ul"))
+
+		// then: only the targeted subtree ignores child order
+		if mt.failed {
+			t.Errorf("expected child order to be ignored at the targeted path, got: %s", mt.message)
+		}
+	})
+
+	t.Run("ignore attribute at", func(t *testing.T) {
+		// given: an expected HTML file with an attribute that changes at one path
+		expectedFile := filepath.Join(t.TempDir(), "ignore-attribute-at.html")
+
+		err := os.WriteFile(expectedFile, []byte(`<div data-id="expected"><span>Content</span></div>`), 0o644)
+		if err != nil {
+			t.Fatalf("write expected file: %v", err)
+		}
+
+		mt := &mockT{}
+		actual := `<div data-id="actual"><span>Content</span></div>`
+
+		// when: asserting with IgnoreAttributeAt for the data-id attribute
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreAttributeAt("html > body > div@data-id"))
+
+		// then: the targeted attribute is ignored
+		if mt.failed {
+			t.Errorf("expected attribute to be ignored at the targeted path, got: %s", mt.message)
+		}
+	})
+
+	t.Run("ignore fields by path", func(t *testing.T) {
+		// given: an expected HTML file with a subtree that should be ignored
+		expectedFile := filepath.Join(t.TempDir(), "ignore-fields-path.html")
+
+		err := os.WriteFile(expectedFile, []byte(`<div><span>expected</span><p>stable</p></div>`), 0o644)
+		if err != nil {
+			t.Fatalf("write expected file: %v", err)
+		}
+
+		mt := &mockT{}
+		actual := `<div><span>actual</span><p>stable</p></div>`
+
+		// when: asserting with IgnoreFields for the span path
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.IgnoreFields("html > body > div > span"))
+
+		// then: the targeted subtree is excluded from comparison
+		if mt.failed {
+			t.Errorf("expected ignored HTML field path to be skipped, got: %s", mt.message)
+		}
+	})
+
 	t.Run("create expected file", func(t *testing.T) {
 		// given: a non-existent expected file path
 		dir := t.TempDir()
@@ -345,6 +437,20 @@ func TestAssertHTML(t *testing.T) {
 		// then: the test passes
 		if mt.failed {
 			t.Errorf("expected no failure with io.Reader input, got: %s", mt.message)
+		}
+	})
+
+	t.Run("stringer input", func(t *testing.T) {
+		// given: an expected HTML file and actual as fmt.Stringer
+		mt := &mockT{}
+		actual := htmlStringer(`<div><span>Hello</span></div>`)
+
+		// when: asserting with fmt.Stringer input
+		testastic.AssertHTML(mt, "testdata/html/bytes.html", actual)
+
+		// then: the test passes
+		if mt.failed {
+			t.Errorf("expected no failure with fmt.Stringer input, got: %s", mt.message)
 		}
 	})
 
@@ -541,6 +647,24 @@ func TestAssertHTML(t *testing.T) {
 		// then: the test fails
 		if !mt.failed {
 			t.Error("expected failure with non-matching oneOf value")
+		}
+	})
+
+	t.Run("with message", func(t *testing.T) {
+		// given: an expected HTML file and mismatched actual HTML
+		mt := &mockT{}
+
+		// when: asserting with a custom message
+		testastic.AssertHTML(mt, "testdata/html/wrong_tag.html", `<div><p>Content</p></div>`,
+			testastic.Message("custom html message"))
+
+		// then: the failure includes the custom message
+		if !mt.failed {
+			t.Error("expected failure for wrong HTML tag")
+		}
+
+		if !strings.Contains(mt.message, "custom html message") {
+			t.Errorf("expected custom message in failure, got: %s", mt.message)
 		}
 	})
 }

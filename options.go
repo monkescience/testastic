@@ -134,6 +134,20 @@ func (c *config) isAttributeIgnored(path, attr string) bool {
 	return slices.Contains(c.IgnoredAttributePaths, pathAttr)
 }
 
+func (c *config) isHTMLFieldIgnored(path, tag string) bool {
+	for _, field := range c.IgnoredFields {
+		if field == path {
+			return true
+		}
+
+		if tag != "" && strings.EqualFold(field, tag) {
+			return true
+		}
+	}
+
+	return false
+}
+
 func (c *config) shouldIgnoreChildOrder(path string) bool {
 	return c.ShouldIgnoreArrayOrder(path)
 }

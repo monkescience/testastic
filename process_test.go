@@ -414,6 +414,79 @@ func TestStartProcess(t *testing.T) {
 		testastic.Equal(t, "hello-from-test", string(body))
 	})
 
+	t.Run("args are passed to the process", func(t *testing.T) {
+		// given: a config with explicit process arguments
+		port := nextPort()
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithArgs("--mode=test", "--feature=alpha"),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
+
+		// when: querying the process for its arguments
+		resp := doGet(t, proc.URL()+"/args")
+		defer resp.Body.Close() //nolint:errcheck // test cleanup
+
+		body, err := io.ReadAll(resp.Body)
+		testastic.NoError(t, err)
+
+		// then: the process reports the passed arguments
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+		testastic.AssertJSON(t, "testdata/json/process_args.json", body)
+	})
+
+	t.Run("build args are passed to go build", func(t *testing.T) {
+		// given: a config with build-time ldflags
+		port := nextPort()
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testdata/testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithBuildArgs("-ldflags", "-X main.buildStamp=custom-build-stamp"),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
+
+		// when: querying the process for its build stamp
+		resp := doGet(t, proc.URL()+"/build-info")
+		defer resp.Body.Close() //nolint:errcheck // test cleanup
+
+		body, err := io.ReadAll(resp.Body)
+		testastic.NoError(t, err)
+
+		// then: the build-time value is embedded in the binary
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+		testastic.Equal(t, "custom-build-stamp", string(body))
+	})
+
+	t.Run("work dir is used for build and process", func(t *testing.T) {
+		// given: a config with a custom working directory inside the repo
+		port := nextPort()
+		workDir := filepath.Join(".", "testdata")
+		proc := testastic.StartProcess(t.Context(), t,
+			"./testservice",
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithWorkDir(workDir),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+			testastic.WithReadyTimeout(10*time.Second),
+		)
+
+		// when: querying the process for its working directory
+		resp := doGet(t, proc.URL()+"/cwd")
+		defer resp.Body.Close() //nolint:errcheck // test cleanup
+
+		body, err := io.ReadAll(resp.Body)
+		testastic.NoError(t, err)
+
+		// then: the process runs in the configured working directory
+		testastic.Equal(t, http.StatusOK, resp.StatusCode)
+		testastic.HasSuffix(t, string(body), string(filepath.Separator)+"testdata")
+	})
+
 	t.Run("pre-cancelled context", func(t *testing.T) {
 		// given: a context that is already cancelled
 		mt := newProcessMockT()
@@ -467,6 +540,28 @@ func TestStartProcess(t *testing.T) {
 }
 
 func TestCollectProcessCoverage(t *testing.T) {
+	t.Run("exported helper collects subprocess coverage through TestMain", func(t *testing.T) {
+		// given: a harness package that uses CollectProcessCoverage in TestMain
+		outputPath := filepath.Join(t.TempDir(), "process.out")
+		cmd := exec.CommandContext(t.Context(),
+			"go", "test", "-count=1", "-run", "^TestHarnessCollectsProcessCoverage$", "./testdata/coverageharness",
+		)
+
+		cmd.Env = append(os.Environ(), "TESTASTIC_PROCESS_COVERAGE_OUT="+outputPath)
+
+		// when: running the harness package test suite
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("go test harness failed: %s", output)
+		}
+
+		// then: the exported helper produces a valid text coverage profile
+		content, readErr := os.ReadFile(outputPath)
+		testastic.NoError(t, readErr)
+		testastic.True(t, len(content) > 0)
+		testastic.HasPrefix(t, string(content), "mode:")
+	})
+
 	t.Run("produces text profile from subprocess coverage", func(t *testing.T) {
 		// given: a coverage output path
 		outputPath := filepath.Join(t.TempDir(), "process.out")
@@ -529,6 +624,56 @@ func TestStartProcess_validation(t *testing.T) {
 		fatal, msg := mt.result()
 		testastic.True(t, fatal)
 		testastic.Contains(t, msg, "must not include GOCOVERDIR")
+	})
+
+	t.Run("requires import path for StartProcess", func(t *testing.T) {
+		// given: a missing import path
+		mt := newProcessMockT()
+		defer mt.cleanup()
+
+		// when: starting a process without an import path
+		runExpectingFatal(func() {
+			testastic.StartProcess(context.Background(), mt, "", readyCheck)
+		})
+
+		// then: the test fails with a missing import path message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "requires importPath or binaryPath")
+	})
+
+	t.Run("requires binary path for StartProcessBinary", func(t *testing.T) {
+		// given: a missing binary path
+		mt := newProcessMockT()
+		defer mt.cleanup()
+
+		// when: starting a binary process without a binary path
+		runExpectingFatal(func() {
+			testastic.StartProcessBinary(context.Background(), mt, "", readyCheck)
+		})
+
+		// then: the test fails with a missing binary path message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "requires importPath or binaryPath")
+	})
+
+	t.Run("requires ready check", func(t *testing.T) {
+		// given: a nil ready check
+		mt := newProcessMockT()
+		defer mt.cleanup()
+
+		var nilReadyCheck testastic.ReadyChecker
+
+		// when: starting a process without a ready check
+		runExpectingFatal(func() {
+			testastic.StartProcess(context.Background(), mt, "./cmd/foo", nilReadyCheck)
+		})
+
+		// then: the test fails with a missing ready check message
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "requires readyCheck")
 	})
 
 	t.Run("rejects negative ready timeout", func(t *testing.T) {

@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var buildStamp = "default-build-stamp"
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -49,6 +51,28 @@ func main() {
 
 		w.Header().Set("Content-Type", "text/plain")
 		fmt.Fprint(w, os.Getenv(key))
+	})
+	mux.HandleFunc("GET /args", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		if err := json.NewEncoder(w).Encode(os.Args[1:]); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	})
+	mux.HandleFunc("GET /build-info", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, buildStamp)
+	})
+	mux.HandleFunc("GET /cwd", func(w http.ResponseWriter, _ *http.Request) {
+		wd, err := os.Getwd()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/plain")
+		fmt.Fprint(w, wd)
 	})
 	mux.HandleFunc("GET /data", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

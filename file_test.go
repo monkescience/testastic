@@ -58,6 +58,13 @@ func TestAssertFile(t *testing.T) {
 		testastic.AssertFile(t, "testdata/file/bytes.txt", []byte("hello world"))
 	})
 
+	t.Run("with reader", func(t *testing.T) {
+		// given: an expected file
+		// when: asserting with io.Reader input
+		// then: the assertion passes
+		testastic.AssertFile(t, "testdata/file/bytes.txt", strings.NewReader("hello world"))
+	})
+
 	t.Run("matcher fails", func(t *testing.T) {
 		// given: expected file with int matcher
 		mt := &mockT{}
