@@ -1,5 +1,19 @@
 # Changelog
 
+## [v0.2.0](https://github.com/monkescience/testastic/compare/v0.1.3...v0.2.0) (2026-04-07)
+
+### ⚠ BREAKING CHANGES
+
+- replace ProcessConfig with functional options pattern ([b75586f](https://github.com/monkescience/testastic/commit/b75586f791c3bf9b7280ed041773fbbe77f3b5b2))
+### Features
+
+- add CollectProcessCoverage TestMain helper ([fcc9d51](https://github.com/monkescience/testastic/commit/fcc9d51ca1341527aca9047c74cf1b1fd21e5980))
+- add blackbox service testing with coverage instrumentation ([a73e8dc](https://github.com/monkescience/testastic/commit/a73e8dcb67346bb7662e9af5d654f65b315a09e1))
+### Bug Fixes
+
+- cover missing test paths and honor HTML IgnoreFields ([13df2eb](https://github.com/monkescience/testastic/commit/13df2eb5b149013a344304a509fc63c0e71b26ad))
+- resolve bugs and align tests with codebase conventions ([6ac3957](https://github.com/monkescience/testastic/commit/6ac39571f254592adf8738280b198a23a402fb7a))
+
 ## [0.1.3](https://github.com/monkescience/testastic/compare/v0.1.2...v0.1.3) (2026-03-22)
 
 
