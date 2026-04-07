@@ -256,7 +256,8 @@ func TestShouldUpdate(t *testing.T) {
 		// given: env var set to true
 		t.Setenv("TESTASTIC_UPDATE", "true")
 
-		// when/then: should update
+		// when: checking whether update mode is enabled
+		// then: update mode is enabled
 		if !shouldUpdate() {
 			t.Error("expected shouldUpdate to return true")
 		}
@@ -266,7 +267,8 @@ func TestShouldUpdate(t *testing.T) {
 		// given: env var set to 1
 		t.Setenv("TESTASTIC_UPDATE", "1")
 
-		// when/then: should update
+		// when: checking whether update mode is enabled
+		// then: update mode is enabled
 		if !shouldUpdate() {
 			t.Error("expected shouldUpdate to return true")
 		}
@@ -276,7 +278,8 @@ func TestShouldUpdate(t *testing.T) {
 		// given: env var set to TRUE (uppercase)
 		t.Setenv("TESTASTIC_UPDATE", "TRUE")
 
-		// when/then: should update (case-insensitive)
+		// when: checking whether update mode is enabled
+		// then: update mode is enabled case-insensitively
 		if !shouldUpdate() {
 			t.Error("expected shouldUpdate to return true")
 		}
@@ -286,7 +289,8 @@ func TestShouldUpdate(t *testing.T) {
 		// given: env var set to false
 		t.Setenv("TESTASTIC_UPDATE", "false")
 
-		// when/then: should not update
+		// when: checking whether update mode is enabled
+		// then: update mode remains disabled
 		if shouldUpdate() {
 			t.Error("expected shouldUpdate to return false")
 		}
@@ -297,7 +301,8 @@ func TestShouldUpdate(t *testing.T) {
 		t.Setenv("TESTASTIC_UPDATE", "")
 		os.Unsetenv("TESTASTIC_UPDATE") //nolint:errcheck // best-effort cleanup in test
 
-		// when/then: depends on flag and args, but without -update flag it should be false
+		// when: checking whether update mode is enabled
+		// then: update mode stays disabled without env or flags
 		// Note: this test runs in go test context which does not have -update flag
 		result := shouldUpdate()
 

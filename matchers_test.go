@@ -100,6 +100,25 @@ func TestMatchers(t *testing.T) {
 		}
 	})
 
+	t.Run("Ignore", func(t *testing.T) {
+		// given: an Ignore matcher
+		m := testastic.Ignore()
+
+		// when: matching against arbitrary values
+		// then: it always matches and reports the ignore token
+		if !m.Match("anything") {
+			t.Error("expected Ignore matcher to match strings")
+		}
+
+		if !m.Match(123) {
+			t.Error("expected Ignore matcher to match integers")
+		}
+
+		if m.String() != "{{ignore}}" {
+			t.Errorf("String() = %v, want {{ignore}}", m.String())
+		}
+	})
+
 	t.Run("Regex", func(t *testing.T) {
 		// given: a Regex matcher for date format
 		m, err := testastic.Regex(`^\d{4}-\d{2}-\d{2}$`)

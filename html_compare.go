@@ -45,8 +45,12 @@ func compareHTML(expected, actual *htmlNode, cfg *config) []htmlDifference {
 
 // comparehtmlNodes recursively compares two HTML nodes.
 //
-//nolint:funlen // Complex type dispatch is clearer in one function.
+//nolint:gocognit,funlen // Complex type dispatch is clearer in one function.
 func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
+	if cfg.isHTMLFieldIgnored(path, expected.Tag) {
+		return nil
+	}
+
 	if cfg.isElementIgnored(expected.Tag) {
 		return nil
 	}
@@ -338,6 +342,10 @@ func filterSignificantChildren(nodes []*htmlNode, cfg *config) []*htmlNode {
 		}
 
 		if node.Type == htmlElement && cfg.isElementIgnored(node.Tag) {
+			continue
+		}
+
+		if cfg.isHTMLFieldIgnored(node.Path, node.Tag) {
 			continue
 		}
 
