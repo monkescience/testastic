@@ -543,11 +543,16 @@ func TestCollectProcessCoverage(t *testing.T) {
 	t.Run("exported helper collects subprocess coverage through TestMain", func(t *testing.T) {
 		// given: a harness package that uses CollectProcessCoverage in TestMain
 		outputPath := filepath.Join(t.TempDir(), "process.out")
+		cleanupPath := filepath.Join(t.TempDir(), "cleanup.txt")
 		cmd := exec.CommandContext(t.Context(),
 			"go", "test", "-count=1", "-run", "^TestHarnessCollectsProcessCoverage$", "./testdata/coverageharness",
 		)
 
-		cmd.Env = append(os.Environ(), "TESTASTIC_PROCESS_COVERAGE_OUT="+outputPath)
+		cmd.Env = append(
+			os.Environ(),
+			"TESTASTIC_PROCESS_COVERAGE_OUT="+outputPath,
+			"TESTASTIC_PROCESS_CLEANUP_MARK="+cleanupPath,
+		)
 
 		// when: running the harness package test suite
 		output, err := cmd.CombinedOutput()
@@ -560,6 +565,10 @@ func TestCollectProcessCoverage(t *testing.T) {
 		testastic.NoError(t, readErr)
 		testastic.True(t, len(content) > 0)
 		testastic.HasPrefix(t, string(content), "mode:")
+
+		cleanupContent, cleanupErr := os.ReadFile(cleanupPath)
+		testastic.NoError(t, cleanupErr)
+		testastic.Equal(t, "cleaned\n", string(cleanupContent))
 	})
 
 	t.Run("produces text profile from subprocess coverage", func(t *testing.T) {

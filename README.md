@@ -316,9 +316,13 @@ By default, subprocess coverage data is written to a temp directory and cleaned 
 
 ```go
 func TestMain(m *testing.M) {
-    os.Exit(testastic.CollectProcessCoverage(m, "coverage/process.out"))
+    exitCode := testastic.CollectProcessCoverage(m, "coverage/process.out")
+    cleanup()
+    os.Exit(exitCode)
 }
 ```
+
+Run any package-level cleanup after `CollectProcessCoverage` returns and before `os.Exit(code)`. Avoid relying on `defer` for that cleanup, because `os.Exit` exits immediately without running deferred functions.
 
 This produces a text profile compatible with `go tool cover`, codecov, and coveralls:
 

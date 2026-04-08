@@ -17,7 +17,19 @@ func TestMain(m *testing.M) {
 		outputPath = filepath.Join(os.TempDir(), "testastic-process-coverage.out")
 	}
 
-	os.Exit(testastic.CollectProcessCoverage(m, outputPath))
+	exitCode := testastic.CollectProcessCoverage(m, outputPath)
+
+	cleanupPath := os.Getenv("TESTASTIC_PROCESS_CLEANUP_MARK")
+	if cleanupPath != "" {
+		err := os.WriteFile(cleanupPath, []byte("cleaned\n"), 0o600)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "testastic: failed to write cleanup marker: %v\n", err)
+
+			exitCode = 1
+		}
+	}
+
+	os.Exit(exitCode)
 }
 
 func TestHarnessCollectsProcessCoverage(t *testing.T) {

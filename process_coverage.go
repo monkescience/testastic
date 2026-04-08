@@ -30,8 +30,13 @@ var errCovdataFailed = errors.New("go tool covdata textfmt failed")
 // Call this from TestMain:
 //
 //	func TestMain(m *testing.M) {
-//	    os.Exit(testastic.CollectProcessCoverage(m, "coverage/process.out"))
+//	    exitCode := testastic.CollectProcessCoverage(m, "coverage/process.out")
+//	    cleanup()
+//	    os.Exit(exitCode)
 //	}
+//
+// Package-level cleanup that must run before process exit should happen after
+// CollectProcessCoverage returns and before calling [os.Exit].
 //
 // Without CollectProcessCoverage, coverage data is written to per-test temp
 // directories and cleaned up automatically. Processes that use [WithCoverDir]
