@@ -27,7 +27,7 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	cfg := buildConfig(opts)
+	cfg := newConfig(opts)
 
 	if unsupported := cfg.validateOptions(assertJSON); len(unsupported) > 0 {
 		tb.Fatalf("testastic: unsupported options for AssertJSON: %s", strings.Join(unsupported, ", "))

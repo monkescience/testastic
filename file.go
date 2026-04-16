@@ -29,7 +29,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	cfg := buildConfig(opts)
+	cfg := newConfig(opts)
 
 	if unsupported := cfg.validateOptions(assertFile); len(unsupported) > 0 {
 		tb.Fatalf("testastic: unsupported options for AssertFile: %s", strings.Join(unsupported, ", "))

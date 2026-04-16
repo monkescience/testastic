@@ -16,11 +16,11 @@ import (
 	"github.com/monkescience/testastic"
 )
 
-// processMockT implements testing.TB for StartProcess tests.
-// Unlike mockT, it calls runtime.Goexit in Fatalf because StartProcess
-// performs real work (building, starting processes) after validation calls
+// processMockT implements testing.TB for process tests.
+// Unlike mockT, it calls runtime.Goexit in Fatalf because Binary.Start
+// performs real work (starting processes) after validation calls
 // to tb.Fatalf. Without Goexit, execution would continue past the fatal
-// into build/exec, overwriting the error message.
+// into exec, overwriting the error message.
 type processMockT struct {
 	testing.TB
 	mu       sync.Mutex
@@ -36,6 +36,8 @@ func newProcessMockT() *processMockT {
 }
 
 func (m *processMockT) Helper() {}
+
+func (m *processMockT) Context() context.Context { return context.Background() }
 
 func (m *processMockT) Fatalf(format string, args ...any) {
 	m.mu.Lock()
@@ -153,14 +155,14 @@ func doGet(t *testing.T, url string) *http.Response {
 	return resp
 }
 
-func TestStartProcess(t *testing.T) {
+func TestBinaryStart(t *testing.T) {
 	t.Run("serves requests after startup", func(t *testing.T) {
-		// given: a valid process config with an import path
+		// given: a service binary built for this test
 		port := nextPort()
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
 
-		// when: starting the process and making a request
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		// when: starting the service and making a request
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -176,10 +178,11 @@ func TestStartProcess(t *testing.T) {
 	})
 
 	t.Run("collects coverage data", func(t *testing.T) {
-		// given: a running process with coverage instrumentation
+		// given: a running service with coverage instrumentation
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -216,9 +219,8 @@ func TestStartProcess(t *testing.T) {
 
 		port := nextPort()
 
-		// when: starting with BinaryPath instead of ImportPath
-		proc := testastic.StartProcessBinary(t.Context(), t,
-			binaryPath,
+		// when: starting from a pre-built binary
+		proc := testastic.NewBinary(binaryPath).Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -235,10 +237,10 @@ func TestStartProcess(t *testing.T) {
 	t.Run("custom ready check func", func(t *testing.T) {
 		// given: a config with a custom ReadyCheckFunc
 		port := nextPort()
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
 
 		// when: starting with a ReadyCheckFunc
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		proc := binary.Start(t.Context(), t,
 			testastic.ReadyCheckFunc(func(ctx context.Context) bool {
 				client := &http.Client{Timeout: 500 * time.Millisecond}
 
@@ -273,10 +275,10 @@ func TestStartProcess(t *testing.T) {
 	t.Run("port-less process with ready func", func(t *testing.T) {
 		// given: a config without a port, using a custom ReadyCheckFunc
 		port := nextPort()
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
 
 		// when: starting without Port
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		proc := binary.Start(t.Context(), t,
 			testastic.ReadyCheckFunc(func(ctx context.Context) bool {
 				req, err := http.NewRequestWithContext(
 					ctx, http.MethodGet, fmt.Sprintf("http://localhost:%d/health", port), nil,
@@ -305,8 +307,9 @@ func TestStartProcess(t *testing.T) {
 	t.Run("stop is idempotent", func(t *testing.T) {
 		// given: a running process
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -322,6 +325,8 @@ func TestStartProcess(t *testing.T) {
 
 	t.Run("detects early exit", func(t *testing.T) {
 		// given: a process that exits immediately on startup
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
 		mt := newProcessMockT()
 		defer mt.cleanup()
 
@@ -329,8 +334,7 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt,
-				"./testdata/testservice",
+			binary.Start(context.Background(), mt,
 				testastic.HTTPCheck(port, "/health"),
 				testastic.WithPort(port),
 				testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "EXIT_EARLY=true"),
@@ -349,12 +353,9 @@ func TestStartProcess(t *testing.T) {
 		mt := newProcessMockT()
 		defer mt.cleanup()
 
-		// when: starting the process
+		// when: building the binary
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt,
-				"./nonexistent/package",
-				testastic.ReadyCheckFunc(func(context.Context) bool { return true }),
-			)
+			testastic.BuildBinary(mt, "./nonexistent/package")
 		})
 
 		// then: the test fails with a build error
@@ -368,9 +369,9 @@ func TestStartProcess(t *testing.T) {
 		port := nextPort()
 		coverDir := filepath.Join(t.TempDir(), "my-coverage")
 		testastic.NoError(t, os.MkdirAll(coverDir, 0o750))
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
 
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -394,8 +395,9 @@ func TestStartProcess(t *testing.T) {
 	t.Run("custom env passed to process", func(t *testing.T) {
 		// given: a config with a custom environment variable
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "MY_TEST_VAR=hello-from-test"),
@@ -417,8 +419,9 @@ func TestStartProcess(t *testing.T) {
 	t.Run("args are passed to the process", func(t *testing.T) {
 		// given: a config with explicit process arguments
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithArgs("--mode=test", "--feature=alpha"),
@@ -441,11 +444,13 @@ func TestStartProcess(t *testing.T) {
 	t.Run("build args are passed to go build", func(t *testing.T) {
 		// given: a config with build-time ldflags
 		port := nextPort()
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		binary := testastic.BuildBinary(t, "./testdata/testservice",
+			testastic.WithBuildArgs("-ldflags", "-X main.buildStamp=custom-build-stamp"),
+		)
+
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
-			testastic.WithBuildArgs("-ldflags", "-X main.buildStamp=custom-build-stamp"),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
 			testastic.WithReadyTimeout(10*time.Second),
 		)
@@ -466,11 +471,13 @@ func TestStartProcess(t *testing.T) {
 		// given: a config with a custom working directory inside the repo
 		port := nextPort()
 		workDir := filepath.Join(".", "testdata")
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testservice",
+		binary := testastic.BuildBinary(t, "./testservice",
+			testastic.WithWorkDir(workDir),
+		)
+
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
-			testastic.WithWorkDir(workDir),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
 			testastic.WithReadyTimeout(10*time.Second),
 		)
@@ -489,6 +496,8 @@ func TestStartProcess(t *testing.T) {
 
 	t.Run("pre-cancelled context", func(t *testing.T) {
 		// given: a context that is already cancelled
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
 		mt := newProcessMockT()
 		defer mt.cleanup()
 
@@ -498,8 +507,7 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting the process with the cancelled context
 		runExpectingFatal(func() {
-			testastic.StartProcess(ctx, mt,
-				"./testdata/testservice",
+			binary.Start(ctx, mt,
 				testastic.HTTPCheck(port, "/health"),
 				testastic.WithPort(port),
 				testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -514,6 +522,8 @@ func TestStartProcess(t *testing.T) {
 
 	t.Run("context timeout during readiness", func(t *testing.T) {
 		// given: a context that expires before the process can become ready
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
 		mt := newProcessMockT()
 		defer mt.cleanup()
 
@@ -524,8 +534,7 @@ func TestStartProcess(t *testing.T) {
 
 		// when: starting a slow process with a short context timeout
 		runExpectingFatal(func() {
-			testastic.StartProcess(ctx, mt,
-				"./testdata/testservice",
+			binary.Start(ctx, mt,
 				testastic.HTTPCheck(port, "/health"),
 				testastic.WithPort(port),
 				testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "SLOW_START=10s"),
@@ -539,9 +548,9 @@ func TestStartProcess(t *testing.T) {
 	})
 }
 
-func TestCollectProcessCoverage(t *testing.T) {
+func TestCollectSubprocessCoverage(t *testing.T) {
 	t.Run("exported helper collects subprocess coverage through TestMain", func(t *testing.T) {
-		// given: a harness package that uses CollectProcessCoverage in TestMain
+		// given: a harness package that uses CollectSubprocessCoverage in TestMain
 		outputPath := filepath.Join(t.TempDir(), "process.out")
 		cleanupPath := filepath.Join(t.TempDir(), "cleanup.txt")
 		cmd := exec.CommandContext(t.Context(),
@@ -575,16 +584,16 @@ func TestCollectProcessCoverage(t *testing.T) {
 		// given: a coverage output path
 		outputPath := filepath.Join(t.TempDir(), "process.out")
 		port := nextPort()
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
 
 		// Use a mock testing.M-like flow: set shared dir, run process, convert.
-		// We can't use CollectProcessCoverage directly (needs *testing.M),
+		// We can't use CollectSubprocessCoverage directly (needs *testing.M),
 		// so we test the same flow manually.
 		sharedDir := filepath.Join(t.TempDir(), "shared-coverage")
 		testastic.NoError(t, os.MkdirAll(sharedDir, 0o750))
 
 		// when: starting a process with WithCoverDir pointing to the shared dir
-		proc := testastic.StartProcess(t.Context(), t,
-			"./testdata/testservice",
+		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
 			testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
@@ -612,7 +621,7 @@ func TestCollectProcessCoverage(t *testing.T) {
 	})
 }
 
-func TestStartProcess_validation(t *testing.T) {
+func TestBinaryStart_validation(t *testing.T) {
 	readyCheck := testastic.ReadyCheckFunc(func(context.Context) bool { return true })
 
 	t.Run("rejects GOCOVERDIR in env", func(t *testing.T) {
@@ -622,8 +631,7 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt,
-				"./cmd/foo",
+			testCLI.Start(context.Background(), mt,
 				readyCheck,
 				testastic.WithEnv("GOCOVERDIR=/tmp/cover"),
 			)
@@ -635,36 +643,36 @@ func TestStartProcess_validation(t *testing.T) {
 		testastic.Contains(t, msg, "must not include GOCOVERDIR")
 	})
 
-	t.Run("requires import path for StartProcess", func(t *testing.T) {
+	t.Run("requires import path for BuildBinary", func(t *testing.T) {
 		// given: a missing import path
 		mt := newProcessMockT()
 		defer mt.cleanup()
 
-		// when: starting a process without an import path
+		// when: building a binary without an import path
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, "", readyCheck)
+			testastic.BuildBinary(mt, "")
 		})
 
 		// then: the test fails with a missing import path message
 		fatal, msg := mt.result()
 		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "requires importPath or binaryPath")
+		testastic.Contains(t, msg, "requires importPath")
 	})
 
-	t.Run("requires binary path for StartProcessBinary", func(t *testing.T) {
-		// given: a missing binary path
+	t.Run("requires binary path for NewBinary", func(t *testing.T) {
+		// given: a NewBinary with an empty path
 		mt := newProcessMockT()
 		defer mt.cleanup()
 
-		// when: starting a binary process without a binary path
+		// when: starting a binary with an empty path
 		runExpectingFatal(func() {
-			testastic.StartProcessBinary(context.Background(), mt, "", readyCheck)
+			testastic.NewBinary("").Start(context.Background(), mt, readyCheck)
 		})
 
-		// then: the test fails with a missing binary path message
+		// then: the test fails with an empty binary path message
 		fatal, msg := mt.result()
 		testastic.True(t, fatal)
-		testastic.Contains(t, msg, "requires importPath or binaryPath")
+		testastic.Contains(t, msg, "binary path is empty")
 	})
 
 	t.Run("requires ready check", func(t *testing.T) {
@@ -676,7 +684,7 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting a process without a ready check
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt, "./cmd/foo", nilReadyCheck)
+			testCLI.Start(context.Background(), mt, nilReadyCheck)
 		})
 
 		// then: the test fails with a missing ready check message
@@ -692,8 +700,7 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt,
-				"./cmd/foo",
+			testCLI.Start(context.Background(), mt,
 				readyCheck,
 				testastic.WithReadyTimeout(-1*time.Second),
 			)
@@ -712,8 +719,7 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt,
-				"./cmd/foo",
+			testCLI.Start(context.Background(), mt,
 				readyCheck,
 				testastic.WithReadyInterval(-100*time.Millisecond),
 			)
@@ -732,8 +738,7 @@ func TestStartProcess_validation(t *testing.T) {
 
 		// when: starting the process
 		runExpectingFatal(func() {
-			testastic.StartProcess(context.Background(), mt,
-				"./cmd/foo",
+			testCLI.Start(context.Background(), mt,
 				readyCheck,
 				testastic.WithShutdownTimeout(-1*time.Second),
 			)

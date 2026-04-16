@@ -49,7 +49,7 @@ type config struct {
 	applied []optionMeta
 }
 
-func buildConfig(opts []Option) *config {
+func newConfig(opts []Option) *config {
 	cfg := &config{Update: shouldUpdate()}
 	for _, opt := range opts {
 		opt(cfg)

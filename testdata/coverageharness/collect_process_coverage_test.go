@@ -11,13 +11,17 @@ import (
 	"github.com/monkescience/testastic"
 )
 
+var serviceBinary *testastic.Binary
+
 func TestMain(m *testing.M) {
+	serviceBinary = testastic.BuildBinaryMain(m, "../testservice")
+
 	outputPath := os.Getenv("TESTASTIC_PROCESS_COVERAGE_OUT")
 	if outputPath == "" {
 		outputPath = filepath.Join(os.TempDir(), "testastic-process-coverage.out")
 	}
 
-	exitCode := testastic.CollectProcessCoverage(m, outputPath)
+	exitCode := testastic.CollectSubprocessCoverage(m, outputPath)
 
 	cleanupPath := os.Getenv("TESTASTIC_PROCESS_CLEANUP_MARK")
 	if cleanupPath != "" {
@@ -29,14 +33,14 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	serviceBinary.Cleanup()
 	os.Exit(exitCode)
 }
 
 func TestHarnessCollectsProcessCoverage(t *testing.T) {
-	// given: a process started under a package TestMain that collects coverage
+	// given: a service binary built in TestMain with coverage collection
 	port := 19100
-	proc := testastic.StartProcess(t.Context(), t,
-		"../testservice",
+	proc := serviceBinary.Start(t.Context(), t,
 		testastic.HTTPCheck(port, "/health"),
 		testastic.WithPort(port),
 		testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),

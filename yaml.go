@@ -29,7 +29,7 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	cfg := buildConfig(opts)
+	cfg := newConfig(opts)
 
 	if unsupported := cfg.validateOptions(assertYAML); len(unsupported) > 0 {
 		tb.Fatalf("testastic: unsupported options for AssertYAML: %s", strings.Join(unsupported, ", "))

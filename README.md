@@ -251,28 +251,40 @@ Start and test Go binaries as subprocesses with automatic coverage instrumentati
 
 ### Starting a Process
 
-`StartProcess` builds a Go binary with coverage instrumentation, starts it, and waits for readiness:
+Build the binary once, then reuse it across tests:
 
 ```go
-proc := testastic.StartProcess(t.Context(), t,
-    "./cmd/api",
-    testastic.HTTPCheck(8080, "/health"),
-    testastic.WithPort(8080),
-    testastic.WithEnv("DATABASE_URL=postgres://localhost/test"),
-)
+var apiBinary *testastic.Binary
 
-resp, err := http.Get(proc.URL() + "/api/users")
-testastic.NoError(t, err)
-defer resp.Body.Close()
+func TestMain(m *testing.M) {
+    apiBinary = testastic.BuildBinaryMain(m, "./cmd/api",
+        testastic.WithBuildArgs("-tags", "integration"),
+    )
 
-testastic.AssertJSON(t, "testdata/users.expected.json", resp.Body)
+    code := testastic.CollectSubprocessCoverage(m, "coverage/process.out")
+    apiBinary.Cleanup()
+    os.Exit(code)
+}
+
+func TestAPI(t *testing.T) {
+    proc := apiBinary.Start(t.Context(), t,
+        testastic.HTTPCheck(8080, "/health"),
+        testastic.WithPort(8080),
+        testastic.WithEnv("DATABASE_URL=postgres://localhost/test"),
+    )
+
+    resp, err := http.Get(proc.URL() + "/api/users")
+    testastic.NoError(t, err)
+    defer resp.Body.Close()
+
+    testastic.AssertJSON(t, "testdata/users.expected.json", resp.Body)
+}
 ```
 
-For pre-built binaries, use `StartProcessBinary`:
+For pre-built binaries, open them and start them explicitly:
 
 ```go
-proc := testastic.StartProcessBinary(t.Context(), t,
-    binaryPath,
+proc := testastic.NewBinary(binaryPath).Start(t.Context(), t,
     testastic.HTTPCheck(8080, "/health"),
     testastic.WithPort(8080),
 )
@@ -289,16 +301,23 @@ proc := testastic.StartProcessBinary(t.Context(), t,
 | `WithReadyInterval(d)` | Readiness poll interval (default: 100ms) |
 | `WithShutdownTimeout(d)` | Graceful shutdown timeout (default: 5s) |
 | `WithCoverDir(dir)` | Override coverage data directory |
+| `WithWorkDir(dir)` | Working directory for build and process start |
+
+Build options:
+
+| Option | Description |
+|---|---|
 | `WithBuildArgs(args...)` | Additional `go build` flags |
-| `WithWorkDir(dir)` | Working directory for build and process |
+| `WithWorkDir(dir)` | Working directory for `go build` |
 
 ### Custom Ready Checks
 
 Use `ReadyCheckFunc` for custom readiness logic:
 
 ```go
-proc := testastic.StartProcess(t.Context(), t,
-    "./cmd/worker",
+workerBinary := testastic.BuildBinary(t, "./cmd/worker")
+
+proc := workerBinary.Start(t.Context(), t,
     testastic.ReadyCheckFunc(func(ctx context.Context) bool {
         conn, err := net.DialTimeout("tcp", "localhost:6379", time.Second)
         if err != nil {
@@ -316,13 +335,13 @@ By default, subprocess coverage data is written to a temp directory and cleaned 
 
 ```go
 func TestMain(m *testing.M) {
-    exitCode := testastic.CollectProcessCoverage(m, "coverage/process.out")
+    exitCode := testastic.CollectSubprocessCoverage(m, "coverage/process.out")
     cleanup()
     os.Exit(exitCode)
 }
 ```
 
-Run any package-level cleanup after `CollectProcessCoverage` returns and before `os.Exit(code)`. Avoid relying on `defer` for that cleanup, because `os.Exit` exits immediately without running deferred functions.
+Run any package-level cleanup after `CollectSubprocessCoverage` returns and before `os.Exit(code)`. Avoid relying on `defer` for that cleanup, because `os.Exit` exits immediately without running deferred functions.
 
 This produces a text profile compatible with `go tool cover`, codecov, and coveralls:
 

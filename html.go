@@ -30,7 +30,7 @@ func AssertHTML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	cfg := buildConfig(opts)
+	cfg := newConfig(opts)
 
 	if unsupported := cfg.validateOptions(assertHTML); len(unsupported) > 0 {
 		tb.Fatalf("testastic: unsupported options for AssertHTML: %s", strings.Join(unsupported, ", "))

@@ -12,17 +12,21 @@ import (
 )
 
 // sharedCoverDir is the package-level shared coverage directory, set by
-// [CollectProcessCoverage]. When set, all processes started without
+// [CollectSubprocessCoverage]. When set, all subprocesses started without
 // [WithCoverDir] write their coverage data here instead of a per-test
 // temp directory.
+//
+// No synchronization is needed: CollectSubprocessCoverage is called from
+// TestMain before m.Run, and all reads happen during m.Run. Go's test runner
+// guarantees that TestMain runs single-threaded before and after m.Run.
 var sharedCoverDir string
 
 // errCovdataFailed is returned when `go tool covdata textfmt` fails.
 var errCovdataFailed = errors.New("go tool covdata textfmt failed")
 
-// CollectProcessCoverage runs all tests via m.Run and collects coverage data
-// from all processes started with [StartProcess] or [StartProcessBinary] into
-// a single text profile at outputPath.
+// CollectSubprocessCoverage runs all tests via m.Run and collects coverage data
+// from subprocesses started with [Binary.Run] or [Binary.Start] into a single
+// text profile at outputPath.
 //
 // The text profile uses Go's standard coverage format, compatible with
 // `go tool cover`, codecov, coveralls, and other coverage tools.
@@ -30,18 +34,19 @@ var errCovdataFailed = errors.New("go tool covdata textfmt failed")
 // Call this from TestMain:
 //
 //	func TestMain(m *testing.M) {
-//	    exitCode := testastic.CollectProcessCoverage(m, "coverage/process.out")
-//	    cleanup()
-//	    os.Exit(exitCode)
+//	    bin := testastic.BuildBinaryMain(m, "./cmd/api")
+//	    code := testastic.CollectSubprocessCoverage(m, "coverage/process.out")
+//	    bin.Cleanup()
+//	    os.Exit(code)
 //	}
 //
 // Package-level cleanup that must run before process exit should happen after
-// CollectProcessCoverage returns and before calling [os.Exit].
+// CollectSubprocessCoverage returns and before calling [os.Exit].
 //
-// Without CollectProcessCoverage, coverage data is written to per-test temp
+// Without CollectSubprocessCoverage, coverage data is written to per-test temp
 // directories and cleaned up automatically. Processes that use [WithCoverDir]
 // are not affected — their coverage data goes to the specified directory.
-func CollectProcessCoverage(m *testing.M, outputPath string) int {
+func CollectSubprocessCoverage(m *testing.M, outputPath string) int {
 	dir, err := os.MkdirTemp("", "testastic-coverage-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "testastic: failed to create shared coverage directory: %v\n", err)
