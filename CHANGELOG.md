@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.3.0](https://github.com/monkescience/testastic/compare/v0.2.1...v0.3.0) (2026-04-16)
+
+### ⚠ BREAKING CHANGES
+
+- add Binary API for subprocess testing ([00d315e](https://github.com/monkescience/testastic/commit/00d315e9b3a12cf5744840319c041b47f3dda3d3))
+### Features
+
+- add Binary API for subprocess testing ([00d315e](https://github.com/monkescience/testastic/commit/00d315e9b3a12cf5744840319c041b47f3dda3d3))
+
 ## [v0.2.1](https://github.com/monkescience/testastic/compare/v0.2.0...v0.2.1) (2026-04-10)
 
 ### Bug Fixes
