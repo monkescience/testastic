@@ -1,8 +1,14 @@
-# IntelliJ IDEA
-.idea/
-*.iml
-*.ipr
-*.iws
+# Build
+bin/
 
-# Test coverage
+# Test
+coverage/
 coverage.out
+test-report.json
+
+# IDE
+.idea/
+.vscode/
+
+# macOS
+.DS_Store
