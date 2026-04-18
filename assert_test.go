@@ -26,7 +26,11 @@ func (s testStringer) String() string {
 }
 
 func TestEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two equal values of various types
 		// when: asserting equality
 		// then: the test passes
@@ -36,6 +40,8 @@ func TestEqual(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two unequal integers
 		mt := &mockT{}
 
@@ -50,7 +56,11 @@ func TestEqual(t *testing.T) {
 }
 
 func TestNotEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two unequal values
 		// when: asserting inequality
 		// then: the test passes
@@ -59,6 +69,8 @@ func TestNotEqual(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two equal integers
 		mt := &mockT{}
 
@@ -73,7 +85,11 @@ func TestNotEqual(t *testing.T) {
 }
 
 func TestDeepEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two deeply equal slices and maps
 		// when: asserting deep equality
 		// then: the test passes
@@ -82,6 +98,8 @@ func TestDeepEqual(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two slices with different content
 		mt := &mockT{}
 
@@ -96,7 +114,11 @@ func TestDeepEqual(t *testing.T) {
 }
 
 func TestNil(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: nil values of various types
 		var ptr *int
 
@@ -110,6 +132,8 @@ func TestNil(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-nil value
 		mt := &mockT{}
 
@@ -124,7 +148,11 @@ func TestNil(t *testing.T) {
 }
 
 func TestNotNil(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: non-nil values
 		// when: asserting not nil
 		// then: the test passes
@@ -134,6 +162,8 @@ func TestNotNil(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a nil value
 		mt := &mockT{}
 
@@ -148,7 +178,11 @@ func TestNotNil(t *testing.T) {
 }
 
 func TestTrue(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: true boolean values
 		// when: asserting true
 		// then: the test passes
@@ -157,6 +191,8 @@ func TestTrue(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a false value
 		mt := &mockT{}
 
@@ -171,7 +207,11 @@ func TestTrue(t *testing.T) {
 }
 
 func TestFalse(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: false boolean values
 		// when: asserting false
 		// then: the test passes
@@ -180,6 +220,8 @@ func TestFalse(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a true value
 		mt := &mockT{}
 
@@ -194,7 +236,11 @@ func TestFalse(t *testing.T) {
 }
 
 func TestNoError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a nil error
 		// when: asserting no error
 		// then: the test passes
@@ -202,6 +248,8 @@ func TestNoError(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-nil error
 		mt := &mockT{}
 
@@ -216,7 +264,11 @@ func TestNoError(t *testing.T) {
 }
 
 func TestError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-nil error
 		// when: asserting error
 		// then: the test passes
@@ -224,6 +276,8 @@ func TestError(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a nil error
 		mt := &mockT{}
 
@@ -238,7 +292,11 @@ func TestError(t *testing.T) {
 }
 
 func TestErrorIs(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an error and its target
 		baseErr := errors.New("base error")
 		wrappedErr := errors.New("wrapped: base error")
@@ -250,6 +308,8 @@ func TestErrorIs(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two different errors
 		mt := &mockT{}
 
@@ -264,7 +324,11 @@ func TestErrorIs(t *testing.T) {
 }
 
 func TestErrorContains(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an error containing a substring
 		// when: asserting error contains the substring
 		// then: the test passes
@@ -272,6 +336,8 @@ func TestErrorContains(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an error not containing the substring
 		mt := &mockT{}
 
@@ -286,7 +352,11 @@ func TestErrorContains(t *testing.T) {
 }
 
 func TestGreater(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is greater than second
 		// when: asserting greater
 		// then: the test passes
@@ -295,6 +365,8 @@ func TestGreater(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is less than second
 		mt := &mockT{}
 
@@ -309,7 +381,11 @@ func TestGreater(t *testing.T) {
 }
 
 func TestGreaterOrEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is greater than or equal to second
 		// when: asserting greater or equal
 		// then: the test passes
@@ -318,6 +394,8 @@ func TestGreaterOrEqual(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is less than second
 		mt := &mockT{}
 
@@ -332,7 +410,11 @@ func TestGreaterOrEqual(t *testing.T) {
 }
 
 func TestLess(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is less than second
 		// when: asserting less
 		// then: the test passes
@@ -341,6 +423,8 @@ func TestLess(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is greater than second
 		mt := &mockT{}
 
@@ -355,7 +439,11 @@ func TestLess(t *testing.T) {
 }
 
 func TestLessOrEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is less than or equal to second
 		// when: asserting less or equal
 		// then: the test passes
@@ -364,6 +452,8 @@ func TestLessOrEqual(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: values where first is greater than second
 		mt := &mockT{}
 
@@ -378,7 +468,11 @@ func TestLessOrEqual(t *testing.T) {
 }
 
 func TestBetween(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value within the range (inclusive)
 		// when: asserting between
 		// then: the test passes
@@ -388,6 +482,8 @@ func TestBetween(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value outside the range
 		mt := &mockT{}
 
@@ -402,7 +498,11 @@ func TestBetween(t *testing.T) {
 }
 
 func TestContains(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values containing a substring
 		// when: asserting contains
 		// then: the test passes
@@ -412,6 +512,8 @@ func TestContains(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string not containing a substring
 		mt := &mockT{}
 
@@ -425,6 +527,8 @@ func TestContains(t *testing.T) {
 	})
 
 	t.Run("unsupported type", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-string-like value
 		mt := &mockT{}
 
@@ -443,7 +547,11 @@ func TestContains(t *testing.T) {
 }
 
 func TestNotContains(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values not containing a substring
 		// when: asserting not contains
 		// then: the test passes
@@ -453,6 +561,8 @@ func TestNotContains(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string containing a substring
 		mt := &mockT{}
 
@@ -467,7 +577,11 @@ func TestNotContains(t *testing.T) {
 }
 
 func TestHasPrefix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values with a specific prefix
 		// when: asserting has prefix
 		// then: the test passes
@@ -477,6 +591,8 @@ func TestHasPrefix(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string without the specified prefix
 		mt := &mockT{}
 
@@ -491,7 +607,11 @@ func TestHasPrefix(t *testing.T) {
 }
 
 func TestNotHasPrefix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values without a specific prefix
 		// when: asserting not has prefix
 		// then: the test passes
@@ -501,6 +621,8 @@ func TestNotHasPrefix(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string with the specified prefix
 		mt := &mockT{}
 
@@ -515,7 +637,11 @@ func TestNotHasPrefix(t *testing.T) {
 }
 
 func TestHasSuffix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values with a specific suffix
 		// when: asserting has suffix
 		// then: the test passes
@@ -525,6 +651,8 @@ func TestHasSuffix(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string without the specified suffix
 		mt := &mockT{}
 
@@ -539,7 +667,11 @@ func TestHasSuffix(t *testing.T) {
 }
 
 func TestNotHasSuffix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values without a specific suffix
 		// when: asserting not has suffix
 		// then: the test passes
@@ -549,6 +681,8 @@ func TestNotHasSuffix(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string with the specified suffix
 		mt := &mockT{}
 
@@ -563,7 +697,11 @@ func TestNotHasSuffix(t *testing.T) {
 }
 
 func TestMatches(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported string-like values matching a regex pattern
 		// when: asserting matches
 		// then: the test passes
@@ -573,6 +711,8 @@ func TestMatches(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a string not matching a regex pattern
 		mt := &mockT{}
 
@@ -587,7 +727,11 @@ func TestMatches(t *testing.T) {
 }
 
 func TestStringEmpty(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an empty string
 		// when: asserting string empty
 		// then: the test passes
@@ -595,6 +739,8 @@ func TestStringEmpty(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-empty string
 		mt := &mockT{}
 
@@ -609,7 +755,11 @@ func TestStringEmpty(t *testing.T) {
 }
 
 func TestStringNotEmpty(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-empty string
 		// when: asserting string not empty
 		// then: the test passes
@@ -617,6 +767,8 @@ func TestStringNotEmpty(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an empty string
 		mt := &mockT{}
 
@@ -631,7 +783,11 @@ func TestStringNotEmpty(t *testing.T) {
 }
 
 func TestLen(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: collections with known lengths
 		// when: asserting length
 		// then: the test passes
@@ -641,6 +797,8 @@ func TestLen(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a collection with a different length than expected
 		mt := &mockT{}
 
@@ -655,7 +813,11 @@ func TestLen(t *testing.T) {
 }
 
 func TestEmpty(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: empty collections
 		// when: asserting empty
 		// then: the test passes
@@ -665,6 +827,8 @@ func TestEmpty(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-empty collection
 		mt := &mockT{}
 
@@ -679,7 +843,11 @@ func TestEmpty(t *testing.T) {
 }
 
 func TestNotEmpty(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: non-empty collections
 		// when: asserting not empty
 		// then: the test passes
@@ -689,6 +857,8 @@ func TestNotEmpty(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an empty collection
 		mt := &mockT{}
 
@@ -703,7 +873,11 @@ func TestNotEmpty(t *testing.T) {
 }
 
 func TestSliceContains(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a slice containing a specific element
 		// when: asserting slice contains
 		// then: the test passes
@@ -712,6 +886,8 @@ func TestSliceContains(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a slice not containing a specific element
 		mt := &mockT{}
 
@@ -726,7 +902,11 @@ func TestSliceContains(t *testing.T) {
 }
 
 func TestSliceNotContains(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a slice not containing a specific element
 		// when: asserting slice not contains
 		// then: the test passes
@@ -734,6 +914,8 @@ func TestSliceNotContains(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a slice containing a specific element
 		mt := &mockT{}
 
@@ -748,7 +930,11 @@ func TestSliceNotContains(t *testing.T) {
 }
 
 func TestSliceEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two equal slices
 		// when: asserting slice equal
 		// then: the test passes
@@ -757,6 +943,8 @@ func TestSliceEqual(t *testing.T) {
 	})
 
 	t.Run("fail length", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two slices of different lengths
 		mt := &mockT{}
 
@@ -770,6 +958,8 @@ func TestSliceEqual(t *testing.T) {
 	})
 
 	t.Run("fail content", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two slices with different content
 		mt := &mockT{}
 
@@ -784,7 +974,11 @@ func TestSliceEqual(t *testing.T) {
 }
 
 func TestMapHasKey(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map containing a specific key
 		// when: asserting map has key
 		// then: the test passes
@@ -792,6 +986,8 @@ func TestMapHasKey(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map not containing a specific key
 		mt := &mockT{}
 
@@ -806,7 +1002,11 @@ func TestMapHasKey(t *testing.T) {
 }
 
 func TestMapNotHasKey(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map not containing a specific key
 		// when: asserting map not has key
 		// then: the test passes
@@ -814,6 +1014,8 @@ func TestMapNotHasKey(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map containing a specific key
 		mt := &mockT{}
 
@@ -828,7 +1030,11 @@ func TestMapNotHasKey(t *testing.T) {
 }
 
 func TestMapEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two equal maps
 		// when: asserting map equal
 		// then: the test passes
@@ -836,6 +1042,8 @@ func TestMapEqual(t *testing.T) {
 	})
 
 	t.Run("fail length", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two maps of different sizes
 		mt := &mockT{}
 
@@ -849,6 +1057,8 @@ func TestMapEqual(t *testing.T) {
 	})
 
 	t.Run("fail value", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two maps with different values
 		mt := &mockT{}
 
@@ -863,7 +1073,11 @@ func TestMapEqual(t *testing.T) {
 }
 
 func TestErrorAs(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a wrapped error matching target type
 		var target *testError
 
@@ -875,6 +1089,8 @@ func TestErrorAs(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an error that does not match target type
 		mt := &mockT{}
 
@@ -891,7 +1107,11 @@ func TestErrorAs(t *testing.T) {
 }
 
 func TestErrorIsWithNilTarget(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil error matches nil target", func(t *testing.T) {
+		t.Parallel()
+
 		// given: nil error and nil target
 		// when: asserting ErrorIs
 		// then: the test passes (errors.Is(nil, nil) == true)
@@ -899,6 +1119,8 @@ func TestErrorIsWithNilTarget(t *testing.T) {
 	})
 
 	t.Run("non-nil error does not match nil target", func(t *testing.T) {
+		t.Parallel()
+
 		// given: non-nil error and nil target
 		mt := &mockT{}
 
@@ -913,7 +1135,11 @@ func TestErrorIsWithNilTarget(t *testing.T) {
 }
 
 func TestPanics(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that panics
 		// when: asserting panics
 		// then: the test passes
@@ -923,6 +1149,8 @@ func TestPanics(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that does not panic
 		mt := &mockT{}
 
@@ -937,7 +1165,11 @@ func TestPanics(t *testing.T) {
 }
 
 func TestNotPanics(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that does not panic
 		// when: asserting not panics
 		// then: the test passes
@@ -945,6 +1177,8 @@ func TestNotPanics(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that panics
 		mt := &mockT{}
 
@@ -961,7 +1195,11 @@ func TestNotPanics(t *testing.T) {
 }
 
 func TestMapHasValue(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map containing the value
 		// when: asserting map has value
 		// then: the test passes
@@ -969,6 +1207,8 @@ func TestMapHasValue(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map not containing the value
 		mt := &mockT{}
 
@@ -983,7 +1223,11 @@ func TestMapHasValue(t *testing.T) {
 }
 
 func TestMapNotHasValue(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map not containing the value
 		// when: asserting map not has value
 		// then: the test passes
@@ -991,6 +1235,8 @@ func TestMapNotHasValue(t *testing.T) {
 	})
 
 	t.Run("fail", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a map containing the value
 		mt := &mockT{}
 
@@ -1005,7 +1251,11 @@ func TestMapNotHasValue(t *testing.T) {
 }
 
 func TestErrorMessageFormat(t *testing.T) {
+	t.Parallel()
+
 	t.Run("contains testastic prefix and assertion name", func(t *testing.T) {
+		t.Parallel()
+
 		// given: two unequal values
 		mt := &mockT{}
 

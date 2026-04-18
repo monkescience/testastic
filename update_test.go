@@ -9,7 +9,11 @@ import (
 )
 
 func TestCreateExpectedFile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates file with pretty-printed JSON", func(t *testing.T) {
+		t.Parallel()
+
 		// given: valid JSON data
 		dir := t.TempDir()
 		path := filepath.Join(dir, "output.json")
@@ -43,6 +47,8 @@ func TestCreateExpectedFile(t *testing.T) {
 	})
 
 	t.Run("creates nested directories", func(t *testing.T) {
+		t.Parallel()
+
 		// given: path with non-existent parent directories
 		dir := t.TempDir()
 		path := filepath.Join(dir, "sub", "dir", "output.json")
@@ -62,6 +68,8 @@ func TestCreateExpectedFile(t *testing.T) {
 	})
 
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
+		t.Parallel()
+
 		// given: invalid JSON data
 		dir := t.TempDir()
 		path := filepath.Join(dir, "output.json")
@@ -78,7 +86,11 @@ func TestCreateExpectedFile(t *testing.T) {
 }
 
 func TestGenerateUpdatedJSON(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no matchers", func(t *testing.T) {
+		t.Parallel()
+
 		// given: data with no matcher positions
 		data := map[string]any{"name": "Alice"}
 
@@ -99,6 +111,8 @@ func TestGenerateUpdatedJSON(t *testing.T) {
 	})
 
 	t.Run("with matcher positions", func(t *testing.T) {
+		t.Parallel()
+
 		// given: data with a matcher position to preserve
 		data := map[string]any{"id": "abc-123", "name": "Alice"}
 		matchers := map[string]string{
@@ -118,6 +132,8 @@ func TestGenerateUpdatedJSON(t *testing.T) {
 	})
 
 	t.Run("preserves only targeted path with duplicate keys", func(t *testing.T) {
+		t.Parallel()
+
 		// given: data with duplicate key names at different nesting levels
 		data := map[string]any{
 			"user":    map[string]any{"id": "user-1", "name": "Alice"},
@@ -144,6 +160,8 @@ func TestGenerateUpdatedJSON(t *testing.T) {
 	})
 
 	t.Run("empty matcher positions", func(t *testing.T) {
+		t.Parallel()
+
 		// given: empty matcher map
 		data := map[string]any{"name": "Alice"}
 
@@ -161,7 +179,11 @@ func TestGenerateUpdatedJSON(t *testing.T) {
 }
 
 func TestReplaceValueAtPath(t *testing.T) {
+	t.Parallel()
+
 	t.Run("replaces string value", func(t *testing.T) {
+		t.Parallel()
+
 		// given: JSON with a string value
 		jsonStr := `{"id": "abc-123"}`
 
@@ -175,6 +197,8 @@ func TestReplaceValueAtPath(t *testing.T) {
 	})
 
 	t.Run("replaces numeric value", func(t *testing.T) {
+		t.Parallel()
+
 		// given: JSON with a numeric value
 		jsonStr := `{"count": 42}`
 
@@ -188,6 +212,8 @@ func TestReplaceValueAtPath(t *testing.T) {
 	})
 
 	t.Run("replaces boolean value", func(t *testing.T) {
+		t.Parallel()
+
 		// given: JSON with a boolean value
 		jsonStr := `{"active": true}`
 
@@ -201,6 +227,8 @@ func TestReplaceValueAtPath(t *testing.T) {
 	})
 
 	t.Run("empty path returns unchanged", func(t *testing.T) {
+		t.Parallel()
+
 		// given: empty path
 		jsonStr := `{"id": "abc"}`
 
@@ -214,6 +242,8 @@ func TestReplaceValueAtPath(t *testing.T) {
 	})
 
 	t.Run("handles array index in path", func(t *testing.T) {
+		t.Parallel()
+
 		// given: path with array index
 		jsonStr := `{"items": [{"id": "abc"}]}`
 
@@ -227,6 +257,8 @@ func TestReplaceValueAtPath(t *testing.T) {
 	})
 
 	t.Run("only replaces value at target path not duplicates", func(t *testing.T) {
+		t.Parallel()
+
 		// given: JSON with duplicate key names at different paths
 		jsonStr := `{
   "user": {

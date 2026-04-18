@@ -6,7 +6,11 @@ import (
 )
 
 func TestCompareFileLines(t *testing.T) {
+	t.Parallel()
+
 	t.Run("exact match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: identical lines
 		expected := []string{"line 1", "line 2", "line 3"}
 		actual := []string{"line 1", "line 2", "line 3"}
@@ -21,6 +25,8 @@ func TestCompareFileLines(t *testing.T) {
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
+		t.Parallel()
+
 		// given: lines with a difference
 		expected := []string{"line 1", "expected text", "line 3"}
 		actual := []string{"line 1", "actual text", "line 3"}
@@ -47,6 +53,8 @@ func TestCompareFileLines(t *testing.T) {
 	})
 
 	t.Run("extra lines", func(t *testing.T) {
+		t.Parallel()
+
 		// given: actual has more lines
 		expected := []string{"line 1"}
 		actual := []string{"line 1", "extra line"}
@@ -69,6 +77,8 @@ func TestCompareFileLines(t *testing.T) {
 	})
 
 	t.Run("missing lines", func(t *testing.T) {
+		t.Parallel()
+
 		// given: actual has fewer lines
 		expected := []string{"line 1", "line 2"}
 		actual := []string{"line 1"}
@@ -92,7 +102,11 @@ func TestCompareFileLines(t *testing.T) {
 }
 
 func TestCompareFileLinesWithMatchers(t *testing.T) {
+	t.Parallel()
+
 	t.Run("match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected with matcher, matching actual
 		expected := []string{"Name: {{anyString}}"}
 		actual := []string{"Name: Alice"}
@@ -107,6 +121,8 @@ func TestCompareFileLinesWithMatchers(t *testing.T) {
 	})
 
 	t.Run("no match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected with int matcher, non-matching actual
 		expected := []string{"Age: {{anyInt}}"}
 		actual := []string{"Age: not-a-number"}

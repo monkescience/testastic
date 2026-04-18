@@ -10,7 +10,11 @@ import (
 )
 
 func TestAssertFile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("exact match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected file with exact content
 		// when: asserting with matching content
 		// then: no failure
@@ -18,6 +22,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file and mismatched actual
 		mt := &mockT{}
 
@@ -31,6 +37,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("with anyString matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file with anyString matcher
 		// when: asserting with any string value
 		// then: passes (matcher accepts any string)
@@ -38,6 +46,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("with multiple matchers", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file with multiple matchers
 		// when: asserting with matching values
 		// then: passes
@@ -45,6 +55,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("with regex matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file with regex matcher
 		// when: asserting with matching email
 		// then: passes
@@ -52,6 +64,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("with bytes", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file
 		// when: asserting with []byte input
 		// then: passes
@@ -59,6 +73,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("with reader", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected file
 		// when: asserting with io.Reader input
 		// then: the assertion passes
@@ -66,6 +82,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("matcher fails", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file with int matcher
 		mt := &mockT{}
 
@@ -79,6 +97,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("with message", func(t *testing.T) {
+		t.Parallel()
+
 		// given: expected file and mismatched actual
 		mt := &mockT{}
 
@@ -92,6 +112,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("empty files", func(t *testing.T) {
+		t.Parallel()
+
 		// given: empty expected file
 		// when: asserting with empty actual
 		// then: passes
@@ -99,6 +121,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("non-empty expected non-empty actual", func(t *testing.T) {
+		t.Parallel()
+
 		// given: non-empty expected and mismatched actual
 		mt := &mockT{}
 
@@ -112,6 +136,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("special chars", func(t *testing.T) {
+		t.Parallel()
+
 		// given: file with special regex characters
 		// when: asserting with matching value
 		// then: passes (special chars escaped properly)
@@ -119,6 +145,8 @@ func TestAssertFile(t *testing.T) {
 	})
 
 	t.Run("diff output does not flag matcher lines that already matched", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected file with a matcher line and a later mismatched line
 		expectedFile := filepath.Join(t.TempDir(), "matcher_diff.txt")
 
@@ -156,7 +184,11 @@ func TestAssertFile(t *testing.T) {
 }
 
 func TestAssertFile_CreateExpectedFile(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates expected file for plain text in update mode", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-existent expected file and plain text actual content
 		dir := t.TempDir()
 		expectedFile := filepath.Join(dir, "new-expected.txt")
@@ -184,7 +216,11 @@ func TestAssertFile_CreateExpectedFile(t *testing.T) {
 }
 
 func TestAssertFile_UnsupportedOptions(t *testing.T) {
+	t.Parallel()
+
 	t.Run("structured data and html options rejected", func(t *testing.T) {
+		t.Parallel()
+
 		// given: JSON/YAML and HTML options passed to AssertFile
 		mt := &mockT{}
 
@@ -204,6 +240,8 @@ func TestAssertFile_UnsupportedOptions(t *testing.T) {
 	})
 
 	t.Run("supported options accepted", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported options for AssertFile
 		// when: asserting with Message option
 		// then: the test passes without unsupported option error

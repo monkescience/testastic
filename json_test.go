@@ -9,7 +9,11 @@ import (
 )
 
 func TestAssertJSON(t *testing.T) {
+	t.Parallel()
+
 	t.Run("exact match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with exact values
 		// when: asserting with matching JSON
 		// then: the test passes without failure
@@ -17,6 +21,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("mismatch", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file and non-matching actual JSON
 		mt := &mockT{}
 		actual := `{"name": "Bob", "age": 25}`
@@ -39,6 +45,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with anyString matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with anyString matcher
 		// when: asserting with any string value for id
 		actual := `{"id": "abc-123-xyz", "name": "Alice"}`
@@ -48,6 +56,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with anyInt matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with anyInt matcher
 		// when: asserting with any integer value for count
 		actual := `{"count": 42, "name": "test"}`
@@ -57,6 +67,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with ignore matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with ignore matchers
 		// when: asserting with any values for ignored fields
 		actual := `{"id": 12345, "timestamp": "2024-01-15T10:30:00Z", "name": "Alice"}`
@@ -66,6 +78,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with regex matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with regex matcher
 		// when: asserting with a value matching the regex pattern
 		actual := `{"email": "alice@example.com"}`
@@ -75,6 +89,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with regex matcher containing braces", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with regex containing braces
 		// when: asserting with a value matching the regex pattern
 		actual := `{"date": "2024-01-15"}`
@@ -84,6 +100,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with oneOf matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with oneOf matcher
 		// when: asserting with a value from the allowed set
 		actual := `{"status": "active"}`
@@ -93,6 +111,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("nested objects", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with nested objects and matchers
 		// when: asserting with matching nested structure
 		actual := `{"user": {"id": "usr-123", "profile": {"name": "Alice", "age": 30}}}`
@@ -102,6 +122,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("arrays", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with arrays
 		// when: asserting with matching array content and order
 		actual := `{"items": [{"id": 1, "name": "first"}, {"id": 2, "name": "second"}]}`
@@ -111,6 +133,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("ignore array order", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with an array
 		// when: asserting with same elements in different order using IgnoreArrayOrder
 		actual := `{"tags": ["c", "a", "b"]}`
@@ -120,6 +144,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("ignore array order at", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with ordered and unordered arrays
 		// when: asserting with different order only in the unordered array
 		actual := `{"ordered": [1, 2, 3], "unordered": ["c", "a", "b"]}`
@@ -129,6 +155,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("ignore fields", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with fields to ignore
 		// when: asserting with different values for ignored fields
 		actual := `{"id": "different", "name": "Alice", "timestamp": "2024-12-15"}`
@@ -138,6 +166,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("from struct", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file and a Go struct with matching data
 		type User struct {
 			Name string `json:"name"`
@@ -152,6 +182,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("from reader", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file and an io.Reader with matching content
 		actual := bytes.NewReader([]byte(`{"name": "Reader User"}`))
 
@@ -161,6 +193,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("from bytes", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file and matching JSON bytes
 		actual := []byte(`{"name": "Alice", "age": 30, "active": true}`)
 
@@ -170,6 +204,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("extra field", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file without an extra field
 		mt := &mockT{}
 		actual := `{"name": "Alice", "extra": "field"}`
@@ -188,6 +224,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("missing field", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file with a field that actual lacks
 		mt := &mockT{}
 
@@ -205,6 +243,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("with message", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected JSON file and mismatched actual JSON
 		mt := &mockT{}
 		actual := `{"name": "Bob", "age": 25}`
@@ -224,7 +264,11 @@ func TestAssertJSON(t *testing.T) {
 }
 
 func TestAssertJSON_UnsupportedOptions(t *testing.T) {
+	t.Parallel()
+
 	t.Run("html options rejected", func(t *testing.T) {
+		t.Parallel()
+
 		// given: HTML-only options passed to AssertJSON
 		mt := &mockT{}
 		actual := `{"name": "Alice Unsupported", "age": 32, "active": false}`
@@ -245,6 +289,8 @@ func TestAssertJSON_UnsupportedOptions(t *testing.T) {
 	})
 
 	t.Run("supported options accepted", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported options for AssertJSON
 		actual := `{"name": "Alice Supported", "age": 31, "active": true}`
 

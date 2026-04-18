@@ -6,7 +6,11 @@ import (
 )
 
 func TestParseLine(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no matchers", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a plain line without matchers
 		line := "Hello, World!"
 
@@ -31,6 +35,8 @@ func TestParseLine(t *testing.T) {
 	})
 
 	t.Run("single matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a line with a single anyString matcher
 		line := "Name: {{anyString}}"
 
@@ -68,6 +74,8 @@ func TestParseLine(t *testing.T) {
 	})
 
 	t.Run("multiple matchers", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a line with multiple matchers
 		line := "User {{anyString}} is {{anyInt}} years old"
 
@@ -105,6 +113,8 @@ func TestParseLine(t *testing.T) {
 	})
 
 	t.Run("regex matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a line with a regex matcher (no anchors - they're added by parseLine)
 		line := "Email: {{regex `[a-z]+@example\\.com`}}"
 
@@ -129,6 +139,8 @@ func TestParseLine(t *testing.T) {
 	})
 
 	t.Run("special regex chars", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a line with regex special characters in literal text
 		line := "Price: ${{anyInt}}.00 (USD)"
 

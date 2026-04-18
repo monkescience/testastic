@@ -156,6 +156,10 @@ func doGet(t *testing.T, url string) *http.Response {
 }
 
 func TestBinaryStart(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: builds and runs service binaries")
+	}
+
 	t.Run("serves requests after startup", func(t *testing.T) {
 		// given: a service binary built for this test
 		port := nextPort()
@@ -549,6 +553,10 @@ func TestBinaryStart(t *testing.T) {
 }
 
 func TestCollectSubprocessCoverage(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: runs go test on a harness package")
+	}
+
 	t.Run("exported helper collects subprocess coverage through TestMain", func(t *testing.T) {
 		// given: a harness package that uses CollectSubprocessCoverage in TestMain
 		outputPath := filepath.Join(t.TempDir(), "process.out")
@@ -622,6 +630,10 @@ func TestCollectSubprocessCoverage(t *testing.T) {
 }
 
 func TestBinaryStart_validation(t *testing.T) {
+	if testing.Short() {
+		t.Skip("integration test: depends on prebuilt binary from TestMain")
+	}
+
 	readyCheck := testastic.ReadyCheckFunc(func(context.Context) bool { return true })
 
 	t.Run("rejects GOCOVERDIR in env", func(t *testing.T) {

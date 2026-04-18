@@ -7,7 +7,11 @@ import (
 )
 
 func TestMatchers(t *testing.T) {
+	t.Parallel()
+
 	t.Run("AnyString", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyString matcher
 		m := testastic.AnyString()
 
@@ -25,6 +29,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyInt", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyInt matcher
 		m := testastic.AnyInt()
 
@@ -48,6 +54,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyFloat", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyFloat matcher
 		m := testastic.AnyFloat()
 
@@ -65,6 +73,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyBool", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyBool matcher
 		m := testastic.AnyBool()
 
@@ -82,6 +92,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyValue", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyValue matcher
 		m := testastic.AnyValue()
 
@@ -101,6 +113,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("Ignore", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an Ignore matcher
 		m := testastic.Ignore()
 
@@ -120,6 +134,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("Regex", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a Regex matcher for date format
 		m, err := testastic.Regex(`^\d{4}-\d{2}-\d{2}$`)
 		if err != nil {
@@ -140,6 +156,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("OneOf", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a OneOf matcher with allowed values
 		m := testastic.OneOf("a", "b", "c")
 
@@ -157,6 +175,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyUUID", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyUUID matcher
 		m := testastic.AnyUUID()
 
@@ -189,6 +209,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyDateTime", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyDateTime matcher
 		m := testastic.AnyDateTime()
 
@@ -225,6 +247,8 @@ func TestMatchers(t *testing.T) {
 	})
 
 	t.Run("AnyURL", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an AnyURL matcher
 		m := testastic.AnyURL()
 

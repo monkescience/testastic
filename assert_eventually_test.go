@@ -11,7 +11,11 @@ import (
 )
 
 func TestEventually(t *testing.T) {
+	t.Parallel()
+
 	t.Run("immediate success", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that is immediately true
 		// when: calling Eventually
 		// then: it succeeds without waiting
@@ -29,6 +33,8 @@ func TestEventually(t *testing.T) {
 	})
 
 	t.Run("success after retries", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that becomes true after a few attempts
 		var counter atomic.Int32
 
@@ -46,6 +52,8 @@ func TestEventually(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that never becomes true
 		mt := &mockT{}
 
@@ -65,6 +73,8 @@ func TestEventually(t *testing.T) {
 	})
 
 	t.Run("with message", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that fails with a custom message
 		mt := &mockT{}
 
@@ -84,6 +94,8 @@ func TestEventually(t *testing.T) {
 	})
 
 	t.Run("with interval", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that counts calls
 		var counter atomic.Int32
 
@@ -108,7 +120,11 @@ func TestEventually(t *testing.T) {
 }
 
 func TestEventuallyTrue(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that becomes true
 		var ready atomic.Bool
 
@@ -124,7 +140,11 @@ func TestEventuallyTrue(t *testing.T) {
 }
 
 func TestEventuallyFalse(t *testing.T) {
+	t.Parallel()
+
 	t.Run("pass", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that becomes false
 		var processing atomic.Bool
 
@@ -141,6 +161,8 @@ func TestEventuallyFalse(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a condition that stays true
 		mt := &mockT{}
 
@@ -157,7 +179,11 @@ func TestEventuallyFalse(t *testing.T) {
 }
 
 func TestEventuallyEqual(t *testing.T) {
+	t.Parallel()
+
 	t.Run("immediate success", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that immediately matches
 		// when: calling EventuallyEqual
 		// then: it succeeds immediately
@@ -167,6 +193,8 @@ func TestEventuallyEqual(t *testing.T) {
 	})
 
 	t.Run("success after change", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that changes to match expected
 		var status atomic.Value
 
@@ -190,6 +218,8 @@ func TestEventuallyEqual(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that never matches
 		mt := &mockT{}
 
@@ -213,6 +243,8 @@ func TestEventuallyEqual(t *testing.T) {
 	})
 
 	t.Run("integer", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an integer counter
 		var counter atomic.Int32
 
@@ -230,7 +262,11 @@ func TestEventuallyEqual(t *testing.T) {
 }
 
 func TestEventuallyNil(t *testing.T) {
+	t.Parallel()
+
 	t.Run("immediate success", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that is immediately nil
 		// when: calling EventuallyNil
 		// then: it succeeds immediately
@@ -240,6 +276,8 @@ func TestEventuallyNil(t *testing.T) {
 	})
 
 	t.Run("success after clear", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that becomes nil (using pointer to track nil state)
 		var cleared atomic.Bool
 
@@ -260,6 +298,8 @@ func TestEventuallyNil(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that is never nil
 		mt := &mockT{}
 
@@ -276,7 +316,11 @@ func TestEventuallyNil(t *testing.T) {
 }
 
 func TestEventuallyNotNil(t *testing.T) {
+	t.Parallel()
+
 	t.Run("immediate success", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that is immediately not nil
 		// when: calling EventuallyNotNil
 		// then: it succeeds immediately
@@ -286,6 +330,8 @@ func TestEventuallyNotNil(t *testing.T) {
 	})
 
 	t.Run("success after set", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that becomes non-nil
 		var value atomic.Value
 
@@ -300,6 +346,8 @@ func TestEventuallyNotNil(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a value that is always nil
 		mt := &mockT{}
 
@@ -316,7 +364,11 @@ func TestEventuallyNotNil(t *testing.T) {
 }
 
 func TestEventuallyNoError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("immediate success", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that returns no error
 		// when: calling EventuallyNoError
 		// then: it succeeds immediately
@@ -326,6 +378,8 @@ func TestEventuallyNoError(t *testing.T) {
 	})
 
 	t.Run("success after recovery", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that eventually succeeds
 		var counter atomic.Int32
 
@@ -343,6 +397,8 @@ func TestEventuallyNoError(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that always returns an error
 		mt := &mockT{}
 
@@ -363,7 +419,11 @@ func TestEventuallyNoError(t *testing.T) {
 }
 
 func TestEventuallyError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("immediate success", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that returns an error
 		// when: calling EventuallyError
 		// then: it succeeds immediately
@@ -373,6 +433,8 @@ func TestEventuallyError(t *testing.T) {
 	})
 
 	t.Run("success after failure", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that eventually fails
 		var counter atomic.Int32
 
@@ -390,6 +452,8 @@ func TestEventuallyError(t *testing.T) {
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a function that never returns an error
 		mt := &mockT{}
 

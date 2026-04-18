@@ -10,7 +10,11 @@ import (
 )
 
 func TestAssertYAML(t *testing.T) {
+	t.Parallel()
+
 	t.Run("exact match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with exact content
 		mt := &mockT{}
 		actual := "name: test\nversion: \"1.0\"\n"
@@ -25,6 +29,8 @@ func TestAssertYAML(t *testing.T) {
 	})
 
 	t.Run("exact match nested structure", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with nested content
 		mt := &mockT{}
 		actual := `apiVersion: v1
@@ -47,6 +53,8 @@ data:
 	})
 
 	t.Run("with anyString matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with anyString matcher
 		mt := &mockT{}
 		actual := "name: my-app\nversion: \"1.0\"\n"
@@ -61,6 +69,8 @@ data:
 	})
 
 	t.Run("with regex matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with regex matcher
 		mt := &mockT{}
 		actual := "name: app-test\nversion: \"1.0\"\n"
@@ -75,6 +85,8 @@ data:
 	})
 
 	t.Run("with regex matcher fails", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with regex matcher
 		mt := &mockT{}
 		actual := "name: invalid-123\nversion: \"1.0\"\n"
@@ -89,6 +101,8 @@ data:
 	})
 
 	t.Run("with ignore matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with ignore matcher
 		mt := &mockT{}
 		actual := "name: my-app\ntimestamp: \"2024-01-15T10:30:00Z\"\nversion: \"1.0\"\n"
@@ -103,6 +117,8 @@ data:
 	})
 
 	t.Run("with anyInt matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with anyInt matcher
 		mt := &mockT{}
 		actual := "name: my-app\nreplicas: 3\n"
@@ -117,6 +133,8 @@ data:
 	})
 
 	t.Run("with oneOf matcher", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with oneOf matcher
 		mt := &mockT{}
 		actual := "name: my-app\nenvironment: staging\n"
@@ -131,6 +149,8 @@ data:
 	})
 
 	t.Run("with oneOf matcher fails", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with oneOf matcher
 		mt := &mockT{}
 		actual := "name: my-app-fail\nenvironment: test\n"
@@ -145,6 +165,8 @@ data:
 	})
 
 	t.Run("mismatch value", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with a specific value
 		mt := &mockT{}
 		actual := "name: actual-name\nversion: \"1.0\"\n"
@@ -159,6 +181,8 @@ data:
 	})
 
 	t.Run("missing field", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with multiple fields
 		mt := &mockT{}
 		actual := "name: my-app\nversion: \"1.0\"\n"
@@ -173,6 +197,8 @@ data:
 	})
 
 	t.Run("extra field", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with specific fields
 		mt := &mockT{}
 		actual := "name: expected-extra\nversion: \"1.0\"\nextra: unexpected-field\n"
@@ -187,6 +213,8 @@ data:
 	})
 
 	t.Run("array exact match", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with an array
 		mt := &mockT{}
 		actual := "items:\n  - name: item1\n  - name: item2\n  - name: item3\n"
@@ -201,6 +229,8 @@ data:
 	})
 
 	t.Run("array order matters", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with an array in specific order
 		mt := &mockT{}
 		actual := "items:\n  - name: second\n  - name: first\n"
@@ -215,6 +245,8 @@ data:
 	})
 
 	t.Run("array ignore order", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with an array
 		mt := &mockT{}
 		actual := "items:\n  - name: beta\n  - name: alpha\n"
@@ -229,6 +261,8 @@ data:
 	})
 
 	t.Run("array ignore order at", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with multiple arrays
 		mt := &mockT{}
 		actual := "items:\n  - name: second\n  - name: first\ntags:\n  - b\n  - a\n"
@@ -243,6 +277,8 @@ data:
 	})
 
 	t.Run("ignore fields", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file
 		mt := &mockT{}
 		actual := "name: my-app\ntimestamp: \"2024-12-31T23:59:59Z\"\nversion: \"1.0\"\n"
@@ -257,6 +293,8 @@ data:
 	})
 
 	t.Run("with message", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file and mismatched actual YAML
 		mt := &mockT{}
 		actual := "name: wrong-name\nversion: \"1.0\"\n"
@@ -275,6 +313,8 @@ data:
 	})
 
 	t.Run("create expected file", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-existent expected file path
 		dir := t.TempDir()
 		expectedFile := filepath.Join(dir, "new-expected.yaml")
@@ -301,6 +341,8 @@ data:
 	})
 
 	t.Run("create expected file in nested directory", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a non-existent expected file path in nested directories
 		dir := t.TempDir()
 		expectedFile := filepath.Join(dir, "nested", "path", "new-expected.yaml")
@@ -327,6 +369,8 @@ data:
 	})
 
 	t.Run("byte slice input", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file and actual as []byte
 		mt := &mockT{}
 		actual := []byte("name: byte-test\nversion: \"2.0\"\n")
@@ -341,6 +385,8 @@ data:
 	})
 
 	t.Run("struct input", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file and actual as a struct
 		type Config struct {
 			Name    string `yaml:"name"`
@@ -360,6 +406,8 @@ data:
 	})
 
 	t.Run("reader input", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file and actual as io.Reader
 		mt := &mockT{}
 		actual := strings.NewReader("name: reader-test\nversion: \"3.0\"\n")
@@ -375,7 +423,11 @@ data:
 }
 
 func TestAssertYAML_UpdatePreservesUnquotedMatchers(t *testing.T) {
+	t.Parallel()
+
 	t.Run("update roundtrip preserves unquoted template expressions", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an expected YAML file with unquoted matchers and a matching actual value
 		dir := t.TempDir()
 		expectedFile := filepath.Join(dir, "expected.yaml")
@@ -419,7 +471,11 @@ func TestAssertYAML_UpdatePreservesUnquotedMatchers(t *testing.T) {
 }
 
 func TestAssertYAML_UnsupportedOptions(t *testing.T) {
+	t.Parallel()
+
 	t.Run("html options rejected", func(t *testing.T) {
+		t.Parallel()
+
 		// given: HTML-only options passed to AssertYAML
 		mt := &mockT{}
 
@@ -439,6 +495,8 @@ func TestAssertYAML_UnsupportedOptions(t *testing.T) {
 	})
 
 	t.Run("supported options accepted", func(t *testing.T) {
+		t.Parallel()
+
 		// given: supported options for AssertYAML
 		// when: asserting with IgnoreArrayOrder
 		// then: the test passes without unsupported option error

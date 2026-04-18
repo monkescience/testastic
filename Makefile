@@ -1,12 +1,15 @@
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
-.PHONY: test lint fmt clean mod-tidy coverage help
+.PHONY: test test-unit lint fmt clean mod-tidy coverage help
 
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
 
-test: ## Run tests
+test: ## Run all tests
 	go test -race ./...
+
+test-unit: ## Run unit tests only (skip integration via -short)
+	go test -race -short ./...
 
 coverage: ## Run tests with coverage
 	go test -race -coverprofile=coverage.out -covermode=atomic ./...
