@@ -47,6 +47,10 @@ var errCovdataFailed = errors.New("go tool covdata textfmt failed")
 // directories and cleaned up automatically. Processes that use [WithCoverDir]
 // are not affected — their coverage data goes to the specified directory.
 func CollectSubprocessCoverage(m *testing.M, outputPath string) int {
+	return collectSubprocessCoverage(m.Run, outputPath)
+}
+
+func collectSubprocessCoverage(run func() int, outputPath string) int {
 	dir, err := os.MkdirTemp("", "testastic-coverage-*")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "testastic: failed to create shared coverage directory: %v\n", err)
@@ -56,11 +60,15 @@ func CollectSubprocessCoverage(m *testing.M, outputPath string) int {
 
 	sharedCoverDir = dir
 
-	code := m.Run()
+	code := run()
 
 	err = convertProcessCoverage(dir, outputPath)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "testastic: %v\n", err)
+
+		if code == 0 {
+			code = 1
+		}
 	}
 
 	_ = os.RemoveAll(dir)

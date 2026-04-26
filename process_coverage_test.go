@@ -41,6 +41,28 @@ func TestConvertProcessCoverage(t *testing.T) {
 	})
 }
 
+func TestCollectSubprocessCoverage(t *testing.T) {
+	t.Run("returns nonzero when conversion fails after passing tests", func(t *testing.T) {
+		// given: subprocess coverage collection with an invalid output path
+		blockedDir := filepath.Join(t.TempDir(), "not-a-dir")
+		writeErr := os.WriteFile(blockedDir, []byte("blocked"), 0o600)
+		NoError(t, writeErr)
+
+		outputPath := filepath.Join(blockedDir, "coverage.out")
+
+		// when: tests pass but coverage conversion fails
+		code := collectSubprocessCoverage(func() int {
+			err := os.WriteFile(filepath.Join(sharedCoverDir, "covdata-entry"), []byte("coverage"), 0o600)
+			NoError(t, err)
+
+			return 0
+		}, outputPath)
+
+		// then: coverage conversion failure fails the run
+		Equal(t, 1, code)
+	})
+}
+
 func TestSetupCoverDir_sharedDir(t *testing.T) {
 	t.Run("uses shared dir when set", func(t *testing.T) {
 		// given: a shared coverage directory is already configured
