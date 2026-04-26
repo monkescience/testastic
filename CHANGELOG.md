@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.3.2](https://github.com/monkescience/testastic/compare/v0.3.1...v0.3.2) (2026-04-26)
+
+### Bug Fixes
+
+- **color:** guard useColors cache against concurrent access ([733b922](https://github.com/monkescience/testastic/commit/733b9221e438d2c5e73b299f4c39871d3a462b2d))
+
 ## [v0.3.1](https://github.com/monkescience/testastic/compare/v0.3.0...v0.3.1) (2026-04-26)
 
 ### Bug Fixes
