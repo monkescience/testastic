@@ -5,13 +5,19 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"regexp"
 	"strings"
 )
 
-// errUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
-var errUnknownPlaceholder = errors.New("unknown placeholder")
+var (
+	// errUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
+	errUnknownPlaceholder = errors.New("unknown placeholder")
+
+	// errJSONTrailingContent is returned when JSON contains more than one top-level value.
+	errJSONTrailingContent = errors.New("trailing content after top-level JSON value")
+)
 
 type expectedJSON struct {
 	Data     any               // Parsed JSON with Matcher objects in place of template expressions
@@ -92,7 +98,18 @@ func decodeJSON(data []byte, target *any) error {
 		return fmt.Errorf("decode JSON: %w", err)
 	}
 
-	return nil
+	var extra any
+
+	extraErr := decoder.Decode(&extra)
+	if errors.Is(extraErr, io.EOF) {
+		return nil
+	}
+
+	if extraErr != nil {
+		return fmt.Errorf("decode JSON: %w", extraErr)
+	}
+
+	return errJSONTrailingContent
 }
 
 // replaceJSONPlaceholders walks the parsed JSON and replaces placeholder strings with Matcher objects.

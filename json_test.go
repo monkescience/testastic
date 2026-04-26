@@ -22,6 +22,52 @@ func TestAssertJSON(t *testing.T) {
 		testastic.AssertJSON(t, "testdata/json/exact_match.json", `{"name": "Alice", "age": 30, "active": true}`)
 	})
 
+	t.Run("rejects actual JSON with trailing content", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a valid expected JSON file
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile, []byte(`{"name":"Alice"}`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting actual JSON with trailing garbage
+		testastic.AssertJSON(mt, expectedFile, `{"name":"Alice"} trailing`)
+
+		// then: parsing fails instead of accepting the first JSON value
+		if !mt.failed {
+			t.Error("expected trailing actual JSON content to fail")
+		}
+
+		if !strings.Contains(mt.message, "failed to parse actual JSON") {
+			t.Errorf("expected actual JSON parse error, got: %s", mt.message)
+		}
+	})
+
+	t.Run("rejects expected JSON with trailing content", func(t *testing.T) {
+		t.Parallel()
+
+		// given: an expected file with trailing garbage after valid JSON
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile, []byte(`{"name":"Alice"} trailing`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting matching actual JSON
+		testastic.AssertJSON(mt, expectedFile, `{"name":"Alice"}`)
+
+		// then: parsing fails instead of accepting the first JSON value
+		if !mt.failed {
+			t.Error("expected trailing expected JSON content to fail")
+		}
+
+		if !strings.Contains(mt.message, "failed to parse expected file as JSON") {
+			t.Errorf("expected expected-file JSON parse error, got: %s", mt.message)
+		}
+	})
+
 	t.Run("mismatch", func(t *testing.T) {
 		t.Parallel()
 
