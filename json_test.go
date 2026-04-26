@@ -245,6 +245,23 @@ func TestAssertJSON(t *testing.T) {
 		}
 	})
 
+	t.Run("large integer mismatch", func(t *testing.T) {
+		// given: adjacent integers above float64's exact integer range
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile, []byte(`{"id":9007199254740992}`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting with a different integer that rounds to the same float64
+		testastic.AssertJSON(mt, expectedFile, `{"id":9007199254740993}`)
+
+		// then: the assertion detects the numeric mismatch
+		if !mt.failed {
+			t.Error("expected large integer mismatch to fail")
+		}
+	})
+
 	t.Run("missing field", func(t *testing.T) {
 		t.Parallel()
 

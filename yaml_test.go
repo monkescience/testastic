@@ -180,6 +180,23 @@ data:
 		}
 	})
 
+	t.Run("large integer mismatch", func(t *testing.T) {
+		// given: adjacent negative integers above float64's exact integer range
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile, []byte("id: -9007199254740992\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting with a different integer that rounds to the same float64
+		testastic.AssertYAML(mt, expectedFile, "id: -9007199254740993\n")
+
+		// then: the assertion detects the numeric mismatch
+		if !mt.failed {
+			t.Error("expected large integer mismatch to fail")
+		}
+	})
+
 	t.Run("missing field", func(t *testing.T) {
 		t.Parallel()
 

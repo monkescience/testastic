@@ -1,6 +1,7 @@
 package testastic
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -67,7 +68,7 @@ func parseExpectedJSONString(content string) (*expectedJSON, error) {
 
 	var data any
 
-	err := json.Unmarshal([]byte(processedContent), &data)
+	err := decodeJSON([]byte(processedContent), &data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
@@ -80,6 +81,18 @@ func parseExpectedJSONString(content string) (*expectedJSON, error) {
 	expected.Data = replaced
 
 	return expected, nil
+}
+
+func decodeJSON(data []byte, target *any) error {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+
+	err := decoder.Decode(target)
+	if err != nil {
+		return fmt.Errorf("decode JSON: %w", err)
+	}
+
+	return nil
 }
 
 // replaceJSONPlaceholders walks the parsed JSON and replaces placeholder strings with Matcher objects.

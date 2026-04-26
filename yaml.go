@@ -150,15 +150,6 @@ func normalizeYAMLData(data any) any {
 
 		return result
 
-	case int:
-		return float64(v)
-
-	case int64:
-		return float64(v)
-
-	case int32:
-		return float64(v)
-
 	case float32:
 		return float64(v)
 

@@ -3,8 +3,11 @@ package testastic
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"math/big"
 	"reflect"
 	"sort"
+	"strconv"
 )
 
 // compare compares expected (from expected file) with actual JSON data.
@@ -83,7 +86,9 @@ func compare(expected, actual any, path string, cfg *config) []difference {
 			Type:     diffTypeMismatch,
 		}}
 
-	case float64:
+	case json.Number, float64, float32,
+		int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64:
 		return compareNumbers(exp, actual, path)
 
 	case bool:
@@ -329,24 +334,11 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config) []
 	return diffs
 }
 
-// compareNumbers compares numeric values, handling JSON number quirks.
-// JSON deserializes all numbers as float64, so this function normalizes other
-// numeric types (int, int32, int64, float32) to float64 before comparison.
-func compareNumbers(expected float64, actual any, path string) []difference {
-	var actNum float64
+func compareNumbers(expected, actual any, path string) []difference {
+	expNum, expOK := numberToRat(expected)
 
-	switch v := actual.(type) {
-	case float64:
-		actNum = v
-	case float32:
-		actNum = float64(v)
-	case int:
-		actNum = float64(v)
-	case int64:
-		actNum = float64(v)
-	case int32:
-		actNum = float64(v)
-	default:
+	actNum, actOK := numberToRat(actual)
+	if !expOK || !actOK {
 		return []difference{{
 			Path:     path,
 			Expected: expected,
@@ -355,11 +347,11 @@ func compareNumbers(expected float64, actual any, path string) []difference {
 		}}
 	}
 
-	if expected != actNum {
+	if expNum.Cmp(actNum) != 0 {
 		return []difference{{
 			Path:     path,
 			Expected: expected,
-			Actual:   actNum,
+			Actual:   actual,
 			Type:     diffChanged,
 		}}
 	}
@@ -367,10 +359,68 @@ func compareNumbers(expected float64, actual any, path string) []difference {
 	return nil
 }
 
+func numberToRat(value any) (*big.Rat, bool) {
+	switch v := value.(type) {
+	case json.Number:
+		return parseNumberRat(v.String())
+	case float64:
+		if math.IsNaN(v) || math.IsInf(v, 0) {
+			return nil, false
+		}
+
+		return parseNumberRat(strconv.FormatFloat(v, 'g', -1, 64))
+	case float32:
+		f := float64(v)
+		if math.IsNaN(f) || math.IsInf(f, 0) {
+			return nil, false
+		}
+
+		return parseNumberRat(strconv.FormatFloat(f, 'g', -1, 32))
+	case int:
+		return intRat(int64(v)), true
+	case int8:
+		return intRat(int64(v)), true
+	case int16:
+		return intRat(int64(v)), true
+	case int32:
+		return intRat(int64(v)), true
+	case int64:
+		return intRat(v), true
+	case uint:
+		return uintRat(uint64(v)), true
+	case uint8:
+		return uintRat(uint64(v)), true
+	case uint16:
+		return uintRat(uint64(v)), true
+	case uint32:
+		return uintRat(uint64(v)), true
+	case uint64:
+		return uintRat(v), true
+	default:
+		return nil, false
+	}
+}
+
+func parseNumberRat(s string) (*big.Rat, bool) {
+	rat := new(big.Rat)
+
+	return rat.SetString(s)
+}
+
+func intRat(v int64) *big.Rat {
+	return new(big.Rat).SetInt64(v)
+}
+
+func uintRat(v uint64) *big.Rat {
+	integer := new(big.Int).SetUint64(v)
+
+	return new(big.Rat).SetInt(integer)
+}
+
 func parseActualJSON(data []byte) (any, error) {
 	var result any
 
-	err := json.Unmarshal(data, &result)
+	err := decodeJSON(data, &result)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse actual JSON: %w", err)
 	}

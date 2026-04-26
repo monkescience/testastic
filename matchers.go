@@ -51,18 +51,9 @@ func (m anyStringMatcher) String() string {
 type anyIntMatcher struct{}
 
 func (m anyIntMatcher) Match(actual any) bool {
-	switch v := actual.(type) {
-	case int, int8, int16, int32, int64:
-		return true
-	case uint, uint8, uint16, uint32, uint64:
-		return true
-	case float64:
-		return v == float64(int64(v))
-	case float32:
-		return v == float32(int32(v))
-	}
+	num, ok := numberToRat(actual)
 
-	return false
+	return ok && num.IsInt()
 }
 
 func (m anyIntMatcher) String() string {
@@ -73,12 +64,9 @@ func (m anyIntMatcher) String() string {
 type anyFloatMatcher struct{}
 
 func (m anyFloatMatcher) Match(actual any) bool {
-	switch actual.(type) {
-	case float32, float64, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-		return true
-	}
+	_, ok := numberToRat(actual)
 
-	return false
+	return ok
 }
 
 func (m anyFloatMatcher) String() string {
