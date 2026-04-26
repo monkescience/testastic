@@ -7,15 +7,13 @@ import (
 )
 
 func TestDetectColors(t *testing.T) {
-	// Save and restore all relevant env vars and the cached result.
+	// Save and restore all relevant env vars.
 	envVars := []string{"NO_COLOR", "FORCE_COLOR", "CI", "TERM"}
 	saved := make(map[string]string, len(envVars))
 
 	for _, key := range envVars {
 		saved[key] = os.Getenv(key)
 	}
-
-	savedEnabled := colorsEnabled
 
 	t.Cleanup(func() {
 		for _, key := range envVars {
@@ -26,16 +24,12 @@ func TestDetectColors(t *testing.T) {
 				t.Setenv(key, saved[key])
 			}
 		}
-
-		colorsEnabled = savedEnabled
 	})
 
 	clearEnv := func() {
 		for _, key := range envVars {
 			os.Unsetenv(key) //nolint:errcheck // best-effort cleanup in test helper
 		}
-		// Reset cached result so detectColors runs fresh
-		colorsEnabled = nil
 	}
 
 	t.Run("NO_COLOR disables colors", func(t *testing.T) {
@@ -108,48 +102,21 @@ func TestDetectColors(t *testing.T) {
 			t.Error("expected colors to be disabled with TERM=dumb")
 		}
 	})
-
-	t.Run("useColors caches result", func(t *testing.T) {
-		// given: cached result is set
-		clearEnv()
-
-		cachedTrue := true
-		colorsEnabled = &cachedTrue
-
-		// when: calling useColors
-		result := useColors()
-
-		// then: returns cached value
-		if !result {
-			t.Error("expected cached true value")
-		}
-
-		// given: change cached value
-		cachedFalse := false
-		colorsEnabled = &cachedFalse
-
-		// when: calling useColors again
-		result = useColors()
-
-		// then: returns new cached value
-		if result {
-			t.Error("expected cached false value")
-		}
-	})
 }
 
 func TestColorize(t *testing.T) {
-	// Save and restore cached color state.
-	savedEnabled := colorsEnabled
+	// Save and restore the useColors function so each subtest can stub it.
+	// TestColorize is serial (no t.Parallel), so swapping the variable is
+	// safe — parallel tests in the package only run after this one finishes.
+	savedUseColors := useColors
 
 	t.Cleanup(func() {
-		colorsEnabled = savedEnabled
+		useColors = savedUseColors
 	})
 
 	t.Run("with colors disabled", func(t *testing.T) {
 		// given: colors are disabled
-		disabled := false
-		colorsEnabled = &disabled
+		useColors = func() bool { return false }
 
 		// when: colorizing text
 		result := colorize("hello", colorRed)
@@ -162,8 +129,7 @@ func TestColorize(t *testing.T) {
 
 	t.Run("with colors enabled", func(t *testing.T) {
 		// given: colors are enabled
-		enabled := true
-		colorsEnabled = &enabled
+		useColors = func() bool { return true }
 
 		// when: colorizing text
 		result := colorize("hello", colorRed)
@@ -178,8 +144,7 @@ func TestColorize(t *testing.T) {
 
 	t.Run("red helper", func(t *testing.T) {
 		// given: colors are enabled
-		enabled := true
-		colorsEnabled = &enabled
+		useColors = func() bool { return true }
 
 		// when: using red helper
 		result := red("error")
@@ -194,8 +159,7 @@ func TestColorize(t *testing.T) {
 
 	t.Run("green helper", func(t *testing.T) {
 		// given: colors are enabled
-		enabled := true
-		colorsEnabled = &enabled
+		useColors = func() bool { return true }
 
 		// when: using green helper
 		result := green("success")

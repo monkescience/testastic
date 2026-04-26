@@ -2,6 +2,7 @@ package testastic
 
 import (
 	"os"
+	"sync"
 
 	"golang.org/x/term"
 )
@@ -13,23 +14,12 @@ const (
 	colorReset = "\033[0m"
 )
 
-// colorsEnabled caches the color detection result.
-var colorsEnabled *bool
-
 // useColors returns true if colored output should be used.
 // Colors are enabled when stdout is a terminal (not piped),
 // NO_COLOR env var is not set, CI env var is not set,
 // and TERM is not "dumb".
-func useColors() bool {
-	if colorsEnabled != nil {
-		return *colorsEnabled
-	}
-
-	result := detectColors()
-	colorsEnabled = &result
-
-	return result
-}
+// The result is detected once on first call and cached for the process lifetime.
+var useColors = sync.OnceValue(detectColors)
 
 func detectColors() bool {
 	// Check NO_COLOR (https://no-color.org/)
