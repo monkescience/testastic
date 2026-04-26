@@ -44,6 +44,10 @@ func newEventuallyConfig(opts ...EventuallyOption) *eventuallyConfig {
 		opt(cfg)
 	}
 
+	if cfg.Interval <= 0 {
+		cfg.Interval = defaultEventuallyInterval
+	}
+
 	return cfg
 }
 
@@ -81,19 +85,20 @@ func eventuallyWithValue[T any](
 		return
 	}
 
-	deadline := time.Now().Add(timeout)
 	ticker := time.NewTicker(cfg.Interval)
+	timer := time.NewTimer(timeout)
 
 	defer ticker.Stop()
+	defer timer.Stop()
 
 	for {
-		<-ticker.C
+		select {
+		case <-ticker.C:
+			if check() {
+				return
+			}
 
-		if check() {
-			return
-		}
-
-		if time.Now().After(deadline) {
+		case <-timer.C:
 			msg := ""
 			if cfg.Message != "" {
 				msg = "\n    message:  " + cfg.Message

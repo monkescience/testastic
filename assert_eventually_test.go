@@ -117,6 +117,49 @@ func TestEventually(t *testing.T) {
 			t.Errorf("expected 2-5 calls with 50ms interval over 150ms, got %d", calls)
 		}
 	})
+
+	t.Run("zero interval does not panic", func(t *testing.T) {
+		// given: a zero polling interval
+		mt := &mockT{}
+
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				t.Fatalf("expected Eventually not to panic, recovered: %v", recovered)
+			}
+		}()
+
+		// when: calling Eventually with a zero interval
+		testastic.Eventually(mt, func() bool {
+			return false
+		}, time.Millisecond, testastic.WithInterval(0))
+
+		// then: it fails normally on timeout
+		if !mt.failed {
+			t.Error("expected Eventually to fail on timeout")
+		}
+	})
+
+	t.Run("timeout wins over interval", func(t *testing.T) {
+		// given: a timeout much shorter than the polling interval
+		mt := &mockT{}
+		start := time.Now()
+
+		// when: calling Eventually with a condition that never passes
+		testastic.Eventually(mt, func() bool {
+			return false
+		}, 30*time.Millisecond, testastic.WithInterval(500*time.Millisecond))
+
+		// then: it times out near the deadline instead of waiting for the interval
+		elapsed := time.Since(start)
+
+		if !mt.failed {
+			t.Error("expected Eventually to fail on timeout")
+		}
+
+		if elapsed > 300*time.Millisecond {
+			t.Errorf("expected timeout before polling interval, took %v", elapsed)
+		}
+	})
 }
 
 func TestEventuallyTrue(t *testing.T) {
