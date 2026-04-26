@@ -229,40 +229,65 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *config) []di
 // findUnorderedMatches finds matching indices between expected and actual slices.
 // Returns unmatched expected indices and unused actual indices.
 func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) bool) ([]int, []int) {
-	used := make([]bool, len(actual))
+	actualMatch := make([]int, len(actual))
+	for i := range actualMatch {
+		actualMatch[i] = -1
+	}
+
+	for i := range expected {
+		seen := make([]bool, len(actual))
+		_ = assignUnorderedMatch(i, expected, actual, matches, actualMatch, seen)
+	}
+
+	expectedMatched := make([]bool, len(expected))
+
+	for _, expIdx := range actualMatch {
+		if expIdx >= 0 {
+			expectedMatched[expIdx] = true
+		}
+	}
 
 	var unmatchedExp []int
 
-	for i, exp := range expected {
-		found := false
-
-		for j, act := range actual {
-			if used[j] {
-				continue
-			}
-
-			if matches(exp, act) {
-				used[j] = true
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
+	for i, matched := range expectedMatched {
+		if !matched {
 			unmatchedExp = append(unmatchedExp, i)
 		}
 	}
 
 	var unusedAct []int
 
-	for i, u := range used {
-		if !u {
+	for i, expIdx := range actualMatch {
+		if expIdx < 0 {
 			unusedAct = append(unusedAct, i)
 		}
 	}
 
 	return unmatchedExp, unusedAct
+}
+
+func assignUnorderedMatch[T any](
+	expIdx int,
+	expected, actual []T,
+	matches func(exp, act T) bool,
+	actualMatch []int,
+	seen []bool,
+) bool {
+	for j, act := range actual {
+		if seen[j] || !matches(expected[expIdx], act) {
+			continue
+		}
+
+		seen[j] = true
+
+		if actualMatch[j] < 0 || assignUnorderedMatch(actualMatch[j], expected, actual, matches, actualMatch, seen) {
+			actualMatch[j] = expIdx
+
+			return true
+		}
+	}
+
+	return false
 }
 
 func compareArraysUnordered(expected, actual []any, path string, cfg *config) []difference {

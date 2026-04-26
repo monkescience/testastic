@@ -2,6 +2,8 @@ package testastic_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -152,6 +154,26 @@ func TestAssertJSON(t *testing.T) {
 
 		// then: the test passes (order ignored only at specified path)
 		testastic.AssertJSON(t, "testdata/json/array_order_at.json", actual, testastic.IgnoreArrayOrderAt("$.unordered"))
+	})
+
+	t.Run("ignore array order backtracks broad matchers", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a broad matcher before a more specific expected object
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile, []byte(`{"items":["{{anyValue}}",{"id":1}]}`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+		actual := `{"items":[{"id":1},"anything"]}`
+
+		// when: comparing the array without considering order
+		testastic.AssertJSON(mt, expectedFile, actual, testastic.IgnoreArrayOrderAt("$.items"))
+
+		// then: the broad matcher does not consume the only value needed by the specific object
+		if mt.failed {
+			t.Errorf("expected no failure with backtracking unordered match, got: %s", mt.message)
+		}
 	})
 
 	t.Run("ignore fields", func(t *testing.T) {
