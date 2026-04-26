@@ -20,7 +20,7 @@ const (
 func updateExpectedFile(path string, actual []byte, expected *expectedJSON) error {
 	var actualData any
 
-	unmarshalErr := json.Unmarshal(actual, &actualData)
+	unmarshalErr := decodeJSON(actual, &actualData)
 	if unmarshalErr != nil {
 		return fmt.Errorf("failed to parse actual JSON for update: %w", unmarshalErr)
 	}
@@ -50,7 +50,7 @@ func updateExpectedFile(path string, actual []byte, expected *expectedJSON) erro
 func createExpectedFile(path string, actual []byte) error {
 	var data any
 
-	unmarshalErr := json.Unmarshal(actual, &data)
+	unmarshalErr := decodeJSON(actual, &data)
 	if unmarshalErr != nil {
 		return fmt.Errorf("failed to parse actual JSON: %w", unmarshalErr)
 	}

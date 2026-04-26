@@ -67,6 +67,30 @@ func TestCreateExpectedFile(t *testing.T) {
 		}
 	})
 
+	t.Run("preserves large integers", func(t *testing.T) {
+		t.Parallel()
+
+		// given: JSON data containing an integer that cannot round-trip through float64
+		path := filepath.Join(t.TempDir(), "output.json")
+		data := []byte(`{"id":9007199254740993}`)
+
+		// when: creating expected file
+		err := createExpectedFile(path, data)
+		// then: the integer is written exactly as supplied
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatalf("failed to read file: %v", readErr)
+		}
+
+		if !strings.Contains(string(content), `9007199254740993`) {
+			t.Errorf("expected large integer to be preserved, got:\n%s", content)
+		}
+	})
+
 	t.Run("returns error for invalid JSON", func(t *testing.T) {
 		t.Parallel()
 
@@ -81,6 +105,35 @@ func TestCreateExpectedFile(t *testing.T) {
 		// then: returns error
 		if err == nil {
 			t.Error("expected error for invalid JSON")
+		}
+	})
+}
+
+func TestUpdateExpectedFile(t *testing.T) {
+	t.Parallel()
+
+	t.Run("preserves large integers", func(t *testing.T) {
+		t.Parallel()
+
+		// given: actual JSON data containing an integer that cannot round-trip through float64
+		path := filepath.Join(t.TempDir(), "output.json")
+		data := []byte(`{"id":9007199254740993}`)
+		expected := &expectedJSON{}
+
+		// when: updating expected file
+		err := updateExpectedFile(path, data, expected)
+		// then: the integer is written exactly as supplied
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
+			t.Fatalf("failed to read file: %v", readErr)
+		}
+
+		if !strings.Contains(string(content), `9007199254740993`) {
+			t.Errorf("expected large integer to be preserved, got:\n%s", content)
 		}
 	})
 }
