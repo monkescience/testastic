@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.3.3](https://github.com/monkescience/testastic/compare/v0.3.2...v0.3.3) (2026-04-26)
+
+### Bug Fixes
+
+- **coverage:** fail on conversion errors ([44fda87](https://github.com/monkescience/testastic/commit/44fda87cf44b5380721c5c75666cd5f877d982ee))
+- **assert:** enforce eventually deadline ([f0901a0](https://github.com/monkescience/testastic/commit/f0901a0721ce2d5e7ecc41788c9263a17d5b2894))
+- **json:** preserve update number precision ([a7fea9b](https://github.com/monkescience/testastic/commit/a7fea9bf2a60c54466dcb54f5714be0ce5f09f31))
+- **json:** reject trailing json content ([0a68d22](https://github.com/monkescience/testastic/commit/0a68d22df39415e5df7ae6c5e90e90b80e9d22f4))
+
 ## [v0.3.2](https://github.com/monkescience/testastic/compare/v0.3.1...v0.3.2) (2026-04-26)
 
 ### Bug Fixes
