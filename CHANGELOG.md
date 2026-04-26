@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.1](https://github.com/monkescience/testastic/compare/v0.3.0...v0.3.1) (2026-04-26)
+
+### Bug Fixes
+
+- **compare:** preserve numeric precision ([b89d1ac](https://github.com/monkescience/testastic/commit/b89d1ac1a78a515db307fc4403cfb58e07e7dcb6))
+- **compare:** backtrack unordered matches ([caba243](https://github.com/monkescience/testastic/commit/caba243976552d88e24206611deaf4c05a0a35cf))
+- **process:** stop process when readiness fails ([bb483f1](https://github.com/monkescience/testastic/commit/bb483f16768c1747e0e9fd28338ca2119790b831))
+
 ## [v0.3.0](https://github.com/monkescience/testastic/compare/v0.2.1...v0.3.0) (2026-04-16)
 
 ### ⚠ BREAKING CHANGES
