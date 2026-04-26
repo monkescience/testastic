@@ -342,8 +342,8 @@ func startProcess(ctx context.Context, tb testing.TB, cfg *processConfig) *Proce
 		close(proc.exited)
 	}()
 
-	waitForReady(ctx, tb, proc, cfg)
 	tb.Cleanup(proc.Stop)
+	waitForReady(ctx, tb, proc, cfg)
 
 	return proc
 }

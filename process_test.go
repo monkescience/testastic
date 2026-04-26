@@ -506,7 +506,7 @@ func TestBinaryStart(t *testing.T) {
 		defer mt.cleanup()
 
 		port := nextPort()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		// when: starting the process with the cancelled context
@@ -550,6 +550,62 @@ func TestBinaryStart(t *testing.T) {
 		fatal, _ := mt.result()
 		testastic.True(t, fatal)
 	})
+
+	t.Run("cleanup stops process after readiness timeout", func(t *testing.T) {
+		// given: a process that starts but never satisfies readiness
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
+		mt := newProcessMockT()
+		defer mt.cleanup()
+
+		port := nextPort()
+
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+
+		// when: startup fails during readiness polling
+		runExpectingFatal(func() {
+			binary.Start(ctx, mt,
+				testastic.ReadyCheckFunc(func(context.Context) bool { return false }),
+				testastic.WithPort(port),
+				testastic.WithEnv(fmt.Sprintf("PORT=%d", port)),
+				testastic.WithReadyTimeout(500*time.Millisecond),
+				testastic.WithReadyInterval(10*time.Millisecond),
+			)
+		})
+
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "process not ready")
+
+		mt.cleanup()
+
+		// then: the registered cleanup stopped the process without relying on parent context cancellation
+		testastic.Eventually(t, func() bool {
+			return !processResponds(t, port)
+		}, 2*time.Second, testastic.WithInterval(25*time.Millisecond))
+	})
+}
+
+func processResponds(t *testing.T, port int) bool {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, fmt.Sprintf("http://localhost:%d/health", port), nil)
+	if err != nil {
+		return false
+	}
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return false
+	}
+
+	resp.Body.Close() //nolint:errcheck // test cleanup
+
+	return resp.StatusCode == http.StatusOK
 }
 
 func TestCollectSubprocessCoverage(t *testing.T) {
