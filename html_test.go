@@ -755,6 +755,93 @@ func TestAssertHTML(t *testing.T) {
 	})
 }
 
+func TestAssertHTML_StandaloneTypedMatchers(t *testing.T) {
+	t.Parallel()
+
+	// given: standalone typed matchers in text and attribute values
+	expectedFile := filepath.Join(t.TempDir(), "standalone-typed-matchers.html")
+	expected := `<div data-count="{{anyInt}}" data-price="{{anyFloat}}" data-enabled="{{anyBool}}">` +
+		`<span>{{anyInt}}</span><strong>{{anyFloat}}</strong><em>{{anyBool}}</em></div>`
+
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	if err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+	actual := `<div data-count="42" data-price="19.99" data-enabled="true">` +
+		`<span>-7</span><strong>3.14</strong><em>false</em></div>`
+
+	// when: asserting with matching HTML string values
+	testastic.AssertHTML(mt, expectedFile, actual)
+
+	// then: typed matchers treat HTML text and attributes as textual values
+	if mt.failed {
+		t.Errorf("expected standalone typed HTML matchers to pass, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_UpdateEscapesGeneratedHTML(t *testing.T) {
+	t.Parallel()
+
+	t.Run("create expected file roundtrips escaped content", func(t *testing.T) {
+		t.Parallel()
+
+		// given: HTML containing text and attribute values that require escaping
+		expectedFile := filepath.Join(t.TempDir(), "created.html")
+		actual := `<div title="a &quot; b">Tom &amp; Jerry &lt;friends&gt;</div>`
+
+		mt := &mockT{}
+
+		// when: creating the expected file in update mode
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.Update())
+
+		if mt.failed {
+			t.Fatalf("expected create to pass, got: %s", mt.message)
+		}
+
+		verify := &mockT{}
+
+		// then: the generated expected file remains valid and matches the same actual HTML
+		testastic.AssertHTML(verify, expectedFile, actual)
+
+		if verify.failed {
+			t.Errorf("expected generated HTML to roundtrip, got: %s", verify.message)
+		}
+	})
+
+	t.Run("update expected file roundtrips escaped content", func(t *testing.T) {
+		t.Parallel()
+
+		// given: an existing expected file that will be updated
+		expectedFile := filepath.Join(t.TempDir(), "updated.html")
+
+		err := os.WriteFile(expectedFile, []byte(`<div title="old">old</div>`), 0o644)
+		if err != nil {
+			t.Fatalf("write expected file: %v", err)
+		}
+
+		actual := `<div title="a &quot; b">Tom &amp; Jerry &lt;friends&gt;</div>`
+		mt := &mockT{}
+
+		// when: updating the expected file
+		testastic.AssertHTML(mt, expectedFile, actual, testastic.Update())
+
+		if mt.failed {
+			t.Fatalf("expected update to pass, got: %s", mt.message)
+		}
+
+		verify := &mockT{}
+
+		// then: the updated expected file remains valid and matches the same actual HTML
+		testastic.AssertHTML(verify, expectedFile, actual)
+
+		if verify.failed {
+			t.Errorf("expected updated HTML to roundtrip, got: %s", verify.message)
+		}
+	})
+}
+
 func TestAssertHTML_UnsupportedOptions(t *testing.T) {
 	t.Parallel()
 

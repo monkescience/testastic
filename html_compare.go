@@ -2,13 +2,20 @@ package testastic
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 )
 
 const maxTextDisplayLen = 30
 
 const nilDisplay = "(nil)"
+
+var (
+	htmlAnyIntRegex   = regexp.MustCompile(`^-?\d+$`)
+	htmlAnyFloatRegex = regexp.MustCompile(`^-?\d+\.?\d*$`)
+)
 
 type htmlDifference struct {
 	Path     string
@@ -62,7 +69,7 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 			}
 
 			actualText := getTextContent(actual)
-			if !m.Match(actualText) {
+			if !matchHTMLMatcher(m, actualText) {
 				return []htmlDifference{{
 					Path:     path,
 					Expected: m.String(),
@@ -193,7 +200,7 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *co
 
 		if m, ok := expVal.(Matcher); ok {
 			actStr := getString(actVal)
-			if !m.Match(actStr) {
+			if !matchHTMLMatcher(m, actStr) {
 				diffs = append(diffs, htmlDifference{
 					Path:     attrPath,
 					Expected: m.String(),
@@ -460,6 +467,23 @@ func getString(v any) string {
 	}
 
 	return fmt.Sprintf("%v", v)
+}
+
+func matchHTMLMatcher(m Matcher, actual string) bool {
+	if m.Match(actual) {
+		return true
+	}
+
+	switch m.(type) {
+	case anyIntMatcher:
+		return htmlAnyIntRegex.MatchString(actual)
+	case anyFloatMatcher:
+		return htmlAnyFloatRegex.MatchString(actual)
+	case anyBoolMatcher:
+		return actual == strconv.FormatBool(true) || actual == strconv.FormatBool(false)
+	default:
+		return false
+	}
 }
 
 func formatAttrValue(v any) string {

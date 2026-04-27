@@ -1,6 +1,7 @@
 package testastic
 
 import (
+	"html"
 	"sort"
 	"strings"
 )
@@ -71,7 +72,7 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 				sb.WriteString(" ")
 				sb.WriteString(name)
 				sb.WriteString("=\"")
-				sb.WriteString(getString(val))
+				sb.WriteString(html.EscapeString(getString(val)))
 				sb.WriteString("\"")
 			}
 		}
@@ -87,7 +88,7 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 		// Inline text content for single-text children.
 		if len(node.Children) == 1 && node.Children[0].Type == htmlText {
 			text := getTextContent(node.Children[0])
-			sb.WriteString(text)
+			sb.WriteString(html.EscapeString(text))
 			sb.WriteString("</")
 			sb.WriteString(node.Tag)
 			sb.WriteString(">")
@@ -113,7 +114,7 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 		text := getTextContent(node)
 		if strings.TrimSpace(text) != "" {
 			sb.WriteString(indentStr)
-			sb.WriteString(strings.TrimSpace(text))
+			sb.WriteString(html.EscapeString(strings.TrimSpace(text)))
 		}
 
 	case htmlComment:
