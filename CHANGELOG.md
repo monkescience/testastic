@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.3.4](https://github.com/monkescience/testastic/compare/v0.3.3...v0.3.4) (2026-04-27)
+
+### Bug Fixes
+
+- **html:** handle typed matchers and escaping ([d6b2ddb](https://github.com/monkescience/testastic/commit/d6b2ddb266621f532d4aaec8e7f0bcc96d43688b))
+
 ## [v0.3.3](https://github.com/monkescience/testastic/compare/v0.3.2...v0.3.3) (2026-04-26)
 
 ### Bug Fixes
