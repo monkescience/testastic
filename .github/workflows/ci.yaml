@@ -45,72 +45,8 @@ jobs:
       - name: Run tests with coverage
         run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
 
-      - name: Publish coverage summary
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {gsub("%", "", $3); print $3}')
-          {
-            echo "## Test Coverage"
-            echo ""
-            echo "| Metric | Value |"
-            echo "|---|---:|"
-            echo "| Current run | ${COVERAGE}% |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Check coverage delta
-        if: github.event_name == 'pull_request'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          coverage_from_file() {
-            go tool cover -func="$1" | awk '/^total:/ {gsub("%", "", $3); print $3}'
-          }
-
-          PR_COVERAGE=$(coverage_from_file coverage.out)
-
-          BASE_DIR="$(mktemp -d)"
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          git worktree add "$BASE_DIR" "origin/${{ github.base_ref }}"
-          trap 'git worktree remove --force "$BASE_DIR"' EXIT
-
-          pushd "$BASE_DIR" >/dev/null
-          if go test -race -coverprofile=base_coverage.out -covermode=atomic ./...; then
-            BASE_COVERAGE=$(coverage_from_file base_coverage.out)
-          else
-            echo "::warning::Base branch tests failed; using PR coverage as baseline"
-            BASE_COVERAGE="$PR_COVERAGE"
-          fi
-          popd >/dev/null
-
-          echo "Base branch coverage: ${BASE_COVERAGE}%"
-          echo "PR coverage: ${PR_COVERAGE}%"
-          DELTA=$(awk "BEGIN { printf \"%+.2f\", $PR_COVERAGE - $BASE_COVERAGE }")
-
-          RESULT="PASS"
-
-          if awk "BEGIN { exit !($PR_COVERAGE < $BASE_COVERAGE) }"; then
-            RESULT="FAIL"
-            echo "::error title=Coverage gate failed::Coverage decreased from ${BASE_COVERAGE}% to ${PR_COVERAGE}% (delta: ${DELTA}%)"
-          else
-            echo "::notice title=Coverage gate passed::Coverage is ${PR_COVERAGE}% (base: ${BASE_COVERAGE}%, delta: ${DELTA}%)"
-          fi
-
-          {
-            echo ""
-            echo "## Coverage Gate"
-            echo ""
-            echo "| Metric | Value |"
-            echo "|---|---:|"
-            echo "| Base (${{ github.base_ref }}) | ${BASE_COVERAGE}% |"
-            echo "| PR | ${PR_COVERAGE}% |"
-            echo "| Delta | ${DELTA}% |"
-            echo "| Rule | PR >= Base |"
-            echo "| Result | ${RESULT} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-          if [ "$RESULT" = "FAIL" ]; then
-            exit 1
-          fi
+      - name: Check coverage
+        uses: vladopajic/go-test-coverage@a93b868a4cbcbf18dc3781650fad241f0020e609 # v2.18.8
+        with:
+          profile: coverage.out
+          threshold-total: 80
