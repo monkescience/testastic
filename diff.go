@@ -1,6 +1,7 @@
 package testastic
 
 import (
+	"slices"
 	"strings"
 )
 
@@ -108,8 +109,7 @@ func computeDiff(expected, actual []string) []string {
 		}
 	}
 
-	for k := len(ops) - 1; k >= 0; k-- {
-		op := ops[k]
+	for _, op := range slices.Backward(ops) {
 		switch op.op {
 		case diffEqual:
 			result = append(result, "  "+op.line)

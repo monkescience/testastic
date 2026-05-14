@@ -123,6 +123,9 @@ func oneOfToRegex(values []any) string {
 
 const htmlMatcherPlaceholderPrefix = "__TESTASTIC_HTML_MATCHER_"
 
+// htmlDocumentTag is the synthetic tag for the document root node.
+const htmlDocumentTag = "#document"
+
 // htmlTemplateExprRegex matches {{...}} expressions in HTML.
 // Handles backtick-quoted content that may contain } characters.
 // Effective pattern: \{\{((?:[^}`]+|`[^`]*`)+)\}\}.
@@ -249,7 +252,7 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 				// Create a wrapper that includes both doctype and root element
 				root := &htmlNode{
 					Type: htmlElement,
-					Tag:  "#document",
+					Tag:  htmlDocumentTag,
 					Path: "",
 				}
 
@@ -266,7 +269,7 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 		// No root element found, wrap children
 		root := &htmlNode{
 			Type: htmlElement,
-			Tag:  "#document",
+			Tag:  htmlDocumentTag,
 			Path: "",
 		}
 

@@ -40,7 +40,7 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 
 	switch node.Type {
 	case htmlElement:
-		if node.Tag == "#document" {
+		if node.Tag == htmlDocumentTag {
 			for i, child := range node.Children {
 				if i > 0 {
 					sb.WriteString("\n")

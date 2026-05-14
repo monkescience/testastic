@@ -19,6 +19,8 @@ import (
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", myConfig)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", resp.Body)
+//
+//nolint:dupl // Parallel structure with AssertJSON keeps each format's flow readable.
 func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 

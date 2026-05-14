@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -97,8 +98,8 @@ func (m *processMockT) cleanup() {
 	dirs := m.tempDirs
 	m.mu.Unlock()
 
-	for i := len(cleanups) - 1; i >= 0; i-- {
-		cleanups[i]()
+	for _, cleanup := range slices.Backward(cleanups) {
+		cleanup()
 	}
 
 	for _, d := range dirs {
