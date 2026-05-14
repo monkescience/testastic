@@ -164,6 +164,7 @@ linters:
 
     # Framework/library specific (enable if using)
     # - arangolint           # ArangoDB client best practices
+    # - clickhouselint       # ClickHouse Go driver best practices
     # - ginkgolinter         # Ginkgo/Gomega test framework
     # - zerologlint          # zerolog logger
     # - testifylint          # testify assertions - enable if using testify
@@ -171,7 +172,7 @@ linters:
 
     # Needs configuration / project-specific
     # - depguard             # block/allow package imports - needs allowlist config
-    # - gomodguard           # block/allow module dependencies - needs config
+    # - gomodguard_v2        # block/allow module dependencies - needs config (gomodguard is deprecated)
     # - goheader             # file header checks - only for license boilerplate
 
     # Opinionated / often wrong
@@ -183,6 +184,7 @@ linters:
 
     # Deprecated
     # - wsl                  # deprecated - using wsl_v5 instead
+    # - gomodguard           # deprecated - use gomodguard_v2 instead
 
 formatters:
   enable:
