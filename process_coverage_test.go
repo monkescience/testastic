@@ -64,7 +64,7 @@ func TestCollectSubprocessCoverage(t *testing.T) {
 }
 
 func TestSetupCoverDir_sharedDir(t *testing.T) {
-	t.Run("uses shared dir when set", func(t *testing.T) {
+	t.Run("creates a per-run subdir under the shared dir", func(t *testing.T) {
 		// given: a shared coverage directory is already configured
 		dir := t.TempDir()
 
@@ -76,8 +76,30 @@ func TestSetupCoverDir_sharedDir(t *testing.T) {
 		// when: resolving the cover directory without an explicit override
 		result := setupCoverDir(t, "")
 
-		// then: the shared directory is reused
-		Equal(t, dir, result)
+		// then: the result is a fresh subdir inside the shared directory
+		NotEqual(t, dir, result)
+		HasPrefix(t, result, dir+string(filepath.Separator))
+
+		info, err := os.Stat(result)
+		NoError(t, err)
+		True(t, info.IsDir())
+	})
+
+	t.Run("each call returns a unique subdir to avoid covmeta races", func(t *testing.T) {
+		// given: a shared coverage directory is already configured
+		dir := t.TempDir()
+
+		old := sharedCoverDir
+		sharedCoverDir = dir
+
+		defer func() { sharedCoverDir = old }()
+
+		// when: setupCoverDir is invoked twice by concurrent runs
+		first := setupCoverDir(t, "")
+		second := setupCoverDir(t, "")
+
+		// then: the two calls hand out distinct directories (no covmeta.<hash> race)
+		NotEqual(t, first, second)
 	})
 
 	t.Run("explicit coverDir takes precedence over shared dir", func(t *testing.T) {

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -78,15 +79,17 @@ func collectSubprocessCoverage(run func() int, outputPath string) int {
 	return code
 }
 
-// convertProcessCoverage converts binary coverage data in coverDir to a text
-// profile at outputPath using `go tool covdata textfmt`.
+// convertProcessCoverage converts binary coverage data under coverDir to a
+// text profile at outputPath using `go tool covdata textfmt`. coverDir may
+// hold coverage files directly or one subdir per subprocess run; both
+// layouts are aggregated.
 func convertProcessCoverage(coverDir string, outputPath string) error {
-	entries, err := os.ReadDir(coverDir)
+	inputDirs, err := collectCoverInputDirs(coverDir)
 	if err != nil {
-		return fmt.Errorf("failed to read coverage directory: %w", err)
+		return err
 	}
 
-	if len(entries) == 0 {
+	if len(inputDirs) == 0 {
 		return nil
 	}
 
@@ -105,7 +108,7 @@ func convertProcessCoverage(coverDir string, outputPath string) error {
 	//nolint:gosec // paths from test config
 	cmd := exec.CommandContext(ctx,
 		"go", "tool", "covdata", "textfmt",
-		"-i="+coverDir, "-o="+outputPath,
+		"-i="+strings.Join(inputDirs, ","), "-o="+outputPath,
 	)
 
 	output, err := cmd.CombinedOutput()
@@ -114,4 +117,55 @@ func convertProcessCoverage(coverDir string, outputPath string) error {
 	}
 
 	return nil
+}
+
+// collectCoverInputDirs returns the input directories for `go tool covdata`.
+// Per-run subdirs each count as one input; a flat coverDir with files counts
+// as a single input.
+func collectCoverInputDirs(coverDir string) ([]string, error) {
+	entries, err := os.ReadDir(coverDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read coverage directory: %w", err)
+	}
+
+	var (
+		subdirs   []string
+		hasFiles  bool
+		hasSubdir bool
+	)
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			hasSubdir = true
+
+			subdirs = append(subdirs, filepath.Join(coverDir, entry.Name()))
+
+			continue
+		}
+
+		hasFiles = true
+	}
+
+	if hasSubdir && !hasFiles {
+		nonEmpty := subdirs[:0]
+
+		for _, dir := range subdirs {
+			subEntries, readErr := os.ReadDir(dir)
+			if readErr != nil {
+				return nil, fmt.Errorf("failed to read coverage subdir: %w", readErr)
+			}
+
+			if len(subEntries) > 0 {
+				nonEmpty = append(nonEmpty, dir)
+			}
+		}
+
+		return nonEmpty, nil
+	}
+
+	if hasFiles {
+		return []string{coverDir}, nil
+	}
+
+	return nil, nil
 }
