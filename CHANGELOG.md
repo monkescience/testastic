@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.3.5](https://github.com/monkescience/testastic/compare/v0.3.4...v0.3.5) (2026-05-14)
+
+### Bug Fixes
+
+- **coverage:** isolate each run in its own GOCOVERDIR subdir ([8fb67e0](https://github.com/monkescience/testastic/commit/8fb67e0551fad113f1ab14f1fe84b61365cf4980))
+
 ## [v0.3.4](https://github.com/monkescience/testastic/compare/v0.3.3...v0.3.4) (2026-04-27)
 
 ### Bug Fixes
