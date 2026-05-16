@@ -1,19 +1,16 @@
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
-.PHONY: test test-unit lint fmt clean mod-tidy coverage help
+.PHONY: test lint fmt clean mod-tidy coverage help
 
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
 
-test: ## Run all tests
-	go test -race ./...
+test: ## Run all tests with race detection and coverage profile
+	@mkdir -p coverage
+	go test -race -covermode=atomic -coverprofile=coverage/coverage.out ./...
 
-test-unit: ## Run unit tests only (skip integration via -short)
-	go test -race -short ./...
-
-coverage: ## Run tests with coverage
-	go test -race -coverprofile=coverage.out -covermode=atomic ./...
-	go tool cover -html=coverage.out -o coverage.html
+coverage: ## Generate HTML coverage report from coverage/coverage.out
+	go tool cover -html=coverage/coverage.out -o coverage/coverage.html
 
 lint: ## Run linter
 	golangci-lint run --timeout=5m
@@ -21,8 +18,8 @@ lint: ## Run linter
 fmt: ## Format code
 	golangci-lint fmt
 
-clean: ## Clean build artifacts
-	rm -f coverage.out coverage.html
+clean: ## Clean coverage artifacts
+	rm -rf coverage/
 
 mod-tidy: ## Tidy Go modules
 	go mod tidy
