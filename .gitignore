@@ -1,10 +1,13 @@
 # Build
 bin/
+dist/
 
 # Test
 coverage/
 coverage.out
-test-report.json
+
+# CI caches
+.go/
 
 # IDE
 .idea/
