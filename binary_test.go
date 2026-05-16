@@ -13,10 +13,6 @@ import (
 )
 
 func TestBuildBinary(t *testing.T) {
-	if testing.Short() {
-		t.Skip("integration test: builds and runs subprocesses")
-	}
-
 	t.Run("builds a reusable binary during a regular test", func(t *testing.T) {
 		// given: a CLI fixture import path
 		binary := testastic.BuildBinary(t, "./testdata/testcli")
@@ -31,10 +27,6 @@ func TestBuildBinary(t *testing.T) {
 }
 
 func TestBinaryRun(t *testing.T) {
-	if testing.Short() {
-		t.Skip("integration test: runs subprocesses")
-	}
-
 	t.Run("captures stdout on success", func(t *testing.T) {
 		// given: a coverage-instrumented CLI fixture built in TestMain
 
@@ -146,10 +138,6 @@ func TestBinaryRun(t *testing.T) {
 }
 
 func TestCollectBinaryCoverage(t *testing.T) {
-	if testing.Short() {
-		t.Skip("integration test: runs go test on a harness package")
-	}
-
 	t.Run("exported helper collects CLI coverage through TestMain", func(t *testing.T) {
 		// given: a harness package that uses BuildBinaryMain and CollectSubprocessCoverage
 		outputPath := filepath.Join(t.TempDir(), "binary.out")
@@ -174,10 +162,6 @@ func TestCollectBinaryCoverage(t *testing.T) {
 }
 
 func TestRunWithOptions_usesTestContext(t *testing.T) {
-	if testing.Short() {
-		t.Skip("integration test: runs subprocesses")
-	}
-
 	t.Run("inherits cancellation from the test context", func(t *testing.T) {
 		// given: a command launched with a cancelled context-backed test double
 		ctx, cancel := context.WithCancel(context.Background())
