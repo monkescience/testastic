@@ -1,4 +1,4 @@
-# golangci-lint v2.12.2
+# golangci-lint 2.12.2
 version: "2"
 
 run:
@@ -16,6 +16,10 @@ linters:
 
   exclusions:
     rules:
+      # Skip generated files
+      - path: \.gen\.go$
+        linters:
+          - all
       # Disable strict linters in test files
       - path: _test\.go
         linters:
