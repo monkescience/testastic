@@ -80,16 +80,17 @@ func eventuallyWithValue[T any](
 		return condition(lastValue)
 	}
 
-	// Check immediately first.
+	// The timeout bounds the whole assertion, so the timer starts before the
+	// first check rather than after it.
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+
 	if check() {
 		return
 	}
 
 	ticker := time.NewTicker(cfg.Interval)
-	timer := time.NewTimer(timeout)
-
 	defer ticker.Stop()
-	defer timer.Stop()
 
 	for {
 		select {
@@ -99,6 +100,14 @@ func eventuallyWithValue[T any](
 			}
 
 		case <-timer.C:
+			// Evaluate once more at the deadline so a condition that became
+			// true in the final sub-interval window is observed, and the
+			// failure message reflects the value at the deadline rather than
+			// the previous tick.
+			if check() {
+				return
+			}
+
 			msg := ""
 			if cfg.Message != "" {
 				msg = "\n    message:  " + cfg.Message

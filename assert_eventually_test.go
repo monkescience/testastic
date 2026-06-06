@@ -513,3 +513,29 @@ func TestEventuallyError(t *testing.T) {
 		}
 	})
 }
+
+func TestEventually_ChecksOnceMoreAtTimeout(t *testing.T) {
+	t.Parallel()
+
+	// given: a condition that only becomes true on its second check, and an
+	// interval far larger than the timeout so no ticker check fires; the only
+	// checks are the immediate one and the deadline one
+	calls := 0
+	mt := &mockT{}
+
+	// when: asserting eventually with that condition
+	testastic.Eventually(mt, func() bool {
+		calls++
+
+		return calls >= 2
+	}, 20*time.Millisecond, testastic.WithInterval(time.Hour))
+
+	// then: the deadline check observes the condition and the assertion passes
+	if mt.failed {
+		t.Errorf("expected the timeout check to observe the condition, got: %s", mt.message)
+	}
+
+	if calls < 2 {
+		t.Errorf("expected at least 2 checks (immediate + deadline), got %d", calls)
+	}
+}
