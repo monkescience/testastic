@@ -333,7 +333,10 @@ func startProcess(ctx context.Context, tb testing.TB, cfg *processConfig) *Proce
 	}
 
 	if err := proc.cmd.Start(); err != nil {
+		cancel()
 		tb.Fatalf("testastic: failed to start process: %v", err)
+
+		return nil
 	}
 
 	go func() {
@@ -361,12 +364,13 @@ func (p *Process) CoverDir() string {
 	return p.coverDir
 }
 
-// Stop cancels the process context, triggering a graceful shutdown signal
-// (SIGTERM on Unix, interrupt on Windows). If the process does not exit within
-// ShutdownTimeout, it is forcefully killed.
-// Coverage data is written to CoverDir on graceful shutdown.
+// Stop cancels the process context to shut the process down. On Unix it sends
+// SIGTERM and the process has until ShutdownTimeout to exit gracefully, writing
+// coverage data to CoverDir. On Windows, graceful interrupt is not currently
+// delivered, so the process is terminated forcefully once ShutdownTimeout
+// elapses and coverage data may not be flushed.
 //
-// Stop is idempotent; calling it multiple times is safe.
+// Stop is idempotent, so calling it multiple times is safe.
 // It is called automatically by the t.Cleanup handler registered by [Binary.Start].
 func (p *Process) Stop() {
 	p.mu.Lock()
