@@ -119,6 +119,8 @@ func TestEventually(t *testing.T) {
 	})
 
 	t.Run("zero interval does not panic", func(t *testing.T) {
+		t.Parallel()
+
 		// given: a zero polling interval
 		mt := &mockT{}
 

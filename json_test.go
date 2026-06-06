@@ -292,6 +292,8 @@ func TestAssertJSON(t *testing.T) {
 	})
 
 	t.Run("large integer mismatch", func(t *testing.T) {
+		t.Parallel()
+
 		// given: adjacent integers above float64's exact integer range
 		expectedFile := filepath.Join(t.TempDir(), "expected.json")
 		err := os.WriteFile(expectedFile, []byte(`{"id":9007199254740992}`), 0o600)

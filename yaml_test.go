@@ -181,6 +181,8 @@ data:
 	})
 
 	t.Run("large integer mismatch", func(t *testing.T) {
+		t.Parallel()
+
 		// given: adjacent negative integers above float64's exact integer range
 		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
 		err := os.WriteFile(expectedFile, []byte("id: -9007199254740992\n"), 0o600)
