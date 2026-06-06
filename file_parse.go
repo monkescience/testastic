@@ -25,8 +25,13 @@ var matcherTextPatterns = map[string]string{
 }
 
 // fileExprRegex matches {{...}} expressions in text (without JSON quote handling).
-var fileExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
+// The backtick and double-quote alternatives let a quoted/backticked argument
+// contain } (e.g. a {n} regex quantifier) without prematurely closing the {{}}.
+var fileExprRegex = regexp.MustCompile(
+	`\{\{((?:[^}` + "`" + `"]+|` + "`" + `[^` + "`" + `]*` + "`" + `|"[^"]*")+)\}\}`,
+)
 
+//nolint:funlen // Sequential pattern builder is clearer as one pass.
 func parseLine(line string) (*lineMatcher, error) {
 	matches := fileExprRegex.FindAllStringSubmatchIndex(line, -1)
 	if len(matches) == 0 {
@@ -57,6 +62,15 @@ func parseLine(line string) (*lineMatcher, error) {
 
 		expr := trimSpace(line[exprStart:exprEnd])
 
+		if expr == "" {
+			// Empty {{ }} is literal text (e.g. documentation about template
+			// syntax), not a matcher directive.
+			patternBuilder.WriteString(regexp.QuoteMeta(line[start:end]))
+			lastEnd = end
+
+			continue
+		}
+
 		matcher, err := parseMatcher(expr)
 		if err != nil {
 			return nil, fmt.Errorf("line %q: %w", line, err)
@@ -70,7 +84,6 @@ func parseLine(line string) (*lineMatcher, error) {
 		lastEnd = end
 	}
 
-	// Add any remaining literal text after the last matcher
 	if lastEnd < len(line) {
 		patternBuilder.WriteString(regexp.QuoteMeta(line[lastEnd:]))
 	}
@@ -96,7 +109,9 @@ func getMatcherTextPattern(expr string, _ Matcher) string {
 			pattern = extractQuotedArg(expr[6:])
 		}
 
-		return pattern
+		// The whole line is already anchored with ^...$, so a user-supplied
+		// leading ^ or trailing $ would become an impossible mid-line anchor.
+		return stripLineAnchors(pattern)
 	}
 
 	if strings.HasPrefix(expr, "oneOf ") {
@@ -117,6 +132,18 @@ func getMatcherTextPattern(expr string, _ Matcher) string {
 		return p
 	}
 
-	// Fallback: match anything
 	return `.+`
+}
+
+// stripLineAnchors removes a single leading ^ and trailing $ from a regex
+// pattern. The text line is anchored as a whole, so embedded anchors would be
+// unsatisfiable. A trailing escaped \$ is a literal dollar and is preserved.
+func stripLineAnchors(pattern string) string {
+	pattern = strings.TrimPrefix(pattern, "^")
+
+	if strings.HasSuffix(pattern, "$") && !strings.HasSuffix(pattern, `\$`) {
+		pattern = pattern[:len(pattern)-1]
+	}
+
+	return pattern
 }

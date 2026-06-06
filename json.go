@@ -75,8 +75,7 @@ func handleMissingExpectedFile(
 	}
 
 	if update {
-		createErr := createFn(path, actualBytes)
-		if createErr != nil {
+		if createErr := createFn(path, actualBytes); createErr != nil {
 			tb.Fatalf("testastic: failed to create expected file: %v", createErr)
 		}
 
@@ -103,8 +102,7 @@ func handleJSONDiffs(
 	}
 
 	if cfg.Update {
-		updateErr := updateExpectedFile(path, actualBytes, expected)
-		if updateErr != nil {
+		if updateErr := updateExpectedFile(path, actualBytes, expected); updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", updateErr)
 		}
 
@@ -112,8 +110,6 @@ func handleJSONDiffs(
 
 		return true
 	}
-
-	sortDiffs(diffs)
 
 	msg := formatAssertionMessage("AssertJSON", path, cfg.Message)
 	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatJSONDiffInline(expected.Data, actualData))

@@ -387,3 +387,76 @@ func TestAssertJSON_UnsupportedOptions(t *testing.T) {
 			testastic.IgnoreFields("nonexistent"))
 	})
 }
+
+func TestAssertJSON_UnorderedArrayHonorsPathScopedIgnore(t *testing.T) {
+	t.Parallel()
+
+	// given: an unordered array whose element differs only in a path-ignored field
+	expectedFile := filepath.Join(t.TempDir(), "unordered.json")
+	if err := os.WriteFile(expectedFile, []byte(`{"items":[{"name":"a","secret":"x"}]}`), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+	actual := `{"items":[{"name":"a","secret":"y"}]}`
+
+	// when: comparing with array order ignored and the field ignored at its path
+	testastic.AssertJSON(mt, expectedFile, actual,
+		testastic.IgnoreArrayOrderAt("$.items"),
+		testastic.IgnoreFields("$.items[0].secret"),
+	)
+
+	// then: the path-scoped ignore applies just as it does for ordered arrays
+	if mt.failed {
+		t.Errorf("expected path-scoped ignore to apply in unordered array, got: %s", mt.message)
+	}
+}
+
+func TestAssertJSON_MatchedMatcherNotShownAsDiff(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected file where one field is a matcher the actual satisfies
+	expectedFile := filepath.Join(t.TempDir(), "matcher.json")
+	if err := os.WriteFile(expectedFile, []byte(`{"id":"{{anyInt}}","name":"x"}`), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+
+	// when: only the non-matcher field actually differs
+	testastic.AssertJSON(mt, expectedFile, `{"id":5,"name":"y"}`)
+
+	// then: the failure is reported but the matched matcher is not rendered as a change
+	if !mt.failed {
+		t.Fatal("expected a difference for the name field")
+	}
+
+	if strings.Contains(mt.message, "{{anyInt}}") {
+		t.Errorf("matched matcher should not appear in the diff, got: %s", mt.message)
+	}
+}
+
+func TestAssertJSON_UpdatePreservesRootMatcher(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected file whose entire body is a matcher
+	expectedFile := filepath.Join(t.TempDir(), "root.json")
+	if err := os.WriteFile(expectedFile, []byte(`"{{anyString}}"`), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+
+	// when: updating with an actual the matcher rejects (so a rewrite happens)
+	testastic.AssertJSON(mt, expectedFile, "42", testastic.Update())
+
+	content, err := os.ReadFile(expectedFile)
+	if err != nil {
+		t.Fatalf("read updated file: %v", err)
+	}
+
+	// then: the root matcher is preserved rather than overwritten with the value
+	if !strings.Contains(string(content), "{{anyString}}") {
+		t.Errorf("expected root matcher to be preserved on update, got: %s", content)
+	}
+}

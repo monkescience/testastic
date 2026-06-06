@@ -112,7 +112,10 @@ func TestCompareFileLinesWithMatchers(t *testing.T) {
 		actual := []string{"Name: Alice"}
 
 		// when: comparing with matchers
-		diffs := compareFileLinesWithMatchers(expected, actual)
+		diffs, err := compareFileLinesWithMatchers(expected, actual)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// then: no differences (matcher matches)
 		if len(diffs) != 0 {
@@ -128,7 +131,10 @@ func TestCompareFileLinesWithMatchers(t *testing.T) {
 		actual := []string{"Age: not-a-number"}
 
 		// when: comparing with matchers
-		diffs := compareFileLinesWithMatchers(expected, actual)
+		diffs, err := compareFileLinesWithMatchers(expected, actual)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
 
 		// then: one difference (matcher failed)
 		if len(diffs) != 1 {

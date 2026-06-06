@@ -216,7 +216,6 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 		text := n.Data
 		resolved := resolveHTMLMatcherInValue(text, matchers)
 
-		// Check if the text is only whitespace
 		if s, ok := resolved.(string); ok && strings.TrimSpace(s) == "" {
 			return nil
 		}
@@ -230,7 +229,7 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 	case html.CommentNode:
 		return &htmlNode{
 			Type: htmlComment,
-			Text: n.Data,
+			Text: resolveHTMLMatcherInValue(n.Data, matchers),
 			Path: parentPath + " (comment)",
 		}
 
@@ -247,7 +246,7 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 			if c.Type == html.ElementNode {
 				return convertTohtmlNode(c, matchers, parentPath)
 			}
-			// Also handle doctype
+
 			if c.Type != html.DoctypeNode {
 				continue
 			}
@@ -477,7 +476,14 @@ func buildSegments(value string, positions []placeholderPos) []templateSegment {
 		}
 
 		matcher, err := parseMatcher(pos.expr)
-		if err == nil {
+		if err != nil {
+			// Keep the original {{expr}} as a literal so an unknown or invalid
+			// matcher surfaces as a visible mismatch instead of silently
+			// widening the pattern by dropping the segment.
+			segments = append(segments, templateSegment{
+				Literal: "{{" + pos.expr + "}}",
+			})
+		} else {
 			segments = append(segments, templateSegment{
 				Matcher: matcher,
 			})

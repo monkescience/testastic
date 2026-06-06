@@ -9,7 +9,7 @@ import (
 
 // formatYAMLDiffInline generates a git-style inline diff between expected and actual YAML.
 func formatYAMLDiffInline(expected, actual any) string {
-	expClean := cleanMatchersForDisplay(expected)
+	expClean := substituteMatchedMatchers(expected, actual)
 	actClean := cleanMatchersForDisplay(actual)
 
 	expYAML, err := yaml.Marshal(expClean)

@@ -882,3 +882,129 @@ func TestAssertHTML_UnsupportedOptions(t *testing.T) {
 		}
 	})
 }
+
+func writeHTMLExpected(t *testing.T, content string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "expected.html")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	return path
+}
+
+func TestAssertHTML_UnorderedChildrenHonorPathScopedIgnore(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected document whose only child differs in a path-scoped attribute
+	expectedFile := writeHTMLExpected(t, `<ul><li class="x">same</li></ul>`)
+
+	mt := &mockT{}
+	actual := `<ul><li class="y">same</li></ul>`
+
+	// when: comparing with child order ignored and the class attribute ignored at its path
+	testastic.AssertHTML(mt, expectedFile, actual,
+		testastic.IgnoreChildOrder(),
+		testastic.IgnoreAttributeAt("html > body > ul > li@class"),
+	)
+
+	// then: the path-scoped ignore applies even though child order is ignored
+	if mt.failed {
+		t.Errorf("expected path-scoped attribute ignore to apply under IgnoreChildOrder, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_TextMatcherRejectsNonTextNode(t *testing.T) {
+	t.Parallel()
+
+	// given: a text-position matcher and an actual element node in that position
+	expectedFile := writeHTMLExpected(t, `<span>{{anyString}}</span>`)
+
+	mt := &mockT{}
+
+	// when: comparing against an element where text was expected
+	testastic.AssertHTML(mt, expectedFile, `<span><b>x</b></span>`)
+
+	// then: the structural mismatch is reported, not silently matched
+	if !mt.failed {
+		t.Error("expected a text-vs-element mismatch to fail")
+	}
+}
+
+func TestAssertHTML_TemplateTextNormalizesWhitespace(t *testing.T) {
+	t.Parallel()
+
+	// given: a template with single spaces between literals and a matcher
+	expectedFile := writeHTMLExpected(t, `<p>Total: {{anyInt}} items</p>`)
+
+	mt := &mockT{}
+
+	// when: the actual text has whitespace runs (as reformatted HTML produces)
+	testastic.AssertHTML(mt, expectedFile, "<p>Total:    5\n   items</p>")
+
+	// then: it matches, consistent with the literal-text whitespace policy
+	if mt.failed {
+		t.Errorf("expected template text to match after whitespace normalization, got: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_UnknownEmbeddedMatcherIsNotSilentlyDropped(t *testing.T) {
+	t.Parallel()
+
+	// given: an attribute template referencing an unregistered matcher name
+	expectedFile := writeHTMLExpected(t, `<div id="id-{{definitelyNotARegisteredMatcher}}"></div>`)
+
+	mt := &mockT{}
+
+	// when: the actual value matches only the surrounding literal (the dropped region)
+	testastic.AssertHTML(mt, expectedFile, `<div id="id-"></div>`)
+
+	// then: it fails instead of silently accepting the truncated pattern
+	if !mt.failed {
+		t.Error("expected an unknown embedded matcher to surface as a failure, not be silently dropped")
+	}
+}
+
+func TestAssertHTML_MatcherInsideCommentIsResolved(t *testing.T) {
+	t.Parallel()
+
+	// given: a matcher embedded in an HTML comment
+	expectedFile := writeHTMLExpected(t, `<div><!-- build {{anyInt}} --></div>`)
+
+	mt := &mockT{}
+
+	// when: the actual comment carries a concrete value
+	testastic.AssertHTML(mt, expectedFile, `<div><!-- build 42 --></div>`)
+
+	// then: the matcher resolves and matches (no leaked internal placeholder)
+	if mt.failed {
+		t.Errorf("expected matcher inside comment to resolve and match, got: %s", mt.message)
+	}
+
+	if strings.Contains(mt.message, "TESTASTIC_HTML_MATCHER") {
+		t.Errorf("internal placeholder leaked into output: %s", mt.message)
+	}
+}
+
+func TestAssertHTML_DescribeNodeTruncatesByRune(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected text node longer than the display limit, in multibyte runes
+	longText := strings.Repeat("😀", 35)
+	expectedFile := writeHTMLExpected(t, "<p>"+longText+"</p>")
+
+	mt := &mockT{}
+
+	// when: the actual drops that text node so the truncated text is rendered
+	testastic.AssertHTML(mt, expectedFile, `<p></p>`)
+
+	// then: the message truncates on a rune boundary, not mid-rune (no \x escapes)
+	if !mt.failed {
+		t.Fatal("expected a difference for the removed text node")
+	}
+
+	if strings.Contains(mt.message, `\x`) {
+		t.Errorf("expected rune-aware truncation, got escaped bytes in: %s", mt.message)
+	}
+}

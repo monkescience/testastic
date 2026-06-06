@@ -3,8 +3,9 @@ package testastic
 import (
 	"errors"
 	"fmt"
+	"math/big"
+	"reflect"
 	"regexp"
-	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -128,6 +129,13 @@ func (m *regexMatcher) Match(actual any) bool {
 }
 
 func (m *regexMatcher) String() string {
+	// A backtick in the pattern cannot be represented inside backtick
+	// delimiters, so fall back to the double-quoted form, which parseMatcher
+	// also accepts. This keeps String() round-trippable for -update.
+	if strings.ContainsRune(m.pattern, '`') {
+		return fmt.Sprintf("{{regex %s}}", strconv.Quote(m.pattern))
+	}
+
 	return fmt.Sprintf("{{regex `%s`}}", m.pattern)
 }
 
@@ -136,11 +144,48 @@ type oneOfMatcher struct {
 }
 
 func (m *oneOfMatcher) Match(actual any) bool {
-	return slices.Contains(m.values, actual)
+	actNum, actIsNum := numberToRat(actual)
+
+	for _, candidate := range m.values {
+		if actIsNum {
+			// Numbers decoded from JSON arrive as json.Number, so compare
+			// numerically (consistent with AnyInt/AnyFloat) rather than by
+			// dynamic type, which would never match a string candidate.
+			if candNum, ok := oneOfValueToRat(candidate); ok && candNum.Cmp(actNum) == 0 {
+				return true
+			}
+
+			continue
+		}
+
+		// reflect.DeepEqual handles structured values and never panics, unlike
+		// == on uncomparable types such as maps and slices.
+		if reflect.DeepEqual(candidate, actual) {
+			return true
+		}
+	}
+
+	return false
+}
+
+// oneOfValueToRat converts a oneOf candidate to a rational for numeric
+// comparison. Candidates parsed from template syntax are always strings, so a
+// numeric-looking string is parsed as a JSON number.
+func oneOfValueToRat(candidate any) (*big.Rat, bool) {
+	if s, ok := candidate.(string); ok {
+		return parseJSONNumberRat(s)
+	}
+
+	return numberToRat(candidate)
 }
 
 func (m *oneOfMatcher) String() string {
-	return fmt.Sprintf("{{oneOf %v}}", m.values)
+	quoted := make([]string, len(m.values))
+	for i, v := range m.values {
+		quoted[i] = strconv.Quote(fmt.Sprintf("%v", v))
+	}
+
+	return fmt.Sprintf("{{oneOf %s}}", strings.Join(quoted, " "))
 }
 
 // anyUUIDMatcher matches UUID strings (RFC 4122).
@@ -363,13 +408,12 @@ func parseMatcher(expr string) (Matcher, error) {
 		}
 	}
 
-	// Handle regex `pattern`
 	if len(expr) > 6 && expr[:6] == "regex " {
 		pattern := extractBacktickArg(expr[6:])
 		if pattern != "" {
 			return Regex(pattern)
 		}
-		// Try quoted string
+
 		pattern = extractQuotedArg(expr[6:])
 		if pattern != "" {
 			return Regex(pattern)
@@ -378,7 +422,6 @@ func parseMatcher(expr string) (Matcher, error) {
 		return nil, fmt.Errorf("%w: %s", errInvalidRegexSyntax, expr)
 	}
 
-	// Handle oneOf "a" "b" "c"
 	if len(expr) > 6 && expr[:6] == "oneOf " {
 		values := extractQuotedArgs(expr[6:])
 		if len(values) > 0 {

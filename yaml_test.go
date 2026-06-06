@@ -523,3 +523,46 @@ func TestAssertYAML_UnsupportedOptions(t *testing.T) {
 			"name: test-supported\nversion: \"1.1\"\n", testastic.IgnoreArrayOrder())
 	})
 }
+
+func TestAssertYAML_IdenticalInfinityMatches(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected file and actual that both carry the same infinity
+	expectedFile := filepath.Join(t.TempDir(), "inf.yaml")
+	if err := os.WriteFile(expectedFile, []byte("value: .inf\n"), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+
+	// when: comparing identical infinities
+	testastic.AssertYAML(mt, expectedFile, "value: .inf\n")
+
+	// then: they compare equal rather than as a type mismatch
+	if mt.failed {
+		t.Errorf("expected identical +Inf to match, got: %s", mt.message)
+	}
+}
+
+func TestAssertYAML_BinaryMatchesByteSlice(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected file using a !!binary scalar
+	expectedFile := filepath.Join(t.TempDir(), "binary.yaml")
+	if err := os.WriteFile(expectedFile, []byte("b: !!binary aGVsbG8=\n"), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+	actual := struct {
+		B []byte `yaml:"b"`
+	}{B: []byte("hello")}
+
+	// when: the actual carries the equivalent Go []byte
+	testastic.AssertYAML(mt, expectedFile, actual)
+
+	// then: they compare equal
+	if mt.failed {
+		t.Errorf("expected !!binary to match an equivalent []byte, got: %s", mt.message)
+	}
+}

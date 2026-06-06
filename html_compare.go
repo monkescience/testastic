@@ -52,7 +52,7 @@ func compareHTML(expected, actual *htmlNode, cfg *config) []htmlDifference {
 
 // comparehtmlNodes recursively compares two HTML nodes.
 //
-//nolint:funlen // Complex type dispatch is clearer in one function.
+//nolint:funlen // Node-type dispatch is clearer in one switch.
 func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
 	if cfg.isHTMLFieldIgnored(path, expected.Tag) {
 		return nil
@@ -62,47 +62,12 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 		return nil
 	}
 
-	if expected.Type == htmlText { //nolint:nestif // Matcher handling requires nested conditions.
-		if m, ok := expected.Text.(Matcher); ok {
-			if isIgnore(m) {
-				return nil
-			}
-
-			actualText := getTextContent(actual)
-			if !matchHTMLMatcher(m, actualText) {
-				return []htmlDifference{{
-					Path:     path,
-					Expected: m.String(),
-					Actual:   actualText,
-					Type:     diffMatcherFailed,
-				}}
-			}
-
-			return nil
-		}
-
-		if ts, ok := expected.Text.(templateString); ok {
-			actualText := getTextContent(actual)
-			if !ts.Match(actualText) {
-				return []htmlDifference{{
-					Path:     path,
-					Expected: ts.String(),
-					Actual:   actualText,
-					Type:     diffMatcherFailed,
-				}}
-			}
-
-			return nil
-		}
+	if diffs, handled := compareHTMLTextMatcher(expected, actual, path, cfg); handled {
+		return diffs
 	}
 
 	if expected.Type != actual.Type {
-		return []htmlDifference{{
-			Path:     path,
-			Expected: describeNodeType(expected.Type),
-			Actual:   describeNodeType(actual.Type),
-			Type:     diffTypeMismatch,
-		}}
+		return htmlTypeMismatch(path, expected, actual)
 	}
 
 	var diffs []htmlDifference
@@ -142,21 +107,7 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 		}
 
 	case htmlComment:
-		if cfg.IgnoreComments {
-			break
-		}
-
-		expComment := getString(expected.Text)
-		actComment := getString(actual.Text)
-
-		if expComment != actComment {
-			diffs = append(diffs, htmlDifference{
-				Path:     path,
-				Expected: expComment,
-				Actual:   actComment,
-				Type:     diffChanged,
-			})
-		}
+		diffs = append(diffs, compareHTMLCommentNode(expected, actual, path, cfg)...)
 
 	case htmlDoctype:
 		if !strings.EqualFold(expected.Tag, actual.Tag) {
@@ -181,7 +132,6 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *co
 			continue
 		}
 
-		// Check if expected value is an ignore matcher
 		if m, ok := expVal.(Matcher); ok && isIgnore(m) {
 			continue
 		}
@@ -202,7 +152,7 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *co
 
 		if m, ok := expVal.(Matcher); ok {
 			actStr := getString(actVal)
-			if !matchHTMLMatcher(m, actStr) {
+			if !matchStringMatcher(m, actStr) {
 				diffs = append(diffs, htmlDifference{
 					Path:     attrPath,
 					Expected: m.String(),
@@ -241,7 +191,6 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *co
 		}
 	}
 
-	// Check for extra attributes in actual
 	for name, actVal := range actual {
 		if cfg.isAttributeIgnored(path, name) {
 			continue
@@ -313,8 +262,10 @@ func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *co
 		}}
 	}
 
-	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(exp, act *htmlNode) bool {
-		return len(comparehtmlNodes(exp, act, path, cfg)) == 0
+	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(expIdx int, act *htmlNode) bool {
+		childPath := buildChildPath(path, expected[expIdx], expIdx)
+
+		return len(comparehtmlNodes(expected[expIdx], act, childPath, cfg)) == 0
 	})
 
 	if len(unmatched) == 0 {
@@ -402,8 +353,10 @@ func describeNode(node *htmlNode) string {
 		return fmt.Sprintf("<%s>", node.Tag)
 	case htmlText:
 		text := getTextContent(node)
-		if len(text) > maxTextDisplayLen {
-			return fmt.Sprintf("%q...", text[:maxTextDisplayLen])
+
+		runes := []rune(text)
+		if len(runes) > maxTextDisplayLen {
+			return fmt.Sprintf("%q...", string(runes[:maxTextDisplayLen]))
 		}
 
 		return fmt.Sprintf("%q", text)
@@ -471,7 +424,124 @@ func getString(v any) string {
 	return fmt.Sprintf("%v", v)
 }
 
-func matchHTMLMatcher(m Matcher, actual string) bool {
+// compareHTMLTextMatcher handles an expected text node whose content is a
+// matcher or template. It returns handled=false when the expected node is not
+// a text matcher so the caller falls through to literal comparison. A text
+// matcher only applies to an actual text node, otherwise it is a type mismatch.
+func compareHTMLTextMatcher(expected, actual *htmlNode, path string, cfg *config) ([]htmlDifference, bool) {
+	if expected.Type != htmlText {
+		return nil, false
+	}
+
+	if m, ok := expected.Text.(Matcher); ok {
+		if isIgnore(m) {
+			return nil, true
+		}
+
+		if actual.Type != htmlText {
+			return htmlTypeMismatch(path, expected, actual), true
+		}
+
+		actualText := htmlActualText(actual, cfg)
+		if !matchStringMatcher(m, actualText) {
+			return matcherFailedDiff(path, m.String(), actualText), true
+		}
+
+		return nil, true
+	}
+
+	if ts, ok := expected.Text.(templateString); ok {
+		if actual.Type != htmlText {
+			return htmlTypeMismatch(path, expected, actual), true
+		}
+
+		actualText := htmlActualText(actual, cfg)
+		if !ts.Match(actualText) {
+			return matcherFailedDiff(path, ts.String(), actualText), true
+		}
+
+		return nil, true
+	}
+
+	return nil, false
+}
+
+// compareHTMLCommentNode compares two comment nodes, resolving any matcher or
+// template embedded in the expected comment.
+func compareHTMLCommentNode(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
+	if cfg.IgnoreComments {
+		return nil
+	}
+
+	if m, ok := expected.Text.(Matcher); ok {
+		if isIgnore(m) {
+			return nil
+		}
+
+		actComment := getString(actual.Text)
+		if !matchStringMatcher(m, actComment) {
+			return matcherFailedDiff(path, m.String(), actComment)
+		}
+
+		return nil
+	}
+
+	if ts, ok := expected.Text.(templateString); ok {
+		actComment := getString(actual.Text)
+		if !ts.Match(actComment) {
+			return matcherFailedDiff(path, ts.String(), actComment)
+		}
+
+		return nil
+	}
+
+	expComment := getString(expected.Text)
+	actComment := getString(actual.Text)
+
+	if expComment != actComment {
+		return []htmlDifference{{
+			Path:     path,
+			Expected: expComment,
+			Actual:   actComment,
+			Type:     diffChanged,
+		}}
+	}
+
+	return nil
+}
+
+// matcherFailedDiff builds a single matcher-failed difference at path.
+func matcherFailedDiff(path, expected, actual string) []htmlDifference {
+	return []htmlDifference{{
+		Path:     path,
+		Expected: expected,
+		Actual:   actual,
+		Type:     diffMatcherFailed,
+	}}
+}
+
+// htmlTypeMismatch reports a node-type mismatch between expected and actual.
+func htmlTypeMismatch(path string, expected, actual *htmlNode) []htmlDifference {
+	return []htmlDifference{{
+		Path:     path,
+		Expected: describeNodeType(expected.Type),
+		Actual:   describeNodeType(actual.Type),
+		Type:     diffTypeMismatch,
+	}}
+}
+
+// htmlActualText returns the text content of a node, applying the same
+// whitespace normalization the literal text path uses unless preserved.
+func htmlActualText(node *htmlNode, cfg *config) string {
+	text := getTextContent(node)
+	if !cfg.PreserveWhitespace {
+		return normalizeWhitespace(text)
+	}
+
+	return text
+}
+
+func matchStringMatcher(m Matcher, actual string) bool {
 	if m.Match(actual) {
 		return true
 	}

@@ -1,5 +1,7 @@
 package testastic
 
+import "fmt"
+
 func compareFileLines(expected, actual []string) []difference {
 	var diffs []difference
 
@@ -21,7 +23,6 @@ func compareFileLines(expected, actual []string) []difference {
 		}
 
 		if !hasExp {
-			// Extra line in actual
 			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: nil,
@@ -33,7 +34,6 @@ func compareFileLines(expected, actual []string) []difference {
 		}
 
 		if !hasAct {
-			// Missing line in actual
 			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: expLine,
@@ -90,100 +90,95 @@ func itoa(i int) string {
 	return string(b[pos:])
 }
 
-// compareFileLinesWithMatchers compares expected and actual lines, supporting matchers.
-//
-//nolint:funlen // Line-by-line comparison requires sequential steps.
-func compareFileLinesWithMatchers(expected, actual []string) []difference {
-	var diffs []difference
-
+// compareFileLinesWithMatchers compares expected and actual lines, supporting
+// matchers. It returns an error if an expected line contains an invalid or
+// unknown matcher, which is caller misuse rather than a comparison result.
+func compareFileLinesWithMatchers(expected, actual []string) ([]difference, error) {
 	parsedLines := make([]*lineMatcher, len(expected))
 
 	for i, line := range expected {
 		parsed, err := parseLine(line)
 		if err != nil {
-			// Treat parse errors as comparison failures
-			diffs = append(diffs, difference{
-				Path:     lineNumberPath(i + 1),
-				Expected: line,
-				Actual:   err.Error(),
-				Type:     diffChanged,
-			})
-
-			continue
+			return nil, fmt.Errorf("%s: %w", lineNumberPath(i+1), err)
 		}
 
 		parsedLines[i] = parsed
 	}
 
+	var diffs []difference
+
 	maxLines := max(len(expected), len(actual))
 
 	for i := range maxLines {
-		var hasExp, hasAct bool
-
-		var expLine *lineMatcher
-
-		var actLine string
-
-		if i < len(parsedLines) && parsedLines[i] != nil {
-			expLine = parsedLines[i]
-			hasExp = true
-		}
-
-		if i < len(actual) {
-			actLine = actual[i]
-			hasAct = true
-		}
-
-		if !hasExp && hasAct {
-			// Extra line in actual
+		switch {
+		case i >= len(parsedLines):
 			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
 				Expected: nil,
-				Actual:   actLine,
+				Actual:   actual[i],
 				Type:     diffAdded,
 			})
-
-			continue
-		}
-
-		if hasExp && !hasAct {
-			// Missing line in actual
+		case i >= len(actual):
 			diffs = append(diffs, difference{
 				Path:     lineNumberPath(i + 1),
-				Expected: expLine.original,
+				Expected: parsedLines[i].original,
 				Actual:   nil,
 				Type:     diffRemoved,
 			})
-
-			continue
-		}
-
-		if !hasExp && !hasAct {
-			continue
-		}
-
-		if expLine.pattern == nil {
-			// Exact match mode
-			if expLine.original != actLine {
-				diffs = append(diffs, difference{
-					Path:     lineNumberPath(i + 1),
-					Expected: expLine.original,
-					Actual:   actLine,
-					Type:     diffChanged,
-				})
-			}
-		} else {
-			// Pattern match mode
-			if !expLine.pattern.MatchString(actLine) {
-				diffs = append(diffs, difference{
-					Path:     lineNumberPath(i + 1),
-					Expected: expLine.original,
-					Actual:   actLine,
-					Type:     diffMatcherFailed,
-				})
-			}
+		default:
+			diffs = appendLineDiff(diffs, parsedLines[i], actual[i], i+1)
 		}
 	}
 
+	return diffs, nil
+}
+
+func appendLineDiff(diffs []difference, expLine *lineMatcher, actLine string, lineNum int) []difference {
+	if expLine.pattern == nil {
+		if expLine.original != actLine {
+			diffs = append(diffs, difference{
+				Path:     lineNumberPath(lineNum),
+				Expected: expLine.original,
+				Actual:   actLine,
+				Type:     diffChanged,
+			})
+		}
+
+		return diffs
+	}
+
+	if !lineMatches(expLine, actLine) {
+		diffs = append(diffs, difference{
+			Path:     lineNumberPath(lineNum),
+			Expected: expLine.original,
+			Actual:   actLine,
+			Type:     diffMatcherFailed,
+		})
+	}
+
 	return diffs
+}
+
+// lineMatches reports whether actLine satisfies a matcher line: the line regex
+// matches and every captured group is accepted by its corresponding matcher.
+// Running Match (not just the approximating regex) is what makes custom and
+// strict matchers actually validate the captured value.
+func lineMatches(line *lineMatcher, actLine string) bool {
+	submatches := line.pattern.FindStringSubmatch(actLine)
+	if submatches == nil {
+		return false
+	}
+
+	captures := submatches[1:]
+	if len(captures) != len(line.matchers) {
+		return true
+	}
+
+	for i, m := range line.matchers {
+		if !matchStringMatcher(m, captures[i]) {
+			return false
+		}
+	}
+
+	return true
 }

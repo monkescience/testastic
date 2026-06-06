@@ -3,8 +3,6 @@ package testastic
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -76,8 +74,7 @@ func handleHTMLDiffs(
 	}
 
 	if cfg.Update {
-		updateErr := updateExpectedHTMLFile(path, actualBytes)
-		if updateErr != nil {
+		if updateErr := updateExpectedHTMLFile(path, actualBytes); updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected HTML file: %v", updateErr)
 		}
 
@@ -133,17 +130,5 @@ func updateExpectedHTMLFile(path string, actual []byte) error {
 }
 
 func writeHTMLFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-
-	mkdirErr := os.MkdirAll(dir, dirPerm)
-	if mkdirErr != nil {
-		return fmt.Errorf("failed to create directory: %w", mkdirErr)
-	}
-
-	err := os.WriteFile(path, data, filePerm)
-	if err != nil {
-		return fmt.Errorf("failed to write HTML file: %w", err)
-	}
-
-	return nil
+	return writeFileAtomic(path, data)
 }

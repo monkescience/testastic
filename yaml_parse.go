@@ -130,6 +130,12 @@ func (e *expectedYAML) extractMatcherPositions() map[string]string {
 }
 
 func extractYAMLMatcherPaths(data any, path string, positions map[string]string) {
+	if m, ok := data.(Matcher); ok {
+		positions[path] = m.String()
+
+		return
+	}
+
 	switch v := data.(type) {
 	case map[string]any:
 		for key, val := range v {

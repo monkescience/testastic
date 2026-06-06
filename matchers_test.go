@@ -1,6 +1,7 @@
 package testastic_test
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -292,4 +293,80 @@ func TestRegisterMatcher(t *testing.T) {
 		// then: the custom matcher is used and matches any string
 		testastic.AssertJSON(t, "testdata/json/custom_matcher.json", `{"value": "test"}`)
 	})
+}
+
+func TestOneOfMatcher_StringRoundTrips(t *testing.T) {
+	t.Parallel()
+
+	// given: a oneOf matcher with string values
+	m := testastic.OneOf("pending", "active")
+
+	// when: rendering it back to template syntax
+	got := m.String()
+
+	// then: each value is individually quoted so it re-parses as valid syntax
+	want := `{{oneOf "pending" "active"}}`
+	if got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
+}
+
+func TestOneOfMatcher_MatchesNumericJSONValues(t *testing.T) {
+	t.Parallel()
+
+	// given: JSON numbers decode as json.Number
+	actual := json.Number("200")
+
+	// when/then: string candidates match a numeric actual
+	if !testastic.OneOf("200", "404").Match(actual) {
+		t.Error("expected oneOf string candidates to match json.Number(200)")
+	}
+
+	// when/then: numeric candidates also match
+	if !testastic.OneOf(200, 404).Match(actual) {
+		t.Error("expected oneOf numeric candidates to match json.Number(200)")
+	}
+
+	// when/then: a non-member numeric does not match
+	if testastic.OneOf("200", "404").Match(json.Number("500")) {
+		t.Error("expected json.Number(500) not to match")
+	}
+}
+
+func TestOneOfMatcher_DoesNotPanicOnUncomparableValue(t *testing.T) {
+	t.Parallel()
+
+	// given: a map actual (uncomparable with ==)
+	actual := map[string]any{"a": 1}
+
+	// when: matching an equal map candidate
+	// then: it matches via deep equality without panicking
+	if !testastic.OneOf(map[string]any{"a": 1}).Match(actual) {
+		t.Error("expected deep-equal map to match")
+	}
+
+	// when: matching a string candidate against a map actual
+	// then: it returns false without panicking
+	if testastic.OneOf("a").Match(actual) {
+		t.Error("expected string candidate not to match map actual")
+	}
+}
+
+func TestRegexMatcher_StringRoundTripsWithBacktick(t *testing.T) {
+	t.Parallel()
+
+	// given: a regex whose pattern contains a backtick
+	m, err := testastic.Regex("a`b")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// when: rendering it back to template syntax
+	got := m.String()
+
+	// then: it falls back to the double-quoted form so the backtick is representable
+	want := "{{regex \"a`b\"}}"
+	if got != want {
+		t.Errorf("String() = %q, want %q", got, want)
+	}
 }

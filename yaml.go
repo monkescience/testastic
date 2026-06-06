@@ -2,8 +2,6 @@ package testastic
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -77,8 +75,7 @@ func handleYAMLDiffs(
 	}
 
 	if cfg.Update {
-		updateErr := updateExpectedYAMLFile(path, actualBytes, expected)
-		if updateErr != nil {
+		if updateErr := updateExpectedYAMLFile(path, actualBytes, expected); updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected YAML file: %v", updateErr)
 		}
 
@@ -86,8 +83,6 @@ func handleYAMLDiffs(
 
 		return true
 	}
-
-	sortDiffs(diffs)
 
 	msg := formatAssertionMessage("AssertYAML", path, cfg.Message)
 	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatYAMLDiffInline(expected.Data, actualData))
@@ -134,20 +129,21 @@ func normalizeYAMLData(data any) any {
 
 		return result
 
-	case map[any]any:
-		// YAML can produce map[any]any, convert to map[string]any
-		result := make(map[string]any, len(v))
-		for key, val := range v {
-			keyStr := fmt.Sprintf("%v", key)
-			result[keyStr] = normalizeYAMLData(val)
-		}
-
-		return result
-
 	case []any:
 		result := make([]any, len(v))
 		for i, val := range v {
 			result[i] = normalizeYAMLData(val)
+		}
+
+		return result
+
+	case []byte:
+		// A !!binary scalar decodes to []byte, but a Go []byte field marshals
+		// to a YAML sequence of integers. Normalize both to the same []any so
+		// equivalent bytes compare equal regardless of source.
+		result := make([]any, len(v))
+		for i, b := range v {
+			result[i] = uint64(b)
 		}
 
 		return result
@@ -241,17 +237,5 @@ func restoreYAMLTemplateExpressions(content string, _ map[string]string) string 
 }
 
 func writeYAMLFile(path string, data []byte) error {
-	dir := filepath.Dir(path)
-
-	mkdirErr := os.MkdirAll(dir, dirPerm)
-	if mkdirErr != nil {
-		return fmt.Errorf("failed to create directory: %w", mkdirErr)
-	}
-
-	err := os.WriteFile(path, data, filePerm)
-	if err != nil {
-		return fmt.Errorf("failed to write YAML file: %w", err)
-	}
-
-	return nil
+	return writeFileAtomic(path, data)
 }

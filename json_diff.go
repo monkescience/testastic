@@ -9,7 +9,7 @@ import (
 // formatJSONDiffInline generates a git-style inline diff between expected and actual JSON.
 // Shows the full JSON with - prefix for removed lines and + prefix for added lines.
 func formatJSONDiffInline(expected, actual any) string {
-	expClean := cleanMatchersForDisplay(expected)
+	expClean := substituteMatchedMatchers(expected, actual)
 	actClean := cleanMatchersForDisplay(actual)
 
 	expJSON, err := json.MarshalIndent(expClean, "", "  ")
@@ -34,6 +34,50 @@ func formatJSONDiffInline(expected, actual any) string {
 	}
 
 	return sb.String()
+}
+
+// substituteMatchedMatchers returns a display copy of expected where every
+// matcher the corresponding actual value satisfies is replaced by that actual
+// value, so a matched matcher renders identically and is not shown as a
+// spurious difference. Unmatched matchers keep their template string.
+func substituteMatchedMatchers(expected, actual any) any {
+	if m, ok := expected.(Matcher); ok {
+		if m.Match(actual) {
+			return actual
+		}
+
+		return m.String()
+	}
+
+	switch exp := expected.(type) {
+	case map[string]any:
+		actMap, _ := actual.(map[string]any)
+		result := make(map[string]any, len(exp))
+
+		for key, val := range exp {
+			result[key] = substituteMatchedMatchers(val, actMap[key])
+		}
+
+		return result
+
+	case []any:
+		actArr, _ := actual.([]any)
+		result := make([]any, len(exp))
+
+		for i, val := range exp {
+			var actVal any
+			if i < len(actArr) {
+				actVal = actArr[i]
+			}
+
+			result[i] = substituteMatchedMatchers(val, actVal)
+		}
+
+		return result
+
+	default:
+		return expected
+	}
 }
 
 // cleanMatchersForDisplay converts Matcher objects to their string representation

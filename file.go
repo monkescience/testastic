@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
 
 // errUnsupportedFileType is returned when an unsupported type is passed to AssertFile.
 var errUnsupportedFileType = errors.New("unsupported type, expected string, []byte, or io.Reader")
-
-const expectedFilePerms = 0o644
 
 // AssertFile compares actual content against an expected file with template matcher support.
 // Supports {{anyString}}, {{regex `pattern`}}, and other matchers inline within text.
@@ -51,15 +48,19 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	expectedLines := splitLines(string(expectedContent))
 	actualLines := splitLines(actualStr)
 
-	diffs := compareFileLinesWithMatchers(expectedLines, actualLines)
+	diffs, err := compareFileLinesWithMatchers(expectedLines, actualLines)
+	if err != nil {
+		tb.Fatalf("testastic: invalid expected file %s: %v", expectedFile, err)
+
+		return
+	}
 
 	if len(diffs) == 0 {
 		return
 	}
 
 	if cfg.Update {
-		err := os.WriteFile(expectedFile, []byte(actualStr), expectedFilePerms)
-		if err != nil {
+		if err := writeFileAtomic(expectedFile, []byte(actualStr)); err != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", err)
 
 			return
@@ -94,19 +95,7 @@ func fileToString[T any](v T) (string, error) {
 }
 
 func createExpectedTextFile(path string, actual []byte) error {
-	dir := filepath.Dir(path)
-
-	mkdirErr := os.MkdirAll(dir, dirPerm)
-	if mkdirErr != nil {
-		return fmt.Errorf("failed to create directory: %w", mkdirErr)
-	}
-
-	writeErr := os.WriteFile(path, actual, filePerm)
-	if writeErr != nil {
-		return fmt.Errorf("failed to write expected file: %w", writeErr)
-	}
-
-	return nil
+	return writeFileAtomic(path, actual)
 }
 
 // splitLines splits content into lines, handling different line endings.
@@ -117,6 +106,10 @@ func splitLines(content string) []string {
 
 	content = strings.ReplaceAll(content, "\r\n", "\n")
 	content = strings.ReplaceAll(content, "\r", "\n")
+
+	// Tolerate a single trailing newline (editors commonly add one) so a golden
+	// file and an in-process actual that differ only by it still compare equal.
+	content = strings.TrimSuffix(content, "\n")
 
 	return strings.Split(content, "\n")
 }

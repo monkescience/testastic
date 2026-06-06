@@ -249,3 +249,148 @@ func TestAssertFile_UnsupportedOptions(t *testing.T) {
 			testastic.Message("custom message"))
 	})
 }
+
+type auditOrderIDMatcher struct{}
+
+func (auditOrderIDMatcher) Match(actual any) bool {
+	s, ok := actual.(string)
+
+	return ok && strings.HasPrefix(s, "ORD-")
+}
+
+func (auditOrderIDMatcher) String() string { return "{{auditOrderID}}" }
+
+func writeFileExpected(t *testing.T, content string) string {
+	t.Helper()
+
+	path := filepath.Join(t.TempDir(), "expected.txt")
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	return path
+}
+
+func TestAssertFile_CustomMatcherActuallyValidates(t *testing.T) {
+	t.Parallel()
+
+	testastic.RegisterMatcher("auditOrderID", func(string) (testastic.Matcher, error) {
+		return auditOrderIDMatcher{}, nil
+	})
+
+	expectedFile := writeFileExpected(t, "id: {{auditOrderID}}")
+
+	t.Run("rejects a value the custom matcher rejects", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+
+		testastic.AssertFile(mt, expectedFile, "id: total-garbage")
+
+		if !mt.failed {
+			t.Error("expected custom matcher to reject 'total-garbage'")
+		}
+	})
+
+	t.Run("accepts a value the custom matcher accepts", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+
+		testastic.AssertFile(mt, expectedFile, "id: ORD-12345")
+
+		if mt.failed {
+			t.Errorf("expected custom matcher to accept 'ORD-12345', got: %s", mt.message)
+		}
+	})
+}
+
+func TestAssertFile_AnchoredRegexMatches(t *testing.T) {
+	t.Parallel()
+
+	// given: a regex matcher whose pattern is already anchored
+	expectedFile := writeFileExpected(t, "Val: {{regex `^abc$`}}")
+
+	mt := &mockT{}
+
+	// when: comparing against the matching value
+	testastic.AssertFile(mt, expectedFile, "Val: abc")
+
+	// then: the user anchors do not make the line pattern unsatisfiable
+	if mt.failed {
+		t.Errorf("expected anchored regex to match, got: %s", mt.message)
+	}
+}
+
+func TestAssertFile_QuotedRegexWithBraceQuantifier(t *testing.T) {
+	t.Parallel()
+
+	// given: a double-quoted regex arg containing a {n} quantifier
+	expectedFile := writeFileExpected(t, "Code: {{regex \"\\d{3}\"}}")
+
+	mt := &mockT{}
+
+	// when: comparing against three digits
+	testastic.AssertFile(mt, expectedFile, "Code: 123")
+
+	// then: the directive parses and matches instead of being treated as literal
+	if mt.failed {
+		t.Errorf("expected quoted regex with brace quantifier to match, got: %s", mt.message)
+	}
+}
+
+func TestAssertFile_WhitespaceOnlyDirectiveIsLiteral(t *testing.T) {
+	t.Parallel()
+
+	// given: a line that literally contains empty braces
+	line := "Template uses {{ }} for interpolation"
+	expectedFile := writeFileExpected(t, line)
+
+	mt := &mockT{}
+
+	// when: comparing against the identical line
+	testastic.AssertFile(mt, expectedFile, line)
+
+	// then: the empty braces are treated as literal text, not a failed matcher
+	if mt.failed {
+		t.Errorf("expected empty braces to compare literally, got: %s", mt.message)
+	}
+}
+
+func TestAssertFile_InvalidMatcherIsFatalWithMessage(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected file with an invalid regex matcher
+	expectedFile := writeFileExpected(t, "X: {{regex `[unclosed`}}")
+
+	mt := &mockT{}
+
+	// when: asserting against it
+	testastic.AssertFile(mt, expectedFile, "X: anything")
+
+	// then: it is a fatal setup error and the parse message is surfaced
+	if !mt.fatal {
+		t.Error("expected an invalid matcher in the expected file to be fatal")
+	}
+
+	if !strings.Contains(mt.message, "regex") {
+		t.Errorf("expected the parse error message to be surfaced, got: %s", mt.message)
+	}
+}
+
+func TestAssertFile_ToleratesSingleTrailingNewline(t *testing.T) {
+	t.Parallel()
+
+	// given: an expected file with a trailing newline (as editors add)
+	expectedFile := writeFileExpected(t, "line1\n")
+
+	mt := &mockT{}
+
+	// when: the actual has no trailing newline
+	testastic.AssertFile(mt, expectedFile, "line1")
+
+	// then: the single trailing-newline difference is tolerated
+	if mt.failed {
+		t.Errorf("expected a single trailing newline to be tolerated, got: %s", mt.message)
+	}
+}

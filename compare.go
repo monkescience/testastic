@@ -6,9 +6,14 @@ import (
 	"math"
 	"math/big"
 	"reflect"
-	"sort"
+	"regexp"
 	"strconv"
 )
+
+// jsonNumberPattern matches the JSON number grammar (RFC 8259). It is stricter
+// than big.Rat.SetString, which also accepts Go-only literals like "0x1p4" or
+// "1_000" that no JSON or YAML decoder can produce.
+var jsonNumberPattern = regexp.MustCompile(`^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$`)
 
 // compare compares expected (from expected file) with actual JSON data.
 // Returns a list of differences found.
@@ -113,7 +118,6 @@ func compare(expected, actual any, path string, cfg *config) []difference {
 		}}
 
 	default:
-		// For other types, use deep equality
 		if !reflect.DeepEqual(expected, actual) {
 			return []difference{{
 				Path:     path,
@@ -140,7 +144,6 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *confi
 
 	var diffs []difference
 
-	// First pass: check for missing and changed keys in expected.
 	for key, expVal := range expected {
 		childPath := path + "." + key
 		if cfg.IsFieldIgnored(childPath) {
@@ -164,7 +167,6 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *confi
 		}
 	}
 
-	// Second pass: check for extra keys in actual.
 	for key, actVal := range actMap {
 		childPath := path + "." + key
 		if cfg.IsFieldIgnored(childPath) {
@@ -233,7 +235,7 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *config) []di
 
 // findUnorderedMatches finds matching indices between expected and actual slices.
 // Returns unmatched expected indices and unused actual indices.
-func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) bool) ([]int, []int) {
+func findUnorderedMatches[T any](expected, actual []T, matches func(expIdx int, act T) bool) ([]int, []int) {
 	actualMatch := make([]int, len(actual))
 	for i := range actualMatch {
 		actualMatch[i] = -1
@@ -241,7 +243,7 @@ func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) 
 
 	for i := range expected {
 		seen := make([]bool, len(actual))
-		_ = assignUnorderedMatch(i, expected, actual, matches, actualMatch, seen)
+		_ = assignUnorderedMatch(i, actual, matches, actualMatch, seen)
 	}
 
 	expectedMatched := make([]bool, len(expected))
@@ -273,19 +275,19 @@ func findUnorderedMatches[T any](expected, actual []T, matches func(exp, act T) 
 
 func assignUnorderedMatch[T any](
 	expIdx int,
-	expected, actual []T,
-	matches func(exp, act T) bool,
+	actual []T,
+	matches func(expIdx int, act T) bool,
 	actualMatch []int,
 	seen []bool,
 ) bool {
 	for j, act := range actual {
-		if seen[j] || !matches(expected[expIdx], act) {
+		if seen[j] || !matches(expIdx, act) {
 			continue
 		}
 
 		seen[j] = true
 
-		if actualMatch[j] < 0 || assignUnorderedMatch(actualMatch[j], expected, actual, matches, actualMatch, seen) {
+		if actualMatch[j] < 0 || assignUnorderedMatch(actualMatch[j], actual, matches, actualMatch, seen) {
 			actualMatch[j] = expIdx
 
 			return true
@@ -305,8 +307,10 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config) []
 		}}
 	}
 
-	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(exp, act any) bool {
-		return len(compare(exp, act, path, cfg)) == 0
+	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(expIdx int, act any) bool {
+		childPath := fmt.Sprintf("%s[%d]", path, expIdx)
+
+		return len(compare(expected[expIdx], act, childPath, cfg)) == 0
 	})
 
 	if len(unmatched) == 0 {
@@ -339,6 +343,14 @@ func compareNumbers(expected, actual any, path string) []difference {
 
 	actNum, actOK := numberToRat(actual)
 	if !expOK || !actOK {
+		// big.Rat cannot represent infinities, but identical infinities are
+		// still equal. NaN intentionally remains unequal to everything.
+		if exp, ok := floatInfSign(expected); ok {
+			if act, ok := floatInfSign(actual); ok && exp == act {
+				return nil
+			}
+		}
+
 		return []difference{{
 			Path:     path,
 			Expected: expected,
@@ -359,10 +371,34 @@ func compareNumbers(expected, actual any, path string) []difference {
 	return nil
 }
 
+// floatInfSign reports the sign of an infinite float value (+1 or -1) and
+// whether v is in fact an infinity.
+func floatInfSign(v any) (int, bool) {
+	var f float64
+
+	switch n := v.(type) {
+	case float64:
+		f = n
+	case float32:
+		f = float64(n)
+	default:
+		return 0, false
+	}
+
+	switch {
+	case math.IsInf(f, 1):
+		return 1, true
+	case math.IsInf(f, -1):
+		return -1, true
+	default:
+		return 0, false
+	}
+}
+
 func numberToRat(value any) (*big.Rat, bool) {
 	switch v := value.(type) {
 	case json.Number:
-		return parseNumberRat(v.String())
+		return parseJSONNumberRat(v.String())
 	case float64:
 		if math.IsNaN(v) || math.IsInf(v, 0) {
 			return nil, false
@@ -407,6 +443,16 @@ func parseNumberRat(s string) (*big.Rat, bool) {
 	return rat.SetString(s)
 }
 
+// parseJSONNumberRat parses s as a JSON number, rejecting Go-only literal forms
+// that big.Rat.SetString would otherwise accept.
+func parseJSONNumberRat(s string) (*big.Rat, bool) {
+	if !jsonNumberPattern.MatchString(s) {
+		return nil, false
+	}
+
+	return new(big.Rat).SetString(s)
+}
+
 func intRat(v int64) *big.Rat {
 	return new(big.Rat).SetInt64(v)
 }
@@ -426,10 +472,4 @@ func parseActualJSON(data []byte) (any, error) {
 	}
 
 	return result, nil
-}
-
-func sortDiffs(diffs []difference) {
-	sort.Slice(diffs, func(i, j int) bool {
-		return diffs[i].Path < diffs[j].Path
-	})
 }
