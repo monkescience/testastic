@@ -102,6 +102,8 @@ func BuildBinaryMain(m *testing.M, importPath string, opts ...BuildOption) *Bina
 
 	output, err := runGoBuild(context.Background(), outputPath, cfg)
 	if err != nil {
+		_ = os.RemoveAll(buildDir)
+
 		fmt.Fprintf(os.Stderr, "testastic: go build failed:\n%s", output)
 		os.Exit(1)
 	}
@@ -212,21 +214,37 @@ func (b *Binary) RunWithOptions(tb testing.TB, args []string, opts ...RunOption)
 		return result
 	}
 
-	ctxErr := ctx.Err()
-	if ctxErr != nil {
-		if errors.Is(ctxErr, context.DeadlineExceeded) {
-			tb.Fatalf(
-				"testastic: binary run timed out after %v\nstdout:\n%s\nstderr:\n%s",
-				cfg.timeout, result.Stdout, result.Stderr,
-			)
-		}
+	return resolveRunOutcome(ctx, tb, err, result, cfg.timeout)
+}
 
-		tb.Fatalf("testastic: binary run failed: %v", ctxErr)
+// resolveRunOutcome classifies a failed run. A timeout and an infrastructure
+// cancellation are fatal, but a genuine non-zero exit (a real exit code, not a
+// kill) returns the result even if the parent context was cancelled in the same
+// window. A killed process has an exit code below zero and is treated as
+// cancellation.
+func resolveRunOutcome(
+	ctx context.Context, tb testing.TB, err error, result *RunResult, timeout time.Duration,
+) *RunResult {
+	tb.Helper()
+
+	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		tb.Fatalf(
+			"testastic: binary run timed out after %v\nstdout:\n%s\nstderr:\n%s",
+			timeout, result.Stdout, result.Stderr,
+		)
+
+		return nil
 	}
 
 	var exitErr *exec.ExitError
-	if errors.As(err, &exitErr) {
+	if errors.As(err, &exitErr) && result.ExitCode >= 0 {
 		return result
+	}
+
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		tb.Fatalf("testastic: binary run failed: %v", ctxErr)
+
+		return nil
 	}
 
 	tb.Fatalf("testastic: failed to run binary: %v", err)
