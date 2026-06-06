@@ -26,10 +26,10 @@ func (d diffType) String() string {
 
 // difference represents a single difference between expected and actual JSON.
 type difference struct {
-	Path     string   // JSON path, e.g., "$.users[0].name"
-	Expected any      // Expected value (or matcher description)
-	Actual   any      // Actual value
-	Type     diffType // Type of difference
+	Path     string // JSON path, e.g., "$.users[0].name"
+	Expected any    // Expected value (or matcher description)
+	Actual   any
+	Type     diffType
 }
 
 func formatFileDiffInline(expected, actual []string) string {

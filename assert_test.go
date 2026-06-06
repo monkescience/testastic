@@ -1292,7 +1292,7 @@ func TestOrderedComparisons_FailOnNaN(t *testing.T) {
 	t.Run("Between", func(t *testing.T) {
 		t.Parallel()
 
-		// given: a NaN value; when: asserting it lies between bounds
+		// given: a NaN value, when: asserting it lies between bounds
 		mt := &mockT{}
 		testastic.Between(mt, nan, 0.0, 10.0)
 
@@ -1341,7 +1341,7 @@ func TestNil_HandlesUnsafePointer(t *testing.T) {
 
 	var p unsafe.Pointer
 
-	// given: a nil unsafe.Pointer; when/then: Nil passes
+	// given: a nil unsafe.Pointer, when/then: Nil passes
 	mt := &mockT{}
 
 	testastic.Nil(mt, p)
@@ -1366,7 +1366,7 @@ func TestContains_TypedNilStringerDoesNotPanic(t *testing.T) {
 	// given: a typed-nil pointer whose String() dereferences the receiver
 	var s *nilDerefStringer
 
-	// when: asserting Contains on it; then: it reports a failure instead of panicking
+	// when: asserting Contains on it, then: it reports a failure instead of panicking
 	mt := &mockT{}
 
 	testastic.Contains(mt, s, "1")

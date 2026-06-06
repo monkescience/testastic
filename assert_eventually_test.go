@@ -518,7 +518,7 @@ func TestEventually_ChecksOnceMoreAtTimeout(t *testing.T) {
 	t.Parallel()
 
 	// given: a condition that only becomes true on its second check, and an
-	// interval far larger than the timeout so no ticker check fires; the only
+	// interval far larger than the timeout so no ticker check fires. The only
 	// checks are the immediate one and the deadline one
 	calls := 0
 	mt := &mockT{}

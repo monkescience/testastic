@@ -46,7 +46,7 @@ var errCovdataFailed = errors.New("go tool covdata textfmt failed")
 //
 // Without CollectSubprocessCoverage, coverage data is written to per-test temp
 // directories and cleaned up automatically. Processes that use [WithCoverDir]
-// are not affected — their coverage data goes to the specified directory.
+// are not affected. Their coverage data goes to the specified directory.
 func CollectSubprocessCoverage(m *testing.M, outputPath string) int {
 	return collectSubprocessCoverage(m.Run, outputPath)
 }
@@ -81,7 +81,7 @@ func collectSubprocessCoverage(run func() int, outputPath string) int {
 
 // convertProcessCoverage converts binary coverage data under coverDir to a
 // text profile at outputPath using `go tool covdata textfmt`. coverDir may
-// hold coverage files directly or one subdir per subprocess run; both
+// hold coverage files directly or one subdir per subprocess run, both
 // layouts are aggregated.
 func convertProcessCoverage(coverDir string, outputPath string) error {
 	inputDirs, err := collectCoverInputDirs(coverDir)
@@ -119,7 +119,7 @@ func convertProcessCoverage(coverDir string, outputPath string) error {
 }
 
 // collectCoverInputDirs returns the input directories for `go tool covdata`.
-// Per-run subdirs each count as one input; a flat coverDir with files counts
+// Per-run subdirs each count as one input, a flat coverDir with files counts
 // as a single input.
 func collectCoverInputDirs(coverDir string) ([]string, error) {
 	entries, err := os.ReadDir(coverDir)

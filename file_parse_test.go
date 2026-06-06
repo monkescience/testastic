@@ -115,7 +115,7 @@ func TestParseLine(t *testing.T) {
 	t.Run("regex matcher", func(t *testing.T) {
 		t.Parallel()
 
-		// given: a line with a regex matcher (no anchors - they're added by parseLine)
+		// given: a line with a regex matcher (no anchors, they're added by parseLine)
 		line := "Email: {{regex `[a-z]+@example\\.com`}}"
 
 		// when: parsing the line

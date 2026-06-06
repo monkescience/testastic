@@ -107,7 +107,7 @@ func TestDetectColors(t *testing.T) {
 func TestColorize(t *testing.T) {
 	// Save and restore the useColors function so each subtest can stub it.
 	// TestColorize is serial (no t.Parallel), so swapping the variable is
-	// safe — parallel tests in the package only run after this one finishes.
+	// safe, parallel tests in the package only run after this one finishes.
 	savedUseColors := useColors
 
 	t.Cleanup(func() {

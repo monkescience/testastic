@@ -31,14 +31,12 @@ type Option func(*config)
 // Shared fields apply to all assertion types. HTML-specific fields
 // are only used by AssertHTML and are ignored by other assertion types.
 type config struct {
-	// Shared fields.
 	IgnoreArrayOrder      bool
 	IgnoreArrayOrderPaths []string
 	IgnoredFields         []string
 	Update                bool
 	Message               string
 
-	// HTML-specific fields.
 	IgnoreComments        bool
 	PreserveWhitespace    bool
 	IgnoredElements       []string

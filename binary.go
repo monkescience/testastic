@@ -28,7 +28,7 @@ var errBuildBinaryRequiresImportPath = errors.New("BuildBinary requires importPa
 type Binary struct {
 	path    string
 	workDir string
-	tempDir string // non-empty only for BuildBinaryMain; removed by Cleanup
+	tempDir string // non-empty only for BuildBinaryMain, removed by Cleanup
 }
 
 // RunResult contains the captured stdout, stderr, and exit code from a CLI run.
