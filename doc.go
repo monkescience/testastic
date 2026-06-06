@@ -68,11 +68,19 @@
 //
 // # Updating Expected Files
 //
-// When API responses change, update expected files automatically:
+// When expected output changes, refresh the golden files with the environment
+// variable:
 //
-//	go test -update
-//	# or
 //	TESTASTIC_UPDATE=true go test
+//
+// or per assertion with the Update option:
+//
+//	testastic.AssertJSON(t, expected, actual, testastic.Update())
+//
+// The -update flag is honored too, but only when your package registers it,
+// since the test binary rejects flags it does not define:
+//
+//	var _ = flag.Bool("update", false, "update golden files")
 //
 // # Basic Assertions
 //

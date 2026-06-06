@@ -14,10 +14,10 @@ const (
 	colorReset = "\033[0m"
 )
 
-// useColors returns true if colored output should be used.
-// Colors are enabled when stdout is a terminal (not piped),
-// NO_COLOR env var is not set, CI env var is not set,
-// and TERM is not "dumb".
+// useColors reports whether colored output should be used. Precedence: NO_COLOR
+// disables, then FORCE_COLOR forces on, then CI disables, then a "dumb" TERM
+// disables, otherwise color is enabled only when stderr is a terminal (diff
+// output is written on the stderr side of the test log).
 // The result is detected once on first call and cached for the process lifetime.
 var useColors = sync.OnceValue(detectColors)
 
