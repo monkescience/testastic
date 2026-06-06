@@ -95,8 +95,7 @@ func convertProcessCoverage(coverDir string, outputPath string) error {
 
 	const dirPerm = 0o750
 
-	err = os.MkdirAll(filepath.Dir(outputPath), dirPerm)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(outputPath), dirPerm); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 

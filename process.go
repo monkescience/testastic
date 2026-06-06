@@ -332,8 +332,7 @@ func startProcess(ctx context.Context, tb testing.TB, cfg *processConfig) *Proce
 		proc.cmd.Dir = cfg.workDir
 	}
 
-	err := proc.cmd.Start()
-	if err != nil {
+	if err := proc.cmd.Start(); err != nil {
 		tb.Fatalf("testastic: failed to start process: %v", err)
 	}
 
@@ -474,8 +473,7 @@ func setupCoverDir(tb testing.TB, coverDir string) string {
 
 	const dirPerm = 0o750
 
-	err := os.MkdirAll(coverDir, dirPerm)
-	if err != nil {
+	if err := os.MkdirAll(coverDir, dirPerm); err != nil {
 		tb.Fatalf("testastic: failed to create coverage directory: %v", err)
 	}
 

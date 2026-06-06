@@ -87,8 +87,7 @@ func BuildBinaryMain(m *testing.M, importPath string, opts ...BuildOption) *Bina
 		cfg.workDir = defaultWorkDir()
 	}
 
-	err := validateBuildConfigError(cfg)
-	if err != nil {
+	if err := validateBuildConfigError(cfg); err != nil {
 		fmt.Fprintf(os.Stderr, "testastic: %v\n", err)
 		os.Exit(1)
 	}
@@ -288,8 +287,7 @@ func newRunConfig(binary *Binary, opts []RunOption) *runConfig {
 func validateBuildConfig(tb testing.TB, cfg *buildConfig) {
 	tb.Helper()
 
-	err := validateBuildConfigError(cfg)
-	if err != nil {
+	if err := validateBuildConfigError(cfg); err != nil {
 		tb.Fatalf("testastic: %v", err)
 	}
 }
