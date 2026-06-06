@@ -1,6 +1,6 @@
 VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
-.PHONY: test lint fmt clean mod-tidy coverage help
+.PHONY: test lint fmt generate clean mod-tidy coverage help
 
 help: ## Show help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  %-15s %s\n", $$1, $$2}'
@@ -17,6 +17,9 @@ lint: ## Run linter
 
 fmt: ## Format code
 	golangci-lint fmt
+
+generate: ## Run code generators (no-op when no //go:generate directives)
+	go generate ./...
 
 clean: ## Clean coverage artifacts
 	rm -rf coverage/
