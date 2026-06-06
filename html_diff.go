@@ -85,7 +85,6 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 
 		sb.WriteString(">")
 
-		// Inline text content for single-text children.
 		if len(node.Children) == 1 && node.Children[0].Type == htmlText {
 			text := getTextContent(node.Children[0])
 			sb.WriteString(html.EscapeString(text))

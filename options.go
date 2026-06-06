@@ -165,7 +165,6 @@ func shouldUpdate() bool {
 		}
 	}
 
-	// Check if flag is registered and set.
 	if f := flag.Lookup("update"); f != nil {
 		return f.Value.String() == "true"
 	}
