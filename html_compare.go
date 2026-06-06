@@ -52,7 +52,7 @@ func compareHTML(expected, actual *htmlNode, cfg *config) []htmlDifference {
 
 // comparehtmlNodes recursively compares two HTML nodes.
 //
-//nolint:gocognit,funlen // Complex type dispatch is clearer in one function.
+//nolint:funlen // Complex type dispatch is clearer in one function.
 func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
 	if cfg.isHTMLFieldIgnored(path, expected.Tag) {
 		return nil
@@ -142,18 +142,20 @@ func comparehtmlNodes(expected, actual *htmlNode, path string, cfg *config) []ht
 		}
 
 	case htmlComment:
-		if !cfg.IgnoreComments {
-			expComment := getString(expected.Text)
-			actComment := getString(actual.Text)
+		if cfg.IgnoreComments {
+			break
+		}
 
-			if expComment != actComment {
-				diffs = append(diffs, htmlDifference{
-					Path:     path,
-					Expected: expComment,
-					Actual:   actComment,
-					Type:     diffChanged,
-				})
-			}
+		expComment := getString(expected.Text)
+		actComment := getString(actual.Text)
+
+		if expComment != actComment {
+			diffs = append(diffs, htmlDifference{
+				Path:     path,
+				Expected: expComment,
+				Actual:   actComment,
+				Type:     diffChanged,
+			})
 		}
 
 	case htmlDoctype:

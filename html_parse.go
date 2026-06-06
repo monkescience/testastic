@@ -248,23 +248,25 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 				return convertTohtmlNode(c, matchers, parentPath)
 			}
 			// Also handle doctype
-			if c.Type == html.DoctypeNode {
-				// Create a wrapper that includes both doctype and root element
-				root := &htmlNode{
-					Type: htmlElement,
-					Tag:  htmlDocumentTag,
-					Path: "",
-				}
-
-				for child := n.FirstChild; child != nil; child = child.NextSibling {
-					childNode := convertTohtmlNode(child, matchers, "")
-					if childNode != nil {
-						root.Children = append(root.Children, childNode)
-					}
-				}
-
-				return root
+			if c.Type != html.DoctypeNode {
+				continue
 			}
+
+			// Create a wrapper that includes both doctype and root element
+			root := &htmlNode{
+				Type: htmlElement,
+				Tag:  htmlDocumentTag,
+				Path: "",
+			}
+
+			for child := n.FirstChild; child != nil; child = child.NextSibling {
+				childNode := convertTohtmlNode(child, matchers, "")
+				if childNode != nil {
+					root.Children = append(root.Children, childNode)
+				}
+			}
+
+			return root
 		}
 		// No root element found, wrap children
 		root := &htmlNode{

@@ -117,19 +117,21 @@ func Error(tb testing.TB, err error) {
 func ErrorIs(tb testing.TB, err, target error) {
 	tb.Helper()
 
-	if !errors.Is(err, target) {
-		errStr := nilTypeName
-		if err != nil {
-			errStr = err.Error()
-		}
-
-		targetStr := nilTypeName
-		if target != nil {
-			targetStr = target.Error()
-		}
-
-		fail(tb, "ErrorIs", targetStr, errStr)
+	if errors.Is(err, target) {
+		return
 	}
+
+	errStr := nilTypeName
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	targetStr := nilTypeName
+	if target != nil {
+		targetStr = target.Error()
+	}
+
+	fail(tb, "ErrorIs", targetStr, errStr)
 }
 
 // ErrorContains asserts that err is non-nil and its message contains the given substring.
@@ -158,14 +160,16 @@ func ErrorContains(tb testing.TB, err error, substring string) {
 func ErrorAs(tb testing.TB, err error, target any) {
 	tb.Helper()
 
-	if !errors.As(err, target) {
-		errStr := nilTypeName
-		if err != nil {
-			errStr = err.Error()
-		}
-
-		fail(tb, "ErrorAs", fmt.Sprintf("error assignable to %T", target), errStr)
+	if errors.As(err, target) {
+		return
 	}
+
+	errStr := nilTypeName
+	if err != nil {
+		errStr = err.Error()
+	}
+
+	fail(tb, "ErrorAs", fmt.Sprintf("error assignable to %T", target), errStr)
 }
 
 // failCmp reports a comparison assertion failure.
