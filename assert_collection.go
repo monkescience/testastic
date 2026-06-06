@@ -5,13 +5,14 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 )
 
 // Display truncation thresholds.
 const (
-	maxSliceDisplayLen = 5
-	maxMapDisplayLen   = 3
+	maxSliceDisplayLen = 10
+	maxMapDisplayLen   = 10
 )
 
 // Len asserts that the collection has the expected length.
@@ -21,7 +22,7 @@ func Len(tb testing.TB, collection any, expected int) {
 
 	actual := getLen(collection)
 	if actual == -1 {
-		tb.Errorf(
+		tb.Fatalf(
 			"testastic: assertion failed\n\n  Len\n    error: cannot get length of %T",
 			collection,
 		)
@@ -44,7 +45,7 @@ func Empty(tb testing.TB, collection any) {
 
 	length := getLen(collection)
 	if length == -1 {
-		tb.Errorf(
+		tb.Fatalf(
 			"testastic: assertion failed\n\n  Empty\n    error: cannot get length of %T",
 			collection,
 		)
@@ -67,7 +68,7 @@ func NotEmpty(tb testing.TB, collection any) {
 
 	length := getLen(collection)
 	if length == -1 {
-		tb.Errorf(
+		tb.Fatalf(
 			"testastic: assertion failed\n\n  NotEmpty\n    error: cannot get length of %T",
 			collection,
 		)
@@ -251,7 +252,12 @@ func formatSlice[T any](s []T) string {
 		return fmt.Sprintf("%v", s)
 	}
 
-	return fmt.Sprintf("[%v %v %v ... (%d total)]", s[0], s[1], s[2], len(s))
+	head := make([]string, maxSliceDisplayLen)
+	for i := range head {
+		head[i] = fmt.Sprintf("%v", s[i])
+	}
+
+	return fmt.Sprintf("[%s ... (%d total)]", strings.Join(head, " "), len(s))
 }
 
 // formatMap formats a map for display, truncating if too many entries.

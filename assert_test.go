@@ -2,8 +2,11 @@ package testastic_test
 
 import (
 	"errors"
+	"math"
+	"strconv"
 	"strings"
 	"testing"
+	"unsafe"
 
 	"github.com/monkescience/testastic"
 )
@@ -1275,4 +1278,157 @@ func TestErrorMessageFormat(t *testing.T) {
 			t.Error("expected error message to contain assertion name")
 		}
 	})
+}
+
+type nilDerefStringer struct{ n int }
+
+func (s *nilDerefStringer) String() string { return strconv.Itoa(s.n) }
+
+func TestOrderedComparisons_FailOnNaN(t *testing.T) {
+	t.Parallel()
+
+	nan := math.NaN()
+
+	t.Run("Between", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a NaN value; when: asserting it lies between bounds
+		mt := &mockT{}
+		testastic.Between(mt, nan, 0.0, 10.0)
+
+		// then: the assertion fails (NaN satisfies no ordering)
+		if !mt.failed {
+			t.Error("expected Between(NaN, 0, 10) to fail")
+		}
+	})
+
+	t.Run("LessOrEqual", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+		testastic.LessOrEqual(mt, nan, 5.0)
+
+		if !mt.failed {
+			t.Error("expected LessOrEqual(NaN, 5) to fail")
+		}
+	})
+
+	t.Run("Greater", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+		testastic.Greater(mt, nan, 5.0)
+
+		if !mt.failed {
+			t.Error("expected Greater(NaN, 5) to fail")
+		}
+	})
+
+	t.Run("non-float ordered types unaffected", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+		testastic.Greater(mt, 5, 3)
+
+		if mt.failed {
+			t.Errorf("expected Greater(5, 3) to pass, got: %s", mt.message)
+		}
+	})
+}
+
+func TestNil_HandlesUnsafePointer(t *testing.T) {
+	t.Parallel()
+
+	var p unsafe.Pointer
+
+	// given: a nil unsafe.Pointer; when/then: Nil passes
+	mt := &mockT{}
+
+	testastic.Nil(mt, p)
+
+	if mt.failed {
+		t.Errorf("expected Nil(nil unsafe.Pointer) to pass, got: %s", mt.message)
+	}
+
+	// and: NotNil fails
+	mt = &mockT{}
+
+	testastic.NotNil(mt, p)
+
+	if !mt.failed {
+		t.Error("expected NotNil(nil unsafe.Pointer) to fail")
+	}
+}
+
+func TestContains_TypedNilStringerDoesNotPanic(t *testing.T) {
+	t.Parallel()
+
+	// given: a typed-nil pointer whose String() dereferences the receiver
+	var s *nilDerefStringer
+
+	// when: asserting Contains on it; then: it reports a failure instead of panicking
+	mt := &mockT{}
+
+	testastic.Contains(mt, s, "1")
+
+	if !mt.failed {
+		t.Error("expected Contains on a typed-nil Stringer to report a failure")
+	}
+}
+
+func TestMisuseErrorsAreFatal(t *testing.T) {
+	t.Parallel()
+
+	t.Run("Len on non-collection", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+
+		testastic.Len(mt, 42, 3)
+
+		if !mt.fatal {
+			t.Error("expected Len misuse to be fatal")
+		}
+	})
+
+	t.Run("Contains on unsupported type", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+
+		testastic.Contains(mt, struct{}{}, "x")
+
+		if !mt.fatal {
+			t.Error("expected Contains misuse to be fatal")
+		}
+	})
+
+	t.Run("Matches with invalid pattern", func(t *testing.T) {
+		t.Parallel()
+
+		mt := &mockT{}
+
+		testastic.Matches(mt, "value", "[invalid")
+
+		if !mt.fatal {
+			t.Error("expected Matches invalid pattern to be fatal")
+		}
+	})
+}
+
+func TestSliceContains_FailureShowsModerateSliceInFull(t *testing.T) {
+	t.Parallel()
+
+	// given: a moderate-length slice missing the element
+	mt := &mockT{}
+	testastic.SliceContains(mt, []int{10, 20, 30, 40, 50, 60, 70, 80}, 99)
+
+	// then: the failure message shows every element, not just the first few
+	if !mt.failed {
+		t.Fatal("expected SliceContains to fail")
+	}
+
+	if !strings.Contains(mt.message, "80") {
+		t.Errorf("expected failure message to show all elements, got: %s", mt.message)
+	}
 }

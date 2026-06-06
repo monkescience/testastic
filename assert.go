@@ -181,9 +181,44 @@ func failCmp(tb testing.TB, name, expectOp, actualOp, a, b string) {
 	)
 }
 
+// hasNaN reports whether any operand is NaN. For non-float ordered types the
+// self-comparison is always false, so this is a no-op for them.
+func hasNaN[T cmp.Ordered](values ...T) bool {
+	for _, v := range values {
+		//nolint:gocritic // self-comparison is the canonical NaN test for ordered types.
+		if v != v {
+			return true
+		}
+	}
+
+	return false
+}
+
+// failNaN reports an ordered-comparison assertion that cannot hold because an
+// operand is NaN, which satisfies no ordering relation.
+func failNaN[T cmp.Ordered](tb testing.TB, name string, values ...T) {
+	tb.Helper()
+
+	parts := make([]string, len(values))
+	for i, v := range values {
+		parts[i] = formatVal(v)
+	}
+
+	tb.Errorf(
+		"testastic: assertion failed\n\n  %s\n    error: NaN operand has no ordering (%s)",
+		name, strings.Join(parts, ", "),
+	)
+}
+
 // Greater asserts that a > b using [cmp.Ordered] comparison.
 func Greater[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
+
+	if hasNaN(a, b) {
+		failNaN(tb, "Greater", a, b)
+
+		return
+	}
 
 	if a <= b {
 		failCmp(tb, "Greater", ">", "<=", formatVal(a), formatVal(b))
@@ -194,6 +229,12 @@ func Greater[T cmp.Ordered](tb testing.TB, a, b T) {
 func GreaterOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
 
+	if hasNaN(a, b) {
+		failNaN(tb, "GreaterOrEqual", a, b)
+
+		return
+	}
+
 	if a < b {
 		failCmp(tb, "GreaterOrEqual", ">=", "<", formatVal(a), formatVal(b))
 	}
@@ -202,6 +243,12 @@ func GreaterOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 // Less asserts that a < b using [cmp.Ordered] comparison.
 func Less[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
+
+	if hasNaN(a, b) {
+		failNaN(tb, "Less", a, b)
+
+		return
+	}
 
 	if a >= b {
 		failCmp(tb, "Less", "<", ">=", formatVal(a), formatVal(b))
@@ -212,6 +259,12 @@ func Less[T cmp.Ordered](tb testing.TB, a, b T) {
 func LessOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 	tb.Helper()
 
+	if hasNaN(a, b) {
+		failNaN(tb, "LessOrEqual", a, b)
+
+		return
+	}
+
 	if a > b {
 		failCmp(tb, "LessOrEqual", "<=", ">", formatVal(a), formatVal(b))
 	}
@@ -220,6 +273,12 @@ func LessOrEqual[T cmp.Ordered](tb testing.TB, a, b T) {
 // Between asserts that minVal <= value <= maxVal.
 func Between[T cmp.Ordered](tb testing.TB, value, minVal, maxVal T) {
 	tb.Helper()
+
+	if hasNaN(value, minVal, maxVal) {
+		failNaN(tb, "Between", value, minVal, maxVal)
+
+		return
+	}
 
 	if value < minVal || value > maxVal {
 		expected := formatVal(minVal) + " <= value <= " + formatVal(maxVal)
@@ -235,16 +294,24 @@ func stringInputValue(value any) (string, bool) {
 	case []byte:
 		return string(v), true
 	case fmt.Stringer:
+		// A typed-nil Stringer is a non-nil interface whose String() would
+		// dereference a nil receiver, so treat it as an unsupported input
+		// rather than calling String() and panicking.
+		if isNil(v) {
+			return "", false
+		}
+
 		return v.String(), true
 	default:
 		return "", false
 	}
 }
 
-// failStrType reports an unsupported input type for string assertions.
+// failStrType reports an unsupported input type for string assertions. This is
+// caller misuse (wrong argument type), so it is fatal like other setup errors.
 func failStrType(tb testing.TB, name string, value any) {
 	tb.Helper()
-	tb.Errorf(
+	tb.Fatalf(
 		"testastic: assertion failed\n\n  %s\n    error: unsupported type %T (want string, []byte, or fmt.Stringer)",
 		name, value,
 	)
@@ -369,7 +436,7 @@ func Matches(tb testing.TB, value any, pattern string) {
 
 	re, err := regexp.Compile(pattern)
 	if err != nil {
-		tb.Errorf(
+		tb.Fatalf(
 			"testastic: assertion failed\n\n  Matches\n    error: invalid pattern %q: %v",
 			pattern, err,
 		)
@@ -454,7 +521,8 @@ func isNil(value any) bool {
 	v := reflect.ValueOf(value)
 	//nolint:exhaustive // Only nil-able types need checking.
 	switch v.Kind() {
-	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
+		reflect.Pointer, reflect.Slice, reflect.UnsafePointer:
 		return v.IsNil()
 	default:
 		return false
