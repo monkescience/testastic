@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.4.0](https://github.com/monkescience/testastic/compare/v0.3.5...v0.4.0) (2026-06-06)
+
+### ⚠ BREAKING CHANGES
+
+- correct comparison, matcher, and golden-file engine behavior ([4b5ef76](https://github.com/monkescience/testastic/commit/4b5ef76e4ebde523364cb03b360c28d86ea09697))
+- **assert:** fail on NaN ordering and make caller misuse fatal ([5188285](https://github.com/monkescience/testastic/commit/518828545f59c4bfe463ba14eb983b9bb83033b2))
+### Bug Fixes
+
+- correct comparison, matcher, and golden-file engine behavior ([4b5ef76](https://github.com/monkescience/testastic/commit/4b5ef76e4ebde523364cb03b360c28d86ea09697))
+- **binary:** preserve exit code on cancel, clean temp dir on build failure ([46eb57b](https://github.com/monkescience/testastic/commit/46eb57b9e02d61d9ccf4a6663ae7d82c5b1c47a7))
+- **process:** release context on start failure, fix Windows shutdown doc ([3c9dd3e](https://github.com/monkescience/testastic/commit/3c9dd3e7db4e800e3f09093c3012142a735c5a9e))
+- **assert:** fail on NaN ordering and make caller misuse fatal ([5188285](https://github.com/monkescience/testastic/commit/518828545f59c4bfe463ba14eb983b9bb83033b2))
+- **eventually:** evaluate at the deadline and bound the timeout from entry ([3bee6c9](https://github.com/monkescience/testastic/commit/3bee6c94133f0e35b8b30fbf3d15d2cd2efb320a))
+- **deps:** update module golang.org/x/net to v0.55.0 (#56) ([aad7548](https://github.com/monkescience/testastic/commit/aad75481f9043fb3eccf87a119cd87df1230b407))
+- **deps:** update module golang.org/x/net to v0.54.0 (#53) ([a39356a](https://github.com/monkescience/testastic/commit/a39356a0af8353ecbaf5674aa28ef718e4479e44))
+
 ## [v0.3.5](https://github.com/monkescience/testastic/compare/v0.3.4...v0.3.5) (2026-05-14)
 
 ### Bug Fixes
