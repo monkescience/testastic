@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -15,12 +16,25 @@ import (
 // sharedCoverDir is the package-level shared coverage directory, set by
 // [CollectSubprocessCoverage]. When set, all subprocesses started without
 // [WithCoverDir] write their coverage data here instead of a per-test
-// temp directory.
-//
-// No synchronization is needed: CollectSubprocessCoverage is called from
-// TestMain before m.Run, and all reads happen during m.Run. Go's test runner
-// guarantees that TestMain runs single-threaded before and after m.Run.
-var sharedCoverDir string
+// temp directory. Guarded by sharedCoverDirMu instead of relying solely on
+// the TestMain single-threaded convention.
+var (
+	sharedCoverDirMu sync.RWMutex
+	sharedCoverDir   string
+)
+
+func setSharedCoverDir(dir string) {
+	sharedCoverDirMu.Lock()
+	sharedCoverDir = dir
+	sharedCoverDirMu.Unlock()
+}
+
+func getSharedCoverDir() string {
+	sharedCoverDirMu.RLock()
+	defer sharedCoverDirMu.RUnlock()
+
+	return sharedCoverDir
+}
 
 // errCovdataFailed is returned when `go tool covdata textfmt` fails.
 var errCovdataFailed = errors.New("go tool covdata textfmt failed")
@@ -59,7 +73,7 @@ func collectSubprocessCoverage(run func() int, outputPath string) int {
 		return 1
 	}
 
-	sharedCoverDir = dir
+	setSharedCoverDir(dir)
 
 	code := run()
 
@@ -74,7 +88,7 @@ func collectSubprocessCoverage(run func() int, outputPath string) int {
 
 	_ = os.RemoveAll(dir)
 
-	sharedCoverDir = ""
+	setSharedCoverDir("")
 
 	return code
 }

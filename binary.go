@@ -280,6 +280,7 @@ func WithStdin(r io.Reader) RunOption {
 }
 
 // WithRunTimeout sets the maximum duration for a single CLI run.
+// Default: 30 seconds.
 func WithRunTimeout(d time.Duration) RunOption {
 	return runTimeoutOption{duration: d}
 }

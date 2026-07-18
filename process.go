@@ -463,9 +463,9 @@ func setupCoverDir(tb testing.TB, coverDir string) string {
 		return coverDir
 	}
 
-	if sharedCoverDir != "" {
+	if shared := getSharedCoverDir(); shared != "" {
 		// Per-run subdir avoids covmeta.<hash> race between parallel subprocesses.
-		sub, err := os.MkdirTemp(sharedCoverDir, "run-*") //nolint:usetesting // must live under sharedCoverDir
+		sub, err := os.MkdirTemp(shared, "run-*") //nolint:usetesting // must live under sharedCoverDir
 		if err != nil {
 			tb.Fatalf("testastic: failed to create per-run coverage directory: %v", err)
 		}

@@ -52,8 +52,7 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 
 	var data any
 
-	err := yaml.Unmarshal([]byte(processedContent), &data)
-	if err != nil {
+	if err := yaml.Unmarshal([]byte(processedContent), &data); err != nil {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 

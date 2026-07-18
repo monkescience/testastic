@@ -9,8 +9,7 @@ import (
 )
 
 func interruptProcess(p *os.Process) error {
-	err := p.Signal(syscall.SIGTERM)
-	if err != nil {
+	if err := p.Signal(syscall.SIGTERM); err != nil {
 		return fmt.Errorf("sending SIGTERM: %w", err)
 	}
 

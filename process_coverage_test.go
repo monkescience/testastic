@@ -8,7 +8,11 @@ import (
 )
 
 func TestConvertProcessCoverage(t *testing.T) {
+	t.Parallel()
+
 	t.Run("empty dir produces no output", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an empty coverage directory
 		coverDir := t.TempDir()
 		outputPath := filepath.Join(t.TempDir(), "coverage.out")
@@ -24,6 +28,8 @@ func TestConvertProcessCoverage(t *testing.T) {
 	})
 
 	t.Run("creates output directory", func(t *testing.T) {
+		t.Parallel()
+
 		// given: an empty coverage directory and nested output path
 		coverDir := t.TempDir()
 		outputPath := filepath.Join(t.TempDir(), "nested", "dir", "coverage.out")
@@ -52,7 +58,7 @@ func TestCollectSubprocessCoverage(t *testing.T) {
 
 		// when: tests pass but coverage conversion fails
 		code := collectSubprocessCoverage(func() int {
-			err := os.WriteFile(filepath.Join(sharedCoverDir, "covdata-entry"), []byte("coverage"), 0o600)
+			err := os.WriteFile(filepath.Join(getSharedCoverDir(), "covdata-entry"), []byte("coverage"), 0o600)
 			NoError(t, err)
 
 			return 0
@@ -68,10 +74,11 @@ func TestSetupCoverDir_sharedDir(t *testing.T) {
 		// given: a shared coverage directory is already configured
 		dir := t.TempDir()
 
-		old := sharedCoverDir
-		sharedCoverDir = dir
+		old := getSharedCoverDir()
 
-		defer func() { sharedCoverDir = old }()
+		setSharedCoverDir(dir)
+
+		defer func() { setSharedCoverDir(old) }()
 
 		// when: resolving the cover directory without an explicit override
 		result := setupCoverDir(t, "")
@@ -89,10 +96,11 @@ func TestSetupCoverDir_sharedDir(t *testing.T) {
 		// given: a shared coverage directory is already configured
 		dir := t.TempDir()
 
-		old := sharedCoverDir
-		sharedCoverDir = dir
+		old := getSharedCoverDir()
 
-		defer func() { sharedCoverDir = old }()
+		setSharedCoverDir(dir)
+
+		defer func() { setSharedCoverDir(old) }()
 
 		// when: setupCoverDir is invoked twice by concurrent runs
 		first := setupCoverDir(t, "")
@@ -106,10 +114,11 @@ func TestSetupCoverDir_sharedDir(t *testing.T) {
 		// given: both a shared directory and an explicit directory are configured
 		explicit := t.TempDir()
 
-		old := sharedCoverDir
-		sharedCoverDir = t.TempDir()
+		old := getSharedCoverDir()
 
-		defer func() { sharedCoverDir = old }()
+		setSharedCoverDir(t.TempDir())
+
+		defer func() { setSharedCoverDir(old) }()
 
 		// when: resolving the cover directory with an explicit override
 		result := setupCoverDir(t, explicit)
@@ -120,10 +129,11 @@ func TestSetupCoverDir_sharedDir(t *testing.T) {
 
 	t.Run("falls back to temp dir when shared dir is empty", func(t *testing.T) {
 		// given: no shared or explicit coverage directory is configured
-		old := sharedCoverDir
-		sharedCoverDir = ""
+		old := getSharedCoverDir()
 
-		defer func() { sharedCoverDir = old }()
+		setSharedCoverDir("")
+
+		defer func() { setSharedCoverDir(old) }()
 
 		// when: resolving the cover directory
 		result := setupCoverDir(t, "")

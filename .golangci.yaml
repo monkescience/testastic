@@ -169,6 +169,7 @@ linters:
       case:
         rules:
           yaml: snake
+          json: camel
 
   exclusions:
     rules:

@@ -74,8 +74,7 @@ func parseExpectedJSONString(content string) (*expectedJSON, error) {
 
 	var data any
 
-	err := decodeJSON([]byte(processedContent), &data)
-	if err != nil {
+	if err := decodeJSON([]byte(processedContent), &data); err != nil {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
 
@@ -93,8 +92,7 @@ func decodeJSON(data []byte, target *any) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 
-	err := decoder.Decode(target)
-	if err != nil {
+	if err := decoder.Decode(target); err != nil {
 		return fmt.Errorf("decode JSON: %w", err)
 	}
 

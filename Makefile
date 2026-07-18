@@ -8,6 +8,8 @@ help: ## Show help
 test: ## Run all tests with race detection and coverage profile
 	@mkdir -p coverage
 	go test -race -covermode=atomic -coverprofile=coverage/coverage.out ./...
+	grep -Ev '(\.gen\.go|/[^/]*gen/[^/:]+\.go):' coverage/coverage.out > coverage/coverage.filtered.out
+	mv coverage/coverage.filtered.out coverage/coverage.out
 
 coverage: ## Generate HTML coverage report from coverage/coverage.out
 	go tool cover -html=coverage/coverage.out -o coverage/coverage.html

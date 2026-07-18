@@ -107,8 +107,7 @@ func toYAMLBytes[T any](v T) ([]byte, error) {
 func parseActualYAML(data []byte) (any, error) {
 	var result any
 
-	err := yaml.Unmarshal(data, &result)
-	if err != nil {
+	if err := yaml.Unmarshal(data, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse actual YAML: %w", err)
 	}
 
@@ -160,8 +159,7 @@ func createExpectedYAMLFile(path string, actual []byte) error {
 	// Parse and re-render for consistent formatting
 	var data any
 
-	err := yaml.Unmarshal(actual, &data)
-	if err != nil {
+	if err := yaml.Unmarshal(actual, &data); err != nil {
 		// If parsing fails, just write the raw content
 		return writeYAMLFile(path, actual)
 	}
@@ -177,8 +175,7 @@ func createExpectedYAMLFile(path string, actual []byte) error {
 func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) error {
 	var actualData any
 
-	err := yaml.Unmarshal(actual, &actualData)
-	if err != nil {
+	if err := yaml.Unmarshal(actual, &actualData); err != nil {
 		return writeYAMLFile(path, actual)
 	}
 
