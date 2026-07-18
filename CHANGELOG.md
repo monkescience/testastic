@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.4.1](https://github.com/monkescience/testastic/compare/v0.4.0...v0.4.1) (2026-07-18)
+
+### Bug Fixes
+
+- **deps:** update module golang.org/x/net to v0.57.0 (#72) ([94af2a6](https://github.com/monkescience/testastic/commit/94af2a6f555ce291e6fab11c515c2b347f93365a))
+- **deps:** update module golang.org/x/term to v0.45.0 (#73) ([b01da7e](https://github.com/monkescience/testastic/commit/b01da7e97b7c9f3667b9d2cc9b3f51f198cfd4c3))
+- **deps:** update module golang.org/x/net to v0.56.0 (#61) ([5aa27ed](https://github.com/monkescience/testastic/commit/5aa27edfd61062f1382a2fe64d98b313aaf79e84))
+
 ## [v0.4.0](https://github.com/monkescience/testastic/compare/v0.3.5...v0.4.0) (2026-06-06)
 
 ### ⚠ BREAKING CHANGES
