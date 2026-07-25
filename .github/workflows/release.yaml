@@ -6,9 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+  contents: read
 
 concurrency:
   group: release-${{ github.ref }}
@@ -21,6 +19,7 @@ jobs:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Generate GitHub App token
         id: generate-token
@@ -31,7 +30,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: Run yeet
-        uses: docker://ghcr.io/monkescience/yeet:v0.4.7@sha256:d88d875f911622261031e7081330f931354c81d9aba9dbe0f37c1a898f302695
+        uses: docker://ghcr.io/monkescience/yeet:v0.11.4@sha256:0b57b23335ae34d7494be810f3094b39ea3d867049fd27139826b5aada3ac961
         with:
           args: release
         env:

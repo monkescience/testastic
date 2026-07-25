@@ -1,0 +1,39 @@
+name: Feature request
+description: Suggest an improvement for testastic
+labels:
+  - enhancement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What testing problem is difficult or impossible with the current API.
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: Describe the API and behavior you would like, including a usage example.
+      render: go
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe current workarounds or alternative designs.
+
+  - type: dropdown
+    id: compatibility
+    attributes:
+      label: Compatibility impact
+      options:
+        - Additive and backward compatible
+        - Changes existing behavior
+        - Removes or changes exported API
+        - Unsure
+    validations:
+      required: true

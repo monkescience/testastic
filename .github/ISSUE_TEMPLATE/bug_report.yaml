@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a problem with testastic
+labels:
+  - bug
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What did you run, what did you expect, and what happened instead.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Testastic version
+      description: Output of `go list -m github.com/monkescience/testastic`.
+      placeholder: github.com/monkescience/testastic v0.4.1
+    validations:
+      required: true
+
+  - type: input
+    id: go-version
+    attributes:
+      label: Go version
+      description: Output of `go version`.
+    validations:
+      required: true
+
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Output of `go env GOOS GOARCH`.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Provide the smallest test that demonstrates the problem.
+      render: go
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Test output
+      description: Include the complete relevant failure output and remove sensitive values.
+      render: shell
