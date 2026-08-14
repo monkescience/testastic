@@ -2,7 +2,7 @@ module github.com/monkescience/testastic
 
 go 1.26
 
-toolchain go1.26.5
+toolchain go1.26.6
 
 require (
 	github.com/goccy/go-yaml v1.19.2
