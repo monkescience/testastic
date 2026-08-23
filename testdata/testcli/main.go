@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 )
@@ -51,6 +52,35 @@ func main() {
 
 		time.Sleep(duration)
 		fmt.Fprint(os.Stdout, "slept")
+	case "spawn-inherited-output":
+		duration, err := time.ParseDuration(os.Args[2])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid duration: %v", err)
+			os.Exit(2)
+		}
+
+		executable, err := os.Executable()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "find executable: %v", err)
+			os.Exit(1)
+		}
+
+		child := exec.Command(executable, "sleep", os.Args[2])
+		child.Stdout = os.Stdout
+		child.Stderr = os.Stderr
+
+		err = child.Start()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "start child: %v", err)
+			os.Exit(1)
+		}
+
+		go func() {
+			_ = child.Wait()
+		}()
+
+		fmt.Fprint(os.Stdout, "child started")
+		time.Sleep(duration)
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s", os.Args[1])
 		os.Exit(2)

@@ -195,6 +195,7 @@ func (b *Binary) RunWithOptions(tb testing.TB, args []string, opts ...RunOption)
 	coverDir := setupCoverDir(tb, "")
 
 	cmd := exec.CommandContext(ctx, b.path, args...) //nolint:gosec // args are from test config
+	cmd.WaitDelay = cfg.timeout
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	cmd.Stdin = cfg.stdin

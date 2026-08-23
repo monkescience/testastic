@@ -122,6 +122,30 @@ func TestBinaryRun(t *testing.T) {
 		testastic.Contains(t, msg, "timed out")
 	})
 
+	t.Run("bounds inherited output after a timeout", func(t *testing.T) {
+		// given: a command whose descendant keeps captured output open
+		mt := newProcessMockT()
+		defer mt.cleanup()
+
+		// when: running with a timeout shorter than the descendant lifetime
+		started := time.Now()
+
+		runExpectingFatal(func() {
+			testCLI.RunWithOptions(mt, []string{"spawn-inherited-output", "2s"},
+				testastic.WithRunTimeout(300*time.Millisecond),
+			)
+		})
+
+		elapsed := time.Since(started)
+
+		// then: the timeout is reported before the descendant exits
+		fatal, msg := mt.result()
+		testastic.True(t, fatal)
+		testastic.Contains(t, msg, "timed out")
+		testastic.Contains(t, msg, "child started")
+		testastic.True(t, elapsed < 1200*time.Millisecond)
+	})
+
 	t.Run("rejects GOCOVERDIR in run env", func(t *testing.T) {
 		// given: an env override that tries to replace the coverage directory
 		mt := newProcessMockT()
