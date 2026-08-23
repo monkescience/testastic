@@ -47,22 +47,33 @@ func formatFileDiffInline(expected, actual []string) string {
 type diffOp string
 
 const (
-	diffEqual  diffOp = "equal"
-	diffDelete diffOp = "delete"
-	diffInsert diffOp = "insert"
+	maxDiffMatrixCells        = 1 << 20
+	maxDiffMatrixLines        = 1 << 12
+	diffEqual          diffOp = "equal"
+	diffDelete         diffOp = "delete"
+	diffInsert         diffOp = "insert"
 )
 
 // computeDiff generates a unified diff between two sets of lines.
-// Uses a simple LCS-based algorithm for readability.
+// Uses a bounded LCS-based algorithm with a linear fallback.
 //
 //nolint:funlen // LCS algorithm requires sequential steps.
 func computeDiff(expected, actual []string) []string {
+	if len(expected) > maxDiffMatrixLines || len(actual) > maxDiffMatrixLines {
+		return computeFallbackDiff(expected, actual)
+	}
+
 	// Build the longest common subsequence (LCS) matrix.
 	m, n := len(expected), len(actual)
 
-	dp := make([][]int, uint(m)+1)
+	rows, columns := m+1, n+1
+	if rows > maxDiffMatrixCells/columns {
+		return computeFallbackDiff(expected, actual)
+	}
+
+	dp := make([][]int, rows)
 	for i := range dp {
-		dp[i] = make([]int, uint(n)+1)
+		dp[i] = make([]int, columns)
 	}
 
 	for i := 1; i <= m; i++ {
@@ -118,6 +129,40 @@ func computeDiff(expected, actual []string) []string {
 		case diffInsert:
 			result = append(result, green("+ "+op.line))
 		}
+	}
+
+	return result
+}
+
+func computeFallbackDiff(expected, actual []string) []string {
+	commonPrefix := 0
+	for commonPrefix < min(len(expected), len(actual)) && expected[commonPrefix] == actual[commonPrefix] {
+		commonPrefix++
+	}
+
+	commonSuffix := 0
+	maxCommonSuffix := min(len(expected), len(actual)) - commonPrefix
+
+	for commonSuffix < maxCommonSuffix &&
+		expected[len(expected)-1-commonSuffix] == actual[len(actual)-1-commonSuffix] {
+		commonSuffix++
+	}
+
+	result := make([]string, 0, max(len(expected), len(actual)))
+	for _, line := range expected[:commonPrefix] {
+		result = append(result, "  "+line)
+	}
+
+	for _, line := range expected[commonPrefix : len(expected)-commonSuffix] {
+		result = append(result, red("- "+line))
+	}
+
+	for _, line := range actual[commonPrefix : len(actual)-commonSuffix] {
+		result = append(result, green("+ "+line))
+	}
+
+	for _, line := range expected[len(expected)-commonSuffix:] {
+		result = append(result, "  "+line)
 	}
 
 	return result
