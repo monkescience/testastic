@@ -74,7 +74,8 @@ func parseExpectedJSONString(content string) (*expectedJSON, error) {
 
 	var data any
 
-	if err := decodeJSON([]byte(processedContent), &data); err != nil {
+	err := decodeJSON([]byte(processedContent), &data)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
 
@@ -92,7 +93,8 @@ func decodeJSON(data []byte, target *any) error {
 	decoder := json.NewDecoder(bytes.NewReader(data))
 	decoder.UseNumber()
 
-	if err := decoder.Decode(target); err != nil {
+	err := decoder.Decode(target)
+	if err != nil {
 		return fmt.Errorf("decode JSON: %w", err)
 	}
 
@@ -145,7 +147,7 @@ func replaceJSONPlaceholders(data any, matchers map[string]string) (any, error) 
 		if strings.HasPrefix(v, jsonMatcherPlaceholderPrefix) {
 			expr, ok := matchers[v]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s", errUnknownPlaceholder, v)
+				return nil, fmt.Errorf("unknown placeholder %q: %w", v, errUnknownPlaceholder)
 			}
 
 			matcher, err := parseMatcher(expr)

@@ -126,6 +126,11 @@ go test -update
 TESTASTIC_UPDATE=true go test
 ```
 
+Testastic also follows standard terminal environment conventions when rendering
+diffs. `NO_COLOR` disables ANSI colors, `FORCE_COLOR` enables them, `CI`
+disables them by default, and `TERM=dumb` disables them. `NO_COLOR` takes
+precedence over the other settings.
+
 ## General Assertions
 
 ### Equality

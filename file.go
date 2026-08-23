@@ -60,7 +60,8 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	}
 
 	if cfg.Update {
-		if err := writeFileAtomic(expectedFile, []byte(actualStr)); err != nil {
+		err := writeFileAtomic(expectedFile, []byte(actualStr))
+		if err != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", err)
 
 			return
@@ -90,7 +91,7 @@ func fileToString[T any](v T) (string, error) {
 
 		return string(data), nil
 	default:
-		return "", fmt.Errorf("%w: %T", errUnsupportedFileType, v)
+		return "", fmt.Errorf("unsupported file value of type %T: %w", v, errUnsupportedFileType)
 	}
 }
 

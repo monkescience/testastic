@@ -52,7 +52,8 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 
 	var data any
 
-	if err := yaml.Unmarshal([]byte(processedContent), &data); err != nil {
+	err := yaml.Unmarshal([]byte(processedContent), &data)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 
@@ -103,7 +104,7 @@ func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) 
 		if strings.HasPrefix(v, yamlMatcherPlaceholderPrefix) {
 			expr, ok := matchers[v]
 			if !ok {
-				return nil, fmt.Errorf("%w: %s", errUnknownPlaceholder, v)
+				return nil, fmt.Errorf("unknown placeholder %q: %w", v, errUnknownPlaceholder)
 			}
 
 			matcher, err := parseMatcher(expr)

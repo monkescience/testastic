@@ -529,7 +529,9 @@ func TestAssertYAML_IdenticalInfinityMatches(t *testing.T) {
 
 	// given: an expected file and actual that both carry the same infinity
 	expectedFile := filepath.Join(t.TempDir(), "inf.yaml")
-	if err := os.WriteFile(expectedFile, []byte("value: .inf\n"), 0o644); err != nil {
+
+	err := os.WriteFile(expectedFile, []byte("value: .inf\n"), 0o644)
+	if err != nil {
 		t.Fatalf("write expected file: %v", err)
 	}
 
@@ -549,7 +551,9 @@ func TestAssertYAML_BinaryMatchesByteSlice(t *testing.T) {
 
 	// given: an expected file using a !!binary scalar
 	expectedFile := filepath.Join(t.TempDir(), "binary.yaml")
-	if err := os.WriteFile(expectedFile, []byte("b: !!binary aGVsbG8=\n"), 0o644); err != nil {
+
+	err := os.WriteFile(expectedFile, []byte("b: !!binary aGVsbG8=\n"), 0o644)
+	if err != nil {
 		t.Fatalf("write expected file: %v", err)
 	}
 

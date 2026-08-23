@@ -75,7 +75,8 @@ func handleMissingExpectedFile(
 	}
 
 	if update {
-		if createErr := createFn(path, actualBytes); createErr != nil {
+		createErr := createFn(path, actualBytes)
+		if createErr != nil {
 			tb.Fatalf("testastic: failed to create expected file: %v", createErr)
 		}
 
@@ -102,7 +103,8 @@ func handleJSONDiffs(
 	}
 
 	if cfg.Update {
-		if updateErr := updateExpectedFile(path, actualBytes, expected); updateErr != nil {
+		updateErr := updateExpectedFile(path, actualBytes, expected)
+		if updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected file: %v", updateErr)
 		}
 

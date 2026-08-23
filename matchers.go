@@ -419,7 +419,7 @@ func parseMatcher(expr string) (Matcher, error) {
 			return Regex(pattern)
 		}
 
-		return nil, fmt.Errorf("%w: %s", errInvalidRegexSyntax, expr)
+		return nil, fmt.Errorf("invalid regex matcher %q: %w", expr, errInvalidRegexSyntax)
 	}
 
 	if len(expr) > 6 && expr[:6] == "oneOf " {
@@ -428,10 +428,10 @@ func parseMatcher(expr string) (Matcher, error) {
 			return OneOf(values...), nil
 		}
 
-		return nil, fmt.Errorf("%w: %s", errInvalidOneOfSyntax, expr)
+		return nil, fmt.Errorf("invalid oneOf matcher %q: %w", expr, errInvalidOneOfSyntax)
 	}
 
-	return nil, fmt.Errorf("%w: %s", errUnknownMatcher, expr)
+	return nil, fmt.Errorf("unknown matcher expression %q: %w", expr, errUnknownMatcher)
 }
 
 func extractBacktickArg(s string) string {

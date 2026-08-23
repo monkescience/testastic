@@ -466,7 +466,8 @@ func uintRat(v uint64) *big.Rat {
 func parseActualJSON(data []byte) (any, error) {
 	var result any
 
-	if err := decodeJSON(data, &result); err != nil {
+	err := decodeJSON(data, &result)
+	if err != nil {
 		return nil, fmt.Errorf("failed to parse actual JSON: %w", err)
 	}
 

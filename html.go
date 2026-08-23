@@ -74,7 +74,8 @@ func handleHTMLDiffs(
 	}
 
 	if cfg.Update {
-		if updateErr := updateExpectedHTMLFile(path, actualBytes); updateErr != nil {
+		updateErr := updateExpectedHTMLFile(path, actualBytes)
+		if updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected HTML file: %v", updateErr)
 		}
 
@@ -100,7 +101,7 @@ func toHTMLBytes[T any](v T) ([]byte, error) {
 		return []byte(stringer.String()), nil
 	}
 
-	return nil, fmt.Errorf("%w: %T (expected []byte, string, io.Reader, or fmt.Stringer)", errUnsupportedHTMLType, v)
+	return nil, fmt.Errorf("unsupported HTML value of type %T: %w", v, errUnsupportedHTMLType)
 }
 
 func createExpectedHTMLFile(path string, actual []byte) error {

@@ -93,7 +93,7 @@ func TestBinaryRun(t *testing.T) {
 	t.Run("overrides the work dir per run", func(t *testing.T) {
 		// given: a CLI command and a custom working directory
 		customDir := t.TempDir()
-		resolvedCustomDir, err := filepath.EvalSymlinks(customDir)
+		customDirInfo, err := os.Stat(customDir)
 		testastic.NoError(t, err)
 
 		// when: running with an explicit work dir override
@@ -101,7 +101,9 @@ func TestBinaryRun(t *testing.T) {
 
 		// then: the command runs from the requested directory
 		testastic.Equal(t, 0, result.ExitCode)
-		testastic.Equal(t, resolvedCustomDir, result.Stdout)
+		actualDirInfo, err := os.Stat(result.Stdout)
+		testastic.NoError(t, err)
+		testastic.True(t, os.SameFile(customDirInfo, actualDirInfo))
 	})
 
 	t.Run("times out on hung commands", func(t *testing.T) {

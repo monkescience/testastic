@@ -887,7 +887,9 @@ func writeHTMLExpected(t *testing.T, content string) string {
 	t.Helper()
 
 	path := filepath.Join(t.TempDir(), "expected.html")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+
+	err := os.WriteFile(path, []byte(content), 0o644)
+	if err != nil {
 		t.Fatalf("write expected file: %v", err)
 	}
 
