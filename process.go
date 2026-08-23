@@ -66,6 +66,8 @@ type ReadyChecker interface {
 // This follows the same pattern as [http.HandlerFunc] for [http.Handler].
 type ReadyCheckFunc func(ctx context.Context) bool
 
+var _ ReadyChecker = ReadyCheckFunc(nil)
+
 // Check calls f(ctx).
 func (f ReadyCheckFunc) Check(ctx context.Context) bool {
 	return f(ctx)
