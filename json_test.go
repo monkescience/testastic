@@ -393,7 +393,9 @@ func TestAssertJSON_UnorderedArrayHonorsPathScopedIgnore(t *testing.T) {
 
 	// given: an unordered array whose element differs only in a path-ignored field
 	expectedFile := filepath.Join(t.TempDir(), "unordered.json")
-	if err := os.WriteFile(expectedFile, []byte(`{"items":[{"name":"a","secret":"x"}]}`), 0o644); err != nil {
+
+	err := os.WriteFile(expectedFile, []byte(`{"items":[{"name":"a","secret":"x"}]}`), 0o644)
+	if err != nil {
 		t.Fatalf("write expected file: %v", err)
 	}
 
@@ -417,7 +419,9 @@ func TestAssertJSON_MatchedMatcherNotShownAsDiff(t *testing.T) {
 
 	// given: an expected file where one field is a matcher the actual satisfies
 	expectedFile := filepath.Join(t.TempDir(), "matcher.json")
-	if err := os.WriteFile(expectedFile, []byte(`{"id":"{{anyInt}}","name":"x"}`), 0o644); err != nil {
+
+	err := os.WriteFile(expectedFile, []byte(`{"id":"{{anyInt}}","name":"x"}`), 0o644)
+	if err != nil {
 		t.Fatalf("write expected file: %v", err)
 	}
 
@@ -441,7 +445,9 @@ func TestAssertJSON_UpdatePreservesRootMatcher(t *testing.T) {
 
 	// given: an expected file whose entire body is a matcher
 	expectedFile := filepath.Join(t.TempDir(), "root.json")
-	if err := os.WriteFile(expectedFile, []byte(`"{{anyString}}"`), 0o644); err != nil {
+
+	err := os.WriteFile(expectedFile, []byte(`"{{anyString}}"`), 0o644)
+	if err != nil {
 		t.Fatalf("write expected file: %v", err)
 	}
 

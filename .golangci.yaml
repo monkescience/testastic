@@ -72,6 +72,7 @@ linters:
     - predeclared     # shadowing predeclared identifiers (len, cap, etc.)
     - errname         # error type naming (ErrFoo, FooError)
     - errorlint       # correct error wrapping/comparison patterns
+    - noinlineerr     # assign errors before checking them
     - funlen          # function length limits
     - lll             # line length limit
     - nonamedreturns  # avoid named returns (except for defer error joining)
@@ -212,7 +213,6 @@ linters:
   # - gocyclo: overlaps with gocognit
   # - ireturn: conflicts with idiomatic interfaces at package boundaries
   # - maintidx: aggregate score is less actionable than targeted complexity linters
-  # - noinlineerr: rejects idiomatic short `if err := call(); err != nil` guard checks
   # - varnamelen: high false-positive rate on idiomatic short local names
 
   # Deprecated: never enable. Use the current replacements instead.

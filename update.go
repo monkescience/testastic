@@ -17,7 +17,9 @@ const (
 // It preserves template matchers from the original file.
 func updateExpectedFile(path string, actual []byte, expected *expectedJSON) error {
 	var actualData any
-	if err := decodeJSON(actual, &actualData); err != nil {
+
+	err := decodeJSON(actual, &actualData)
+	if err != nil {
 		return fmt.Errorf("failed to parse actual JSON for update: %w", err)
 	}
 
@@ -33,7 +35,9 @@ func updateExpectedFile(path string, actual []byte, expected *expectedJSON) erro
 
 func createExpectedFile(path string, actual []byte) error {
 	var data any
-	if err := decodeJSON(actual, &data); err != nil {
+
+	err := decodeJSON(actual, &data)
+	if err != nil {
 		return fmt.Errorf("failed to parse actual JSON: %w", err)
 	}
 
@@ -105,7 +109,9 @@ func restoreJSONMatchers(data any, matchers map[string]string, path string) any 
 // write and a failed write cannot truncate an existing file.
 func writeFileAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, dirPerm); err != nil {
+
+	err := os.MkdirAll(dir, dirPerm)
+	if err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
@@ -116,26 +122,30 @@ func writeFileAtomic(path string, data []byte) error {
 
 	tmpName := tmp.Name()
 
-	if _, err := tmp.Write(data); err != nil {
+	_, err = tmp.Write(data)
+	if err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmpName)
 
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 
-	if err := tmp.Close(); err != nil {
+	err = tmp.Close()
+	if err != nil {
 		_ = os.Remove(tmpName)
 
 		return fmt.Errorf("failed to close temp file: %w", err)
 	}
 
-	if err := os.Chmod(tmpName, filePerm); err != nil {
+	err = os.Chmod(tmpName, filePerm)
+	if err != nil {
 		_ = os.Remove(tmpName)
 
 		return fmt.Errorf("failed to set file mode: %w", err)
 	}
 
-	if err := os.Rename(tmpName, path); err != nil {
+	err = os.Rename(tmpName, path)
+	if err != nil {
 		_ = os.Remove(tmpName)
 
 		return fmt.Errorf("failed to rename temp file: %w", err)

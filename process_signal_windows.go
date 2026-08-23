@@ -8,7 +8,8 @@ import (
 )
 
 func interruptProcess(p *os.Process) error {
-	if err := p.Signal(os.Interrupt); err != nil {
+	err := p.Signal(os.Interrupt)
+	if err != nil {
 		return fmt.Errorf("sending interrupt: %w", err)
 	}
 

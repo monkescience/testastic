@@ -55,7 +55,8 @@ func main() {
 	mux.HandleFunc("GET /args", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 
-		if err := json.NewEncoder(w).Encode(os.Args[1:]); err != nil {
+		err := json.NewEncoder(w).Encode(os.Args[1:])
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
@@ -82,7 +83,8 @@ func main() {
 			"version": "1.0.0",
 		}
 
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
+		err := json.NewEncoder(w).Encode(resp)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
@@ -97,7 +99,8 @@ func main() {
 	defer stop()
 
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		err := server.ListenAndServe()
+		if err != nil && err != http.ErrServerClosed {
 			fmt.Fprintf(os.Stderr, "listen error: %v\n", err)
 			os.Exit(1)
 		}
@@ -108,7 +111,8 @@ func main() {
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	if err := server.Shutdown(shutdownCtx); err != nil {
+	err := server.Shutdown(shutdownCtx)
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "shutdown error: %v\n", err)
 	}
 }

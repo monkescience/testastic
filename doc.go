@@ -77,6 +77,10 @@
 //
 //	testastic.AssertJSON(t, expected, actual, testastic.Update())
 //
+// Diff rendering follows terminal environment conventions. NO_COLOR disables
+// ANSI colors, FORCE_COLOR enables them, CI disables them by default, and
+// TERM=dumb disables them. NO_COLOR takes precedence.
+//
 // The -update flag is honored too, but only when your package registers it,
 // since the test binary rejects flags it does not define:
 //

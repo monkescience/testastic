@@ -109,7 +109,8 @@ func convertProcessCoverage(coverDir string, outputPath string) error {
 
 	const dirPerm = 0o750
 
-	if err := os.MkdirAll(filepath.Dir(outputPath), dirPerm); err != nil {
+	err = os.MkdirAll(filepath.Dir(outputPath), dirPerm)
+	if err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -126,7 +127,7 @@ func convertProcessCoverage(coverDir string, outputPath string) error {
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("%w: %s", errCovdataFailed, output)
+		return fmt.Errorf("convert coverage data, output %q: %w", output, errCovdataFailed)
 	}
 
 	return nil
