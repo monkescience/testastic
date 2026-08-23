@@ -86,6 +86,61 @@ func ExampleAssertJSON_withOptions() {
 	// Output: See godoc for usage examples
 }
 
+func ExampleAssertYAML() {
+	// In a test function, compare YAML from a value, string, byte slice, or reader:
+	//
+	//   func TestConfig(t *testing.T) {
+	//       actual := struct {
+	//           Host string `yaml:"host"`
+	//           Port int    `yaml:"port"`
+	//       }{Host: "localhost", Port: 8080}
+	//
+	//       testastic.AssertYAML(t, "testdata/config.expected.yaml", actual)
+	//   }
+	//
+	// Expected YAML files support the same dynamic matchers as JSON files:
+	//
+	//   host: localhost
+	//   port: "{{anyInt}}"
+	fmt.Println("See godoc for AssertYAML usage")
+	// Output: See godoc for AssertYAML usage
+}
+
+func ExampleAssertHTML() {
+	// In a test function, compare an HTML string, byte slice, reader, or
+	// fmt.Stringer against an expected file:
+	//
+	//   func TestPage(t *testing.T) {
+	//       actual := `<main><h1>Hello</h1><p>Welcome</p></main>`
+	//
+	//       testastic.AssertHTML(t, "testdata/page.expected.html", actual,
+	//           testastic.IgnoreAttributes("data-request-id"),
+	//       )
+	//   }
+	//
+	// Use IgnoreHTMLComments, PreserveWhitespace, or IgnoreChildOrder when the
+	// corresponding markup details are not part of the behavior under test.
+	fmt.Println("See godoc for AssertHTML usage")
+	// Output: See godoc for AssertHTML usage
+}
+
+func ExampleAssertFile() {
+	// In a test function, compare text from a string, byte slice, or reader:
+	//
+	//   func TestReport(t *testing.T) {
+	//       actual := "order: ORD-123456\nstatus: ready\n"
+	//
+	//       testastic.AssertFile(t, "testdata/report.expected.txt", actual)
+	//   }
+	//
+	// Matchers can appear inline in the expected text file:
+	//
+	//   order: {{regex `ORD-[0-9]{6}`}}
+	//   status: ready
+	fmt.Println("See godoc for AssertFile usage")
+	// Output: See godoc for AssertFile usage
+}
+
 func ExampleEqual() {
 	// In a test function:
 	//
