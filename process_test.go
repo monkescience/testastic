@@ -584,6 +584,40 @@ func TestBinaryStart(t *testing.T) {
 	})
 }
 
+func TestBinaryStartReadyTimeoutBoundsChecker(t *testing.T) {
+	// given: a readiness checker that blocks after inspecting its context
+	mt := newProcessMockT()
+	defer mt.cleanup()
+
+	blocked := make(chan struct{})
+	defer close(blocked)
+
+	hasDeadline := make(chan bool, 1)
+
+	// when: starting a process with a short readiness timeout
+	runExpectingFatal(func() {
+		testCLI.Start(context.Background(), mt,
+			testastic.ReadyCheckFunc(func(ctx context.Context) bool {
+				_, ok := ctx.Deadline()
+				hasDeadline <- ok
+
+				<-blocked
+
+				return false
+			}),
+			testastic.WithArgs("sleep", "2s"),
+			testastic.WithReadyTimeout(100*time.Millisecond),
+			testastic.WithShutdownTimeout(100*time.Millisecond),
+		)
+	})
+
+	// then: startup times out and the checker received a deadline
+	fatal, msg := mt.result()
+	testastic.True(t, fatal)
+	testastic.True(t, <-hasDeadline)
+	testastic.Contains(t, msg, "process not ready after 100ms")
+}
+
 func processResponds(t *testing.T, port int) bool {
 	t.Helper()
 

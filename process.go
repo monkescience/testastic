@@ -491,7 +491,9 @@ func setupCoverDir(tb testing.TB, coverDir string) string {
 func waitForReady(ctx context.Context, tb testing.TB, proc *Process, cfg *processConfig) {
 	tb.Helper()
 
-	deadline := time.Now().Add(cfg.readyTimeout)
+	readyCtx, cancel := context.WithTimeout(ctx, cfg.readyTimeout)
+	defer cancel()
+
 	ticker := time.NewTicker(cfg.readyInterval)
 
 	defer ticker.Stop()
@@ -508,11 +510,18 @@ func waitForReady(ctx context.Context, tb testing.TB, proc *Process, cfg *proces
 		default:
 		}
 
-		if cfg.readyCheck.Check(ctx) {
-			return
-		}
+		ready := make(chan bool, 1)
 
-		if time.Now().After(deadline) {
+		go func() {
+			ready <- cfg.readyCheck.Check(readyCtx)
+		}()
+
+		select {
+		case isReady := <-ready:
+			if isReady {
+				return
+			}
+		case <-readyCtx.Done():
 			tb.Fatalf(
 				"testastic: process not ready after %v\nstdout:\n%s\nstderr:\n%s",
 				cfg.readyTimeout, proc.stdout.String(), proc.stderr.String(),
@@ -523,6 +532,13 @@ func waitForReady(ctx context.Context, tb testing.TB, proc *Process, cfg *proces
 
 		select {
 		case <-ticker.C:
+		case <-readyCtx.Done():
+			tb.Fatalf(
+				"testastic: process not ready after %v\nstdout:\n%s\nstderr:\n%s",
+				cfg.readyTimeout, proc.stdout.String(), proc.stderr.String(),
+			)
+
+			return
 		case <-proc.exited:
 			tb.Fatalf(
 				"testastic: process exited before becoming ready\nstdout:\n%s\nstderr:\n%s",
