@@ -60,9 +60,9 @@ func computeDiff(expected, actual []string) []string {
 	// Build the longest common subsequence (LCS) matrix.
 	m, n := len(expected), len(actual)
 
-	dp := make([][]int, m+1)
+	dp := make([][]int, uint(m)+1)
 	for i := range dp {
-		dp[i] = make([]int, n+1)
+		dp[i] = make([]int, uint(n)+1)
 	}
 
 	for i := 1; i <= m; i++ {
