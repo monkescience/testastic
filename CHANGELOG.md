@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.4.3](https://github.com/monkescience/testastic/compare/v0.4.2...v0.4.3) (2026-08-23)
+
+### Bug Fixes
+
+- bound diff matrix allocation ([502f4bc](https://github.com/monkescience/testastic/commit/502f4bc97e5c3ad63bdd6efa8729824cb2c7ab04))
+- bound blocking readiness checks by timeout ([5c37f62](https://github.com/monkescience/testastic/commit/5c37f62106c2f8763ed16d6426acdf95f6339630))
+- bound inherited output wait after run timeout ([1ba0c06](https://github.com/monkescience/testastic/commit/1ba0c065c3fda743a675938f5cc881dd1704af08))
+- prevent diff allocation size overflow ([e54e3a6](https://github.com/monkescience/testastic/commit/e54e3a62c9b177872525f1ec51142c5948ee1830))
+
 ## [v0.4.2](https://github.com/monkescience/testastic/compare/v0.4.1...v0.4.2) (2026-08-23)
 
 ### Bug Fixes
