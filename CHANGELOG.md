@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.4.2](https://github.com/monkescience/testastic/compare/v0.4.1...v0.4.2) (2026-08-23)
+
+### Bug Fixes
+
+- compare working directories by identity ([94d58f7](https://github.com/monkescience/testastic/commit/94d58f7f0d941b5d73f23fab894af8b55342ac9c))
+- **deps:** update module golang.org/x/net to v0.58.0 (#90) ([354c73e](https://github.com/monkescience/testastic/commit/354c73e5821eb8956a50c2e21b6ba9d90405db41))
+
 ## [v0.4.1](https://github.com/monkescience/testastic/compare/v0.4.0...v0.4.1) (2026-07-18)
 
 ### Bug Fixes
