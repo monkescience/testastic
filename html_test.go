@@ -295,6 +295,64 @@ func TestAssertHTML(t *testing.T) {
 		}
 	})
 
+	t.Run("failure diff omits ignored comments", func(t *testing.T) {
+		t.Parallel()
+
+		// given: differing comments alongside a real paragraph difference
+		expectedFile := writeHTMLExpected(t,
+			`<div><!-- ignored-expected-comment --><p>old</p></div>`,
+		)
+		mt := &mockT{}
+
+		// when: comparing with comments ignored
+		testastic.AssertHTML(mt, expectedFile,
+			`<div><!-- ignored-actual-comment --><p>new</p></div>`,
+			testastic.IgnoreHTMLComments(),
+		)
+
+		// then: the diff contains only the real paragraph difference
+		if !mt.failed {
+			t.Fatal("expected the paragraph difference to fail")
+		}
+
+		if strings.Contains(mt.message, "ignored-expected-comment") ||
+			strings.Contains(mt.message, "ignored-actual-comment") {
+			t.Errorf("expected ignored comments to be absent from the diff, got: %s", mt.message)
+		}
+
+		if !strings.Contains(mt.message, "<p>old</p>") || !strings.Contains(mt.message, "<p>new</p>") {
+			t.Errorf("expected the paragraph difference to remain in the diff, got: %s", mt.message)
+		}
+	})
+
+	t.Run("failure diff omits removed formatted comment", func(t *testing.T) {
+		t.Parallel()
+
+		// given: indented expected HTML with a comment absent from actual HTML
+		expectedFile := writeHTMLExpected(t,
+			"<div>\n  <!-- ignored-expected-comment -->\n  <p>old</p>\n</div>",
+		)
+
+		// when: another semantic difference makes the assertion fail
+		mt := &mockT{}
+		testastic.AssertHTML(mt, expectedFile, "<div>\n  <p>new</p>\n</div>",
+			testastic.IgnoreHTMLComments(),
+		)
+
+		// then: neither the comment nor its split indentation appears in the diff
+		if !mt.failed {
+			t.Fatal("expected the paragraph difference to fail")
+		}
+
+		if strings.Contains(mt.message, "ignored-expected-comment") || strings.Contains(mt.message, "\n- \n") {
+			t.Errorf("expected the removed comment to be absent from the diff, got: %s", mt.message)
+		}
+
+		if !strings.Contains(mt.message, "<p>old</p>") || !strings.Contains(mt.message, "<p>new</p>") {
+			t.Errorf("expected the paragraph difference to remain in the diff, got: %s", mt.message)
+		}
+	})
+
 	t.Run("ignore elements", func(t *testing.T) {
 		t.Parallel()
 

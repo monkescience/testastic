@@ -87,7 +87,7 @@ func handleHTMLDiffs(
 	sortHTMLDiffs(diffs)
 
 	msg := formatAssertionMessage("AssertHTML", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatHTMLDiffInline(expectedRoot, actualNode))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatHTMLDiffInline(expectedRoot, actualNode, cfg))
 
 	return false
 }

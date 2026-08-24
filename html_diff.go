@@ -8,7 +8,12 @@ import (
 
 // formatHTMLDiffInline generates a git-style inline diff between expected and actual HTML.
 // Uses the same format as JSON diff.
-func formatHTMLDiffInline(expected, actual *htmlNode) string {
+func formatHTMLDiffInline(expected, actual *htmlNode, cfg *config) string {
+	if cfg.IgnoreComments {
+		expected = cloneWithoutHTMLComments(expected)
+		actual = cloneWithoutHTMLComments(actual)
+	}
+
 	expHTML := renderPrettyHTML(expected, 0)
 	actHTML := renderPrettyHTML(actual, 0)
 
@@ -24,6 +29,24 @@ func formatHTMLDiffInline(expected, actual *htmlNode) string {
 	}
 
 	return sb.String()
+}
+
+func cloneWithoutHTMLComments(node *htmlNode) *htmlNode {
+	if node == nil || node.Type == htmlComment {
+		return nil
+	}
+
+	clone := *node
+	clone.Children = make([]*htmlNode, 0, len(node.Children))
+
+	for _, child := range node.Children {
+		filtered := cloneWithoutHTMLComments(child)
+		if filtered != nil {
+			clone.Children = append(clone.Children, filtered)
+		}
+	}
+
+	return &clone
 }
 
 // renderPrettyHTML renders an htmlNode tree as formatted HTML string.
