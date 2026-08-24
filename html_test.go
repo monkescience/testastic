@@ -261,6 +261,23 @@ func TestAssertHTML(t *testing.T) {
 		}
 	})
 
+	t.Run("preserve whitespace-only text nodes", func(t *testing.T) {
+		t.Parallel()
+
+		// given: expected inline elements separated by a whitespace-only text node
+		expectedFile := writeHTMLExpected(t, `<div><span>a</span> <span>b</span></div>`)
+		mt := &mockT{}
+
+		// when: actual HTML omits the separating whitespace
+		testastic.AssertHTML(mt, expectedFile, `<div><span>a</span><span>b</span></div>`,
+			testastic.PreserveWhitespace())
+
+		// then: preserving whitespace reports the missing text node
+		if !mt.failed {
+			t.Error("expected a missing inline space to fail when whitespace is preserved")
+		}
+	})
+
 	t.Run("ignore comments", func(t *testing.T) {
 		t.Parallel()
 
@@ -840,6 +857,34 @@ func TestAssertHTML_UpdateEscapesGeneratedHTML(t *testing.T) {
 			t.Errorf("expected updated HTML to roundtrip, got: %s", verify.message)
 		}
 	})
+}
+
+func TestAssertHTML_UpdateDoesNotRenderIndentationNodes(t *testing.T) {
+	t.Parallel()
+
+	// given: indented actual HTML and a missing expected file
+	expectedFile := filepath.Join(t.TempDir(), "created.html")
+	actual := "<div>\n  <span>Content</span>\n</div>"
+
+	// when: creating the expected file in update mode
+	mt := &mockT{}
+	testastic.AssertHTML(mt, expectedFile, actual, testastic.Update())
+
+	if mt.failed {
+		t.Fatalf("expected create to pass, got: %s", mt.message)
+	}
+
+	content, err := os.ReadFile(expectedFile)
+	if err != nil {
+		t.Fatalf("read expected file: %v", err)
+	}
+
+	// then: source indentation does not create blank lines in canonical output
+	want := "<html>\n  <head></head>\n  <body>\n    <div>\n      <span>Content</span>\n" +
+		"    </div>\n  </body>\n</html>"
+	if string(content) != want {
+		t.Errorf("generated HTML mismatch:\n%s", content)
+	}
 }
 
 func TestAssertHTML_UnsupportedOptions(t *testing.T) {

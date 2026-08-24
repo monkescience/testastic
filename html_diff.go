@@ -40,8 +40,10 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 
 	switch node.Type {
 	case htmlElement:
+		children := filterHTMLRenderChildren(node.Children)
+
 		if node.Tag == htmlDocumentTag {
-			for i, child := range node.Children {
+			for i, child := range children {
 				if i > 0 {
 					sb.WriteString("\n")
 				}
@@ -85,8 +87,8 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 
 		sb.WriteString(">")
 
-		if len(node.Children) == 1 && node.Children[0].Type == htmlText {
-			text := getTextContent(node.Children[0])
+		if len(children) == 1 && children[0].Type == htmlText {
+			text := getTextContent(children[0])
 			sb.WriteString(html.EscapeString(text))
 			sb.WriteString("</")
 			sb.WriteString(node.Tag)
@@ -95,8 +97,8 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 			return sb.String()
 		}
 
-		if len(node.Children) > 0 {
-			for _, child := range node.Children {
+		if len(children) > 0 {
+			for _, child := range children {
 				sb.WriteString("\n")
 				sb.WriteString(renderPrettyHTML(child, indent+1))
 			}
@@ -129,6 +131,20 @@ func renderPrettyHTML(node *htmlNode, indent int) string {
 	}
 
 	return sb.String()
+}
+
+func filterHTMLRenderChildren(children []*htmlNode) []*htmlNode {
+	result := make([]*htmlNode, 0, len(children))
+
+	for _, child := range children {
+		if child.Type == htmlText && strings.TrimSpace(getTextContent(child)) == "" {
+			continue
+		}
+
+		result = append(result, child)
+	}
+
+	return result
 }
 
 // isVoidElement returns true if the tag is a void element (self-closing).

@@ -263,10 +263,6 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 		text := n.Data
 		resolved := resolveHTMLMatcherInValue(text, matchers)
 
-		if s, ok := resolved.(string); ok && strings.TrimSpace(s) == "" {
-			return nil
-		}
-
 		return &htmlNode{
 			Type: htmlText,
 			Text: resolved,
