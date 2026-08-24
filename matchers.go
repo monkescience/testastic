@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 // Matcher parsing errors used internally by parseMatcher.
@@ -211,17 +212,74 @@ type anyDateTimeMatcher struct {
 	re *regexp.Regexp
 }
 
+const (
+	dateTimeTimeSubmatch     = 1
+	dateTimeFractionSubmatch = 2
+	dateTimeZoneSubmatch     = 3
+)
+
 func (m *anyDateTimeMatcher) Match(actual any) bool {
 	s, ok := actual.(string)
 	if !ok {
 		return false
 	}
 
-	return m.re.MatchString(s)
+	matches := m.re.FindStringSubmatch(s)
+	if matches == nil || !validDateTimeOffset(matches[dateTimeZoneSubmatch]) {
+		return false
+	}
+
+	parseable, ok := normalizeDateTimeForParsing(
+		s,
+		matches[dateTimeTimeSubmatch],
+		matches[dateTimeFractionSubmatch],
+	)
+	if !ok {
+		return false
+	}
+
+	for _, layout := range dateTimeLayouts {
+		_, err := time.Parse(layout, parseable)
+		if err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func normalizeDateTimeForParsing(value, timeValue, fraction string) (string, bool) {
+	if timeValue == "" {
+		return value, true
+	}
+
+	if value[11:13] == "24" {
+		if value[14:19] != "00:00" || strings.Trim(fraction, ".0") != "" {
+			return "", false
+		}
+
+		return value[:11] + "00" + value[13:], true
+	}
+
+	if value[17:19] == "60" {
+		return value[:17] + "59" + value[19:], true
+	}
+
+	return value, true
 }
 
 func (m *anyDateTimeMatcher) String() string {
 	return "{{anyDateTime}}"
+}
+
+func validDateTimeOffset(offset string) bool {
+	if offset == "" || offset == "Z" {
+		return true
+	}
+
+	hour, minute, _ := strings.Cut(offset[1:], ":")
+
+	return hour <= "23" && minute <= "59"
 }
 
 type anyURLMatcher struct {
@@ -295,7 +353,14 @@ var (
 	// uuidRegex matches lowercase hex UUID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx.
 	uuidRegex = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 	// dateTimeRegex matches ISO 8601 dates with optional time: YYYY-MM-DD[T]HH:MM:SS[.fractional][Z|+HH:MM].
-	dateTimeRegex = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$`)
+	dateTimeRegex   = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}([T ]\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?)?$`)
+	dateTimeLayouts = [...]string{
+		time.DateOnly,
+		time.RFC3339Nano,
+		"2006-01-02T15:04:05",
+		"2006-01-02 15:04:05Z07:00",
+		"2006-01-02 15:04:05",
+	}
 	// urlRegex matches HTTP/HTTPS URLs: scheme://host with optional path.
 	urlRegex = regexp.MustCompile(`^https?://[^\s/$.?#].[^\s]*$`)
 )

@@ -282,6 +282,43 @@ func TestMatchers(t *testing.T) {
 	})
 }
 
+func TestAnyDateTime_ValidatesCalendarAndClockValues(t *testing.T) {
+	t.Parallel()
+
+	matcher := testastic.AnyDateTime()
+	valid := []string{
+		"2024-02-29",
+		"2024-01-15T24:00:00Z",
+		"2016-12-31T23:59:60Z",
+		"2024-01-15T10:30:00.12345678901234567890Z",
+		"2024-01-15T10:30:00.12345678901234567890",
+		"2024-01-15 10:30:00+01:30",
+	}
+
+	for _, value := range valid {
+		if !matcher.Match(value) {
+			t.Errorf("AnyDateTime rejected valid value %q", value)
+		}
+	}
+
+	invalid := []string{
+		"2026-99-99T29:90:90Z",
+		"2023-02-29",
+		"2024-04-31T23:59:59Z",
+		"2024-01-15T24:00:01Z",
+		"2024-01-15T10:60:00Z",
+		"2024-01-15T10:30:61Z",
+		"2024-01-15T10:30:00+24:00",
+		"2024-01-15T10:30:00+01:60",
+	}
+
+	for _, value := range invalid {
+		if matcher.Match(value) {
+			t.Errorf("AnyDateTime accepted invalid value %q", value)
+		}
+	}
+}
+
 func TestRegisterMatcher(t *testing.T) {
 	t.Run("custom matcher works through public API", func(t *testing.T) {
 		// given: a custom matcher registered in the registry
