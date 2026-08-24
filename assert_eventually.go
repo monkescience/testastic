@@ -1,18 +1,43 @@
 package testastic
 
 import (
+	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 )
 
 // Default configuration values for Eventually.
+const defaultEventuallyInterval = 100 * time.Millisecond
+
 const (
-	defaultEventuallyInterval = 100 * time.Millisecond
+	eventuallyCheckPending uint32 = iota
+	eventuallyCheckRunning
+	eventuallyCheckCanceled
 )
 
 type eventuallyConfig struct {
 	Interval time.Duration
 	Message  string
+}
+
+type eventuallyCheckResult[T any] struct {
+	value      T
+	panicValue any
+	panicked   bool
+	returned   bool
+}
+
+type eventuallyCheckState struct {
+	state atomic.Uint32
+}
+
+func (s *eventuallyCheckState) claim() bool {
+	return s.state.CompareAndSwap(eventuallyCheckPending, eventuallyCheckRunning)
+}
+
+func (s *eventuallyCheckState) cancel() {
+	s.state.CompareAndSwap(eventuallyCheckPending, eventuallyCheckCanceled)
 }
 
 // EventuallyOption configures Eventually behavior using functional options
@@ -62,69 +87,194 @@ func eventually(
 
 // eventuallyWithValue is a generic retry helper that captures the last value for error formatting.
 func eventuallyWithValue[T any](
-	tb testing.TB,
-	name string,
-	getValue func() T,
-	condition func(T) bool,
-	formatFailure func(lastValue T) string,
-	timeout time.Duration,
-	cfg *eventuallyConfig,
+	tb testing.TB, name string, getValue func() T, condition func(T) bool,
+	formatFailure func(lastValue T) string, timeout time.Duration, cfg *eventuallyConfig,
+) {
+	tb.Helper()
+
+	if timeout <= 0 {
+		reportEventuallyInvalidTimeout(tb, name, timeout)
+
+		return
+	}
+
+	pollEventuallyWithValue(tb, name, getValue, condition, formatFailure, timeout, cfg)
+}
+
+func pollEventuallyWithValue[T any](
+	tb testing.TB, name string, getValue func() T, condition func(T) bool,
+	formatFailure func(lastValue T) string, timeout time.Duration, cfg *eventuallyConfig,
 ) {
 	tb.Helper()
 
 	var lastValue T
 
-	check := func() bool {
-		lastValue = getValue()
+	results := make(chan eventuallyCheckResult[T])
+	done := make(chan struct{})
 
-		return condition(lastValue)
-	}
+	defer close(done)
 
-	// The timeout bounds the whole assertion, so the timer starts before the
-	// first check rather than after it.
-	timer := time.NewTimer(timeout)
+	checking := true
+
+	// Start the timer before the first check so it bounds the whole assertion.
+	deadline := time.Now().Add(timeout)
+
+	timer := time.NewTimer(time.Until(deadline))
 	defer timer.Stop()
 
-	if check() {
-		return
-	}
-
 	ticker := time.NewTicker(cfg.Interval)
+
+	ticker.Stop()
 	defer ticker.Stop()
+
+	var ticks <-chan time.Time
+
+	currentCheck := launchEventuallyCheck(getValue, results, done)
 
 	for {
 		select {
-		case <-ticker.C:
-			if check() {
+		case result := <-results:
+			checking = false
+
+			if eventuallyResultMatches(result, &lastValue, condition) {
 				return
+			}
+
+			if ticks == nil {
+				ticks = activateEventuallyTicker(ticker, cfg.Interval)
+			}
+
+		case <-ticks:
+			if !checking && time.Now().Before(deadline) {
+				checking = true
+				currentCheck = launchEventuallyCheck(getValue, results, done)
 			}
 
 		case <-timer.C:
-			// Evaluate once more at the deadline so a condition that became
-			// true in the final sub-interval window is observed, and the
-			// failure message reflects the value at the deadline rather than
-			// the previous tick.
-			if check() {
+			currentCheck.cancel()
+
+			if availableEventuallyResultMatches(results, &lastValue, condition) {
 				return
 			}
 
-			msg := ""
-			if cfg.Message != "" {
-				msg = "\n    message:  " + cfg.Message
-			}
-
-			tb.Errorf(
-				"testastic: assertion failed\n\n  %s%s\n    timed out after %v%s",
-				name, formatFailure(lastValue), timeout, msg,
-			)
+			reportEventuallyTimeout(tb, name, lastValue, formatFailure, timeout, cfg.Message)
 
 			return
 		}
 	}
 }
 
+func activateEventuallyTicker(ticker *time.Ticker, interval time.Duration) <-chan time.Time {
+	ticker.Reset(interval)
+
+	return ticker.C
+}
+
+func launchEventuallyCheck[T any](
+	getValue func() T, results chan<- eventuallyCheckResult[T], done <-chan struct{},
+) *eventuallyCheckState {
+	check := &eventuallyCheckState{}
+
+	go runEventuallyCheck(getValue, results, done, check)
+
+	return check
+}
+
+func runEventuallyCheck[T any](
+	getValue func() T,
+	results chan<- eventuallyCheckResult[T],
+	done <-chan struct{},
+	check *eventuallyCheckState,
+) {
+	if !check.claim() {
+		return
+	}
+
+	result := eventuallyCheckResult[T]{}
+
+	defer func() {
+		select {
+		case results <- result:
+		case <-done:
+			if result.panicked {
+				panic(result.panicValue)
+			}
+		}
+	}()
+
+	func() {
+		defer func() {
+			result.panicValue = recover()
+		}()
+
+		result.value = getValue()
+		result.returned = true
+	}()
+
+	result.panicked = !result.returned
+}
+
+func eventuallyResultMatches[T any](
+	result eventuallyCheckResult[T], lastValue *T, condition func(T) bool,
+) bool {
+	if result.panicked {
+		panic(result.panicValue)
+	}
+
+	if !result.returned {
+		runtime.Goexit()
+	}
+
+	*lastValue = result.value
+
+	return condition(result.value)
+}
+
+func availableEventuallyResultMatches[T any](
+	results <-chan eventuallyCheckResult[T], lastValue *T, condition func(T) bool,
+) bool {
+	select {
+	case result := <-results:
+		return eventuallyResultMatches(result, lastValue, condition)
+	default:
+		return false
+	}
+}
+
+func reportEventuallyInvalidTimeout(tb testing.TB, name string, timeout time.Duration) {
+	tb.Helper()
+
+	tb.Errorf(
+		"testastic: assertion failed\n\n  %s\n    timeout must be greater than zero, got %v",
+		name,
+		timeout,
+	)
+}
+
+func reportEventuallyTimeout[T any](
+	tb testing.TB,
+	name string,
+	lastValue T,
+	formatFailure func(lastValue T) string,
+	timeout time.Duration,
+	message string,
+) {
+	tb.Helper()
+
+	if message != "" {
+		message = "\n    message:  " + message
+	}
+
+	tb.Errorf(
+		"testastic: assertion failed\n\n  %s%s\n    timed out after %v%s",
+		name, formatFailure(lastValue), timeout, message,
+	)
+}
+
 // Eventually retries a condition function until it returns true or timeout is reached.
-// The condition is checked immediately, then at regular intervals (default 100ms).
+// Timeout must be greater than zero. The first condition check is scheduled
+// immediately, then checks run at regular intervals (default 100ms).
+// A check already in progress at the deadline may continue after this function returns.
 //
 // Example:
 //
@@ -143,6 +293,7 @@ func Eventually(tb testing.TB, condition func() bool, timeout time.Duration, opt
 }
 
 // EventuallyTrue is an alias for Eventually for readability.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //
@@ -157,6 +308,7 @@ func EventuallyTrue(tb testing.TB, condition func() bool, timeout time.Duration,
 }
 
 // EventuallyFalse retries until condition returns false.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //
@@ -171,6 +323,7 @@ func EventuallyFalse(tb testing.TB, condition func() bool, timeout time.Duration
 }
 
 // EventuallyEqual retries until expected equals the result of getValue.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //
@@ -198,6 +351,7 @@ func EventuallyEqual[T comparable](
 }
 
 // EventuallyNil retries until getValue returns nil.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //
@@ -212,6 +366,7 @@ func EventuallyNil(tb testing.TB, getValue func() any, timeout time.Duration, op
 }
 
 // EventuallyNotNil retries until getValue returns a non-nil value.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //
@@ -226,6 +381,7 @@ func EventuallyNotNil(tb testing.TB, getValue func() any, timeout time.Duration,
 }
 
 // EventuallyNoError retries until getErr returns nil.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //
@@ -257,6 +413,7 @@ func EventuallyNoError(tb testing.TB, getErr func() error, timeout time.Duration
 }
 
 // EventuallyError retries until getErr returns a non-nil error.
+// Timeout behavior matches [Eventually].
 //
 // Example:
 //

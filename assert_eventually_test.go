@@ -2,6 +2,9 @@ package testastic_test
 
 import (
 	"errors"
+	"os"
+	"os/exec"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -514,28 +517,299 @@ func TestEventuallyError(t *testing.T) {
 	})
 }
 
-func TestEventually_ChecksOnceMoreAtTimeout(t *testing.T) {
+func TestEventually_BoundsBlockingConditionByTimeout(t *testing.T) {
 	t.Parallel()
 
-	// given: a condition that only becomes true on its second check, and an
-	// interval far larger than the timeout so no ticker check fires. The only
-	// checks are the immediate one and the deadline one
-	calls := 0
+	const (
+		timeout     = 20 * time.Millisecond
+		maximumWait = 500 * time.Millisecond
+	)
+
+	release := make(chan struct{})
+	firstCheckStarted := make(chan struct{})
+	firstCheckDone := make(chan struct{})
+
+	var calls atomic.Int32
+
 	mt := &mockT{}
+	done := make(chan struct{})
 
-	// when: asserting eventually with that condition
-	testastic.Eventually(mt, func() bool {
-		calls++
+	go func() {
+		testastic.Eventually(mt, func() bool {
+			call := calls.Add(1)
+			if call == 1 {
+				close(firstCheckStarted)
+				defer close(firstCheckDone)
+			}
 
-		return calls >= 2
-	}, 20*time.Millisecond, testastic.WithInterval(time.Hour))
+			<-release
 
-	// then: the deadline check observes the condition and the assertion passes
-	if mt.failed {
-		t.Errorf("expected the timeout check to observe the condition, got: %s", mt.message)
+			return false
+		}, timeout, testastic.WithInterval(time.Millisecond))
+		close(done)
+	}()
+
+	<-firstCheckStarted
+
+	timer := time.NewTimer(maximumWait)
+	defer timer.Stop()
+
+	returnedBeforeLimit := false
+
+	select {
+	case <-done:
+		returnedBeforeLimit = true
+	case <-timer.C:
 	}
 
-	if calls < 2 {
-		t.Errorf("expected at least 2 checks (immediate + deadline), got %d", calls)
+	close(release)
+	<-firstCheckDone
+
+	if !returnedBeforeLimit {
+		<-done
+		t.Error("Eventually did not return when its timeout elapsed")
+	}
+
+	if !mt.failed {
+		t.Error("expected Eventually to fail on timeout")
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Errorf("expected one condition check, got %d", got)
+	}
+}
+
+func TestEventually_RejectsNonPositiveTimeout(t *testing.T) {
+	previousMaxProcs := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(previousMaxProcs)
+
+	timeouts := []time.Duration{0, -time.Second}
+
+	for _, timeout := range timeouts {
+		t.Run(timeout.String(), func(t *testing.T) {
+			mt := &mockT{}
+
+			var calls atomic.Int32
+
+			testastic.Eventually(mt, func() bool {
+				calls.Add(1)
+
+				return true
+			}, timeout)
+
+			runtime.Gosched()
+
+			if got := calls.Load(); got != 0 {
+				t.Errorf("condition calls = %d, want 0", got)
+			}
+
+			if !mt.failed {
+				t.Error("expected nonpositive timeout to fail")
+			}
+
+			if !strings.Contains(mt.message, "timeout must be greater than zero") {
+				t.Errorf("unexpected failure message: %s", mt.message)
+			}
+		})
+	}
+}
+
+func TestEventually_CancelsUnclaimedCheckAtTimeout(t *testing.T) {
+	const attempts = 100
+
+	previousMaxProcs := runtime.GOMAXPROCS(1)
+	defer runtime.GOMAXPROCS(previousMaxProcs)
+
+	for attempt := range attempts {
+		mt := &mockT{}
+
+		var calls atomic.Int32
+
+		testastic.Eventually(mt, func() bool {
+			calls.Add(1)
+
+			return false
+		}, time.Nanosecond)
+
+		runtime.Gosched()
+
+		if got := calls.Load(); got != 0 {
+			t.Fatalf("condition calls = %d, want 0 on attempt %d", got, attempt)
+		}
+
+		if !mt.failed {
+			t.Fatalf("expected timeout failure on attempt %d", attempt)
+		}
+	}
+}
+
+func TestEventually_PropagatesConditionPanic(t *testing.T) {
+	t.Parallel()
+
+	const panicValue = "condition panic"
+
+	var recovered any
+
+	func() {
+		defer func() {
+			recovered = recover()
+		}()
+
+		testastic.Eventually(&mockT{}, func() bool {
+			panic(panicValue)
+		}, time.Second)
+	}()
+
+	if recovered != panicValue {
+		t.Errorf("recovered panic = %v, want %q", recovered, panicValue)
+	}
+}
+
+func TestEventually_PropagatesNilConditionPanic(t *testing.T) {
+	t.Parallel()
+
+	const maximumWait = 500 * time.Millisecond
+
+	var eventuallyReturned atomic.Bool
+
+	var continuedAfterRecover atomic.Bool
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		func() {
+			defer func() {
+				_ = recover()
+			}()
+
+			testastic.Eventually(&mockT{}, func() bool {
+				panic(nil)
+			}, time.Second)
+			eventuallyReturned.Store(true)
+		}()
+
+		continuedAfterRecover.Store(true)
+	}()
+
+	timer := time.NewTimer(maximumWait)
+	defer timer.Stop()
+
+	select {
+	case <-done:
+	case <-timer.C:
+		t.Fatal("Eventually did not propagate nil condition panic")
+	}
+
+	if eventuallyReturned.Load() {
+		t.Error("Eventually returned after a nil condition panic")
+	}
+
+	if !continuedAfterRecover.Load() {
+		t.Error("nil condition panic was treated as Goexit")
+	}
+}
+
+func TestEventually_PreservesLateConditionPanic(t *testing.T) {
+	const (
+		helperEnv     = "TESTASTIC_EVENTUALLY_LATE_PANIC"
+		panicValue    = "late condition panic"
+		callbackDelay = 50 * time.Millisecond
+	)
+
+	if os.Getenv(helperEnv) == "1" {
+		started := make(chan struct{})
+
+		testastic.Eventually(&mockT{}, func() bool {
+			close(started)
+			time.Sleep(callbackDelay)
+			panic(panicValue)
+		}, 10*time.Millisecond)
+
+		<-started
+		time.Sleep(2 * callbackDelay)
+
+		return
+	}
+
+	cmd := exec.CommandContext(
+		t.Context(), os.Args[0], "-test.run=^TestEventually_PreservesLateConditionPanic$",
+	)
+
+	cmd.Env = append(os.Environ(), helperEnv+"=1")
+
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("late condition panic was discarded, subprocess output:\n%s", output)
+	}
+
+	if !strings.Contains(string(output), panicValue) {
+		t.Errorf("subprocess output did not contain panic %q:\n%s", panicValue, output)
+	}
+}
+
+func TestEventually_PropagatesConditionGoexit(t *testing.T) {
+	t.Parallel()
+
+	const (
+		timeout     = 20 * time.Millisecond
+		maximumWait = 500 * time.Millisecond
+	)
+
+	mt := &mockT{}
+
+	var returned atomic.Bool
+
+	done := make(chan struct{})
+
+	go func() {
+		defer close(done)
+
+		testastic.Eventually(mt, func() bool {
+			runtime.Goexit()
+
+			return false
+		}, timeout)
+		returned.Store(true)
+	}()
+
+	timer := time.NewTimer(maximumWait)
+	defer timer.Stop()
+
+	select {
+	case <-done:
+	case <-timer.C:
+		t.Fatal("Eventually did not propagate condition Goexit")
+	}
+
+	if returned.Load() {
+		t.Error("Eventually returned after its condition called Goexit")
+	}
+
+	if mt.failed {
+		t.Errorf("Eventually reported a timeout after condition Goexit: %s", mt.message)
+	}
+}
+
+func TestEventually_DoesNotStartCheckAtTimeout(t *testing.T) {
+	t.Parallel()
+
+	var calls atomic.Int32
+
+	mt := &mockT{}
+
+	testastic.Eventually(mt, func() bool {
+		calls.Add(1)
+
+		return false
+	}, 20*time.Millisecond, testastic.WithInterval(time.Hour))
+
+	if !mt.failed {
+		t.Error("expected Eventually to fail on timeout")
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Errorf("expected one condition check, got %d", got)
 	}
 }
