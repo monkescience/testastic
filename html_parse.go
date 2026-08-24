@@ -142,6 +142,11 @@ func parseExpectedHTMLFile(path string) (*expectedHTML, error) {
 }
 
 func parseExpectedHTMLString(content string) (*expectedHTML, error) {
+	literalValues, err := parseHTMLValues(content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse expected HTML: %w", err)
+	}
+
 	expected := &expectedHTML{
 		Matchers: make(map[string]string),
 		Raw:      content,
@@ -155,6 +160,11 @@ func parseExpectedHTMLString(content string) (*expectedHTML, error) {
 		expr = trimSpace(expr)
 
 		placeholder := fmt.Sprintf("%s%d__", htmlMatcherPlaceholderPrefix, matcherIndex)
+		for containsHTMLValue(literalValues, placeholder) {
+			matcherIndex++
+			placeholder = fmt.Sprintf("%s%d__", htmlMatcherPlaceholderPrefix, matcherIndex)
+		}
+
 		expected.Matchers[placeholder] = expr
 		matcherIndex++
 
@@ -169,6 +179,43 @@ func parseExpectedHTMLString(content string) (*expectedHTML, error) {
 	expected.Root = convertTohtmlNode(doc, expected.Matchers, "")
 
 	return expected, nil
+}
+
+func parseHTMLValues(content string) ([]string, error) {
+	doc, err := html.Parse(strings.NewReader(content))
+	if err != nil {
+		return nil, fmt.Errorf("parse HTML values: %w", err)
+	}
+
+	var values []string
+
+	var collect func(*html.Node)
+
+	collect = func(node *html.Node) {
+		values = append(values, node.Data)
+
+		for _, attr := range node.Attr {
+			values = append(values, attr.Val)
+		}
+
+		for child := node.FirstChild; child != nil; child = child.NextSibling {
+			collect(child)
+		}
+	}
+
+	collect(doc)
+
+	return values, nil
+}
+
+func containsHTMLValue(values []string, candidate string) bool {
+	for _, value := range values {
+		if strings.Contains(value, candidate) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func parseActualHTMLBytes(data []byte) (*htmlNode, error) {

@@ -989,6 +989,42 @@ func TestAssertHTML_MatcherInsideCommentIsResolved(t *testing.T) {
 	}
 }
 
+func TestAssertHTML_LiteralMatcherPlaceholderDoesNotResolve(t *testing.T) {
+	t.Parallel()
+
+	// given: literal text matching the generated placeholder namespace
+	expectedFile := writeHTMLExpected(t,
+		`<div><p>__TESTASTIC_HTML_MATCHER_0__</p><span>{{anyString}}</span></div>`,
+	)
+
+	// when: the literal differs while the real matcher succeeds
+	mt := &mockT{}
+	testastic.AssertHTML(mt, expectedFile, `<div><p>anything</p><span>ok</span></div>`)
+
+	// then: the literal placeholder-like value is not resolved as a matcher
+	if !mt.failed {
+		t.Error("expected a literal placeholder-like value to remain literal")
+	}
+}
+
+func TestAssertHTML_EntityEncodedLiteralMatcherPlaceholderDoesNotResolve(t *testing.T) {
+	t.Parallel()
+
+	// given: a literal placeholder-like value whose index is entity encoded
+	expectedFile := writeHTMLExpected(t,
+		`<div><p>__TESTASTIC_HTML_MATCHER_&#48;__</p><span>{{anyString}}</span></div>`,
+	)
+
+	// when: the decoded literal differs while the real matcher succeeds
+	mt := &mockT{}
+	testastic.AssertHTML(mt, expectedFile, `<div><p>anything</p><span>ok</span></div>`)
+
+	// then: the decoded literal is not reinterpreted as the real matcher
+	if !mt.failed {
+		t.Error("expected an entity-encoded placeholder-like value to remain literal")
+	}
+}
+
 func TestAssertHTML_DescribeNodeTruncatesByRune(t *testing.T) {
 	t.Parallel()
 
