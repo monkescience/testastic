@@ -169,13 +169,13 @@ func lineMatches(line *lineMatcher, actLine string) bool {
 		return false
 	}
 
-	captures := submatches[1:]
-	if len(captures) != len(line.matchers) {
-		return true
+	if len(line.captureIndexes) != len(line.matchers) {
+		return false
 	}
 
 	for i, m := range line.matchers {
-		if !matchStringMatcher(m, captures[i]) {
+		captureIndex := line.captureIndexes[i]
+		if captureIndex >= len(submatches) || !matchStringMatcher(m, submatches[captureIndex]) {
 			return false
 		}
 	}

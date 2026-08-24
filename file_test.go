@@ -305,6 +305,29 @@ func TestAssertFile_CustomMatcherActuallyValidates(t *testing.T) {
 			t.Errorf("expected custom matcher to accept 'ORD-12345', got: %s", mt.message)
 		}
 	})
+
+	t.Run("regex captures do not bypass a later matcher", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a capturing regex followed by a strict custom matcher
+		expectedWithCapture := writeFileExpected(t, "{{regex `(foo)`}} {{auditOrderID}}")
+
+		// when: comparing values rejected and accepted by the custom matcher
+		rejected := &mockT{}
+		testastic.AssertFile(rejected, expectedWithCapture, "foo garbage")
+
+		accepted := &mockT{}
+		testastic.AssertFile(accepted, expectedWithCapture, "foo ORD-12345")
+
+		// then: each matcher receives its own captured value
+		if !rejected.failed {
+			t.Error("expected the custom matcher to reject the second captured value")
+		}
+
+		if accepted.failed {
+			t.Errorf("expected both matchers to receive their own captures, got: %s", accepted.message)
+		}
+	})
 }
 
 func TestAssertFile_AnchoredRegexMatches(t *testing.T) {

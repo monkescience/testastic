@@ -7,9 +7,10 @@ import (
 )
 
 type lineMatcher struct {
-	original string         // raw line text
-	pattern  *regexp.Regexp // nil if no matchers (exact match mode)
-	matchers []Matcher      // matchers found in this line, in order
+	original       string         // raw line text
+	pattern        *regexp.Regexp // nil if no matchers (exact match mode)
+	matchers       []Matcher      // matchers found in this line, in order
+	captureIndexes []int
 }
 
 var matcherTextPatterns = map[string]string{
@@ -44,11 +45,14 @@ func parseLine(line string) (*lineMatcher, error) {
 
 	var matchers []Matcher
 
+	var captureIndexes []int
+
 	var patternBuilder strings.Builder
 
 	patternBuilder.WriteString("^")
 
 	lastEnd := 0
+	nextCaptureIndex := 1
 
 	for _, match := range matches {
 		// match[0]:match[1] is the full match {{...}}
@@ -79,6 +83,10 @@ func parseLine(line string) (*lineMatcher, error) {
 		matchers = append(matchers, matcher)
 
 		textPattern := getMatcherTextPattern(expr, matcher)
+
+		captureIndexes = append(captureIndexes, nextCaptureIndex)
+		nextCaptureIndex += 1 + matcherCaptureCount(matcher)
+
 		patternBuilder.WriteString("(" + textPattern + ")")
 
 		lastEnd = end
@@ -96,10 +104,19 @@ func parseLine(line string) (*lineMatcher, error) {
 	}
 
 	return &lineMatcher{
-		original: line,
-		pattern:  pattern,
-		matchers: matchers,
+		original:       line,
+		pattern:        pattern,
+		matchers:       matchers,
+		captureIndexes: captureIndexes,
 	}, nil
+}
+
+func matcherCaptureCount(matcher Matcher) int {
+	if regex, ok := matcher.(*regexMatcher); ok {
+		return regex.re.NumSubexp()
+	}
+
+	return 0
 }
 
 func getMatcherTextPattern(expr string, _ Matcher) string {
