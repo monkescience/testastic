@@ -614,35 +614,6 @@ func TestEventually_RejectsNonPositiveTimeout(t *testing.T) {
 	}
 }
 
-func TestEventually_CancelsUnclaimedCheckAtTimeout(t *testing.T) {
-	const attempts = 100
-
-	previousMaxProcs := runtime.GOMAXPROCS(1)
-	defer runtime.GOMAXPROCS(previousMaxProcs)
-
-	for attempt := range attempts {
-		mt := &mockT{}
-
-		var calls atomic.Int32
-
-		testastic.Eventually(mt, func() bool {
-			calls.Add(1)
-
-			return false
-		}, time.Nanosecond)
-
-		runtime.Gosched()
-
-		if got := calls.Load(); got != 0 {
-			t.Fatalf("condition calls = %d, want 0 on attempt %d", got, attempt)
-		}
-
-		if !mt.failed {
-			t.Fatalf("expected timeout failure on attempt %d", attempt)
-		}
-	}
-}
-
 func TestEventually_PropagatesConditionPanic(t *testing.T) {
 	t.Parallel()
 

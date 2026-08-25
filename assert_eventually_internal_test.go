@@ -32,3 +32,31 @@ func TestRunEventuallyCheck_DoesNotStartAfterDeadline(t *testing.T) {
 	default:
 	}
 }
+
+func TestRunEventuallyCheck_DoesNotStartAfterCancellation(t *testing.T) {
+	t.Parallel()
+
+	// given: an Eventually check canceled before its worker starts
+	var calls atomic.Int32
+
+	results := make(chan eventuallyCheckResult[bool], 1)
+	done := make(chan struct{})
+	check := &eventuallyCheckState{}
+	check.cancel()
+
+	// when: the canceled check worker tries to execute the callback
+	runEventuallyCheck(func() bool {
+		calls.Add(1)
+
+		return false
+	}, results, done, check, time.Now().Add(time.Hour))
+
+	// then: the callback does not run or produce a result
+	Equal(t, int32(0), calls.Load())
+
+	select {
+	case <-results:
+		t.Error("canceled check produced a result")
+	default:
+	}
+}
