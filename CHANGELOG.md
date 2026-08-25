@@ -1,5 +1,21 @@
 # Changelog
 
+## [v0.4.4](https://github.com/monkescience/testastic/compare/v0.4.3...v0.4.4) (2026-08-25)
+
+### Bug Fixes
+
+- stabilize Windows platform tests ([c33b784](https://github.com/monkescience/testastic/commit/c33b784f3a18e3bba95bdaeb45889750b0f7fdc6))
+- preserve YAML streams and unordered matches ([770120b](https://github.com/monkescience/testastic/commit/770120b14512004d8653d8c30860dc130fb80c71))
+- compare YAML document streams ([bf04c84](https://github.com/monkescience/testastic/commit/bf04c842d533b55a4a2f6c01839077249cab43c6))
+- honor unordered matches in document diffs ([384803b](https://github.com/monkescience/testastic/commit/384803b2334d23ed31063191cd347e4bd5c51fc2))
+- preserve JSON and YAML matcher literals ([365397f](https://github.com/monkescience/testastic/commit/365397ff140b8eaadb382d66fe4e96cb25008c1e))
+- omit ignored comments from HTML diffs ([70f758b](https://github.com/monkescience/testastic/commit/70f758b11d342bc967f1b6287a549b34d2f71d50))
+- retain HTML whitespace text nodes ([8153c4a](https://github.com/monkescience/testastic/commit/8153c4ae56b771b6d5ece9ec00bbfce6f637e1ad))
+- avoid HTML matcher placeholder collisions ([d275967](https://github.com/monkescience/testastic/commit/d275967befffcbdce1fbdbb3f0e8abc251c4bf16))
+- isolate file matcher captures ([d160efb](https://github.com/monkescience/testastic/commit/d160efbb81a224a483647933647b3ebe938f82d5))
+- validate AnyDateTime semantics ([63a5ee2](https://github.com/monkescience/testastic/commit/63a5ee2a764ebb7c892ff97429093f6f84a807fa))
+- bound Eventually callbacks by timeout ([98cd5be](https://github.com/monkescience/testastic/commit/98cd5bed8d56cc41d2f0c8670e0fd64caf7b1123))
+
 ## [v0.4.3](https://github.com/monkescience/testastic/compare/v0.4.2...v0.4.3) (2026-08-23)
 
 ### Bug Fixes
