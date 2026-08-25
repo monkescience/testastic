@@ -68,6 +68,45 @@ data:
 		}
 	})
 
+	t.Run("literal matcher prefix", func(t *testing.T) {
+		t.Parallel()
+
+		// given: expected YAML containing a literal value in the matcher namespace
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile, []byte("value: __TESTASTIC_YAML_MATCHER_literal\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: comparing the identical literal value
+		testastic.AssertYAML(mt, expectedFile, "value: __TESTASTIC_YAML_MATCHER_literal\n")
+
+		// then: the literal is not interpreted as an internal placeholder
+		if mt.failed {
+			t.Errorf("expected literal matcher prefix to compare normally, got: %s", mt.message)
+		}
+	})
+
+	t.Run("literal matcher placeholder does not resolve", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a literal matching the first generated placeholder and a real matcher
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile,
+			[]byte("literal: __TESTASTIC_YAML_MATCHER_0__\ndynamic: {{anyString}}\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: the literal differs while the real matcher succeeds
+		testastic.AssertYAML(mt, expectedFile, "literal: different\ndynamic: value\n")
+
+		// then: the literal remains a literal and causes a mismatch
+		if !mt.failed {
+			t.Error("expected generated-placeholder-like literal to remain literal")
+		}
+	})
+
 	t.Run("with regex matcher", func(t *testing.T) {
 		t.Parallel()
 

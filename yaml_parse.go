@@ -31,6 +31,16 @@ func parseExpectedYAMLFile(path string) (*expectedYAML, error) {
 }
 
 func parseExpectedYAMLString(content string) (*expectedYAML, error) {
+	literalContent := yamlTemplateExprRegex.ReplaceAllString(content, "null")
+
+	var literalData any
+
+	err := yaml.Unmarshal([]byte(literalContent), &literalData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
+	}
+
+	literalValues := stringValues(literalData)
 	expected := &expectedYAML{
 		Matchers: make(map[string]string),
 		Raw:      content,
@@ -43,16 +53,16 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 		expr = strings.TrimSuffix(expr, "}}")
 		expr = trimSpace(expr)
 
-		placeholder := fmt.Sprintf("%s%d__", yamlMatcherPlaceholderPrefix, matcherIndex)
+		placeholder, nextIndex := matcherPlaceholder(yamlMatcherPlaceholderPrefix, matcherIndex, literalValues)
+		matcherIndex = nextIndex
 		expected.Matchers[placeholder] = expr
-		matcherIndex++
 
 		return placeholder
 	})
 
 	var data any
 
-	err := yaml.Unmarshal([]byte(processedContent), &data)
+	err = yaml.Unmarshal([]byte(processedContent), &data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
@@ -70,8 +80,6 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 }
 
 // replaceYAMLPlaceholders walks the parsed YAML and replaces placeholder strings with Matcher objects.
-//
-//nolint:dupl // Similar to JSON version but uses different placeholder prefix.
 func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
@@ -101,21 +109,17 @@ func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) 
 		return result, nil
 
 	case string:
-		if strings.HasPrefix(v, yamlMatcherPlaceholderPrefix) {
-			expr, ok := matchers[v]
-			if !ok {
-				return nil, fmt.Errorf("unknown placeholder %q: %w", v, errUnknownPlaceholder)
-			}
-
-			matcher, err := parseMatcher(expr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
-			}
-
-			return matcher, nil
+		expr, ok := matchers[v]
+		if !ok {
+			return v, nil
 		}
 
-		return v, nil
+		matcher, err := parseMatcher(expr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
+		}
+
+		return matcher, nil
 
 	default:
 		return v, nil

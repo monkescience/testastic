@@ -103,6 +103,45 @@ func TestAssertJSON(t *testing.T) {
 		testastic.AssertJSON(t, "testdata/json/with_anystring.json", actual)
 	})
 
+	t.Run("literal matcher prefix", func(t *testing.T) {
+		t.Parallel()
+
+		// given: expected JSON containing a literal value in the matcher namespace
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile, []byte(`{"value":"__TESTASTIC_MATCHER_literal"}`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: comparing the identical literal value
+		testastic.AssertJSON(mt, expectedFile, `{"value":"__TESTASTIC_MATCHER_literal"}`)
+
+		// then: the literal is not interpreted as an internal placeholder
+		if mt.failed {
+			t.Errorf("expected literal matcher prefix to compare normally, got: %s", mt.message)
+		}
+	})
+
+	t.Run("literal matcher placeholder does not resolve", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a literal matching the first generated placeholder and a real matcher
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile,
+			[]byte(`{"literal":"__TESTASTIC_MATCHER_0__","dynamic":"{{anyString}}"}`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: the literal differs while the real matcher succeeds
+		testastic.AssertJSON(mt, expectedFile, `{"literal":"different","dynamic":"value"}`)
+
+		// then: the literal remains a literal and causes a mismatch
+		if !mt.failed {
+			t.Error("expected generated-placeholder-like literal to remain literal")
+		}
+	})
+
 	t.Run("with anyInt matcher", func(t *testing.T) {
 		t.Parallel()
 

@@ -11,13 +11,8 @@ import (
 	"strings"
 )
 
-var (
-	// errUnknownPlaceholder is returned when a placeholder is not found in the matcher map.
-	errUnknownPlaceholder = errors.New("unknown placeholder")
-
-	// errJSONTrailingContent is returned when JSON contains more than one top-level value.
-	errJSONTrailingContent = errors.New("trailing content after top-level JSON value")
-)
+// errJSONTrailingContent is returned when JSON contains more than one top-level value.
+var errJSONTrailingContent = errors.New("trailing content after top-level JSON value")
 
 type expectedJSON struct {
 	Data     any               // Parsed JSON with Matcher objects in place of template expressions
@@ -43,6 +38,16 @@ func parseExpectedJSONFile(path string) (*expectedJSON, error) {
 }
 
 func parseExpectedJSONString(content string) (*expectedJSON, error) {
+	literalContent := jsonTemplateExprRegex.ReplaceAllString(content, "null")
+
+	var literalData any
+
+	err := decodeJSON([]byte(literalContent), &literalData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
+	}
+
+	literalValues := stringValues(literalData)
 	expected := &expectedJSON{
 		Matchers: make(map[string]string),
 		Raw:      content,
@@ -65,16 +70,16 @@ func parseExpectedJSONString(content string) (*expectedJSON, error) {
 		expr = strings.TrimSuffix(expr, "}}")
 		expr = trimSpace(expr)
 
-		placeholder := fmt.Sprintf(`"%s%d__"`, jsonMatcherPlaceholderPrefix, matcherIndex)
-		expected.Matchers[fmt.Sprintf("%s%d__", jsonMatcherPlaceholderPrefix, matcherIndex)] = expr
-		matcherIndex++
+		placeholder, nextIndex := matcherPlaceholder(jsonMatcherPlaceholderPrefix, matcherIndex, literalValues)
+		matcherIndex = nextIndex
+		expected.Matchers[placeholder] = expr
 
-		return placeholder
+		return fmt.Sprintf(`"%s"`, placeholder)
 	})
 
 	var data any
 
-	err := decodeJSON([]byte(processedContent), &data)
+	err = decodeJSON([]byte(processedContent), &data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
@@ -113,8 +118,6 @@ func decodeJSON(data []byte, target *any) error {
 }
 
 // replaceJSONPlaceholders walks the parsed JSON and replaces placeholder strings with Matcher objects.
-//
-//nolint:dupl // Similar to YAML version but uses different placeholder prefix.
 func replaceJSONPlaceholders(data any, matchers map[string]string) (any, error) {
 	switch v := data.(type) {
 	case map[string]any:
@@ -144,21 +147,17 @@ func replaceJSONPlaceholders(data any, matchers map[string]string) (any, error) 
 		return result, nil
 
 	case string:
-		if strings.HasPrefix(v, jsonMatcherPlaceholderPrefix) {
-			expr, ok := matchers[v]
-			if !ok {
-				return nil, fmt.Errorf("unknown placeholder %q: %w", v, errUnknownPlaceholder)
-			}
-
-			matcher, err := parseMatcher(expr)
-			if err != nil {
-				return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
-			}
-
-			return matcher, nil
+		expr, ok := matchers[v]
+		if !ok {
+			return v, nil
 		}
 
-		return v, nil
+		matcher, err := parseMatcher(expr)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
+		}
+
+		return matcher, nil
 
 	default:
 		return v, nil
