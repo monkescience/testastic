@@ -17,8 +17,6 @@ import (
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", myConfig)
 //	testastic.AssertYAML(t, "testdata/config.expected.yaml", resp.Body)
-//
-//nolint:dupl // Parallel structure with AssertJSON keeps each format's flow readable.
 func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 
@@ -48,16 +46,16 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	actualData, err := parseActualYAML(actualBytes)
+	actualDocuments, err := parseActualYAML(actualBytes)
 	if err != nil {
 		tb.Fatalf("testastic: %v", err)
 
 		return
 	}
 
-	diffs := compare(expected.Data, actualData, "$", cfg)
+	diffs := compareYAMLDocuments(expected.Documents, actualDocuments, cfg)
 
-	if handleYAMLDiffs(tb, expectedFile, actualBytes, expected, actualData, diffs, cfg) {
+	if handleYAMLDiffs(tb, expectedFile, actualBytes, expected, actualDocuments, diffs, cfg) {
 		return
 	}
 }
@@ -66,7 +64,7 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 // Returns true if the assertion should stop.
 func handleYAMLDiffs(
 	tb testing.TB, path string, actualBytes []byte, expected *expectedYAML,
-	actualData any, diffs []difference, cfg *config,
+	actualDocuments yamlDocuments, diffs []difference, cfg *config,
 ) bool {
 	tb.Helper()
 
@@ -86,7 +84,8 @@ func handleYAMLDiffs(
 	}
 
 	msg := formatAssertionMessage("AssertYAML", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatYAMLDiffInline(expected.Data, actualData, cfg))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s",
+		msg, formatYAMLDiffInline(expected.Documents, actualDocuments, cfg))
 
 	return false
 }
@@ -105,16 +104,13 @@ func toYAMLBytes[T any](v T) ([]byte, error) {
 	return data, nil
 }
 
-func parseActualYAML(data []byte) (any, error) {
-	var result any
-
-	err := yaml.Unmarshal(data, &result)
+func parseActualYAML(data []byte) (yamlDocuments, error) {
+	documents, err := parseYAMLDocuments(data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse actual YAML: %w", err)
 	}
 
-	// Normalize the data structure to match JSON conventions
-	return normalizeYAMLData(result), nil
+	return documents, nil
 }
 
 // normalizeYAMLData converts YAML-specific types to JSON-compatible types.
@@ -158,40 +154,39 @@ func normalizeYAMLData(data any) any {
 }
 
 func createExpectedYAMLFile(path string, actual []byte) error {
-	// Parse and re-render for consistent formatting
-	var data any
-
-	err := yaml.Unmarshal(actual, &data)
-	if err != nil {
-		// If parsing fails, just write the raw content
-		return writeYAMLFile(path, actual)
-	}
-
-	formatted, err := yaml.Marshal(data)
+	documents, err := parseYAMLDocuments(actual)
 	if err != nil {
 		return writeYAMLFile(path, actual)
 	}
 
-	return writeYAMLFile(path, formatted)
+	formatted, err := renderYAMLDocuments(documents)
+	if err != nil {
+		return writeYAMLFile(path, actual)
+	}
+
+	return writeYAMLFile(path, []byte(formatted))
 }
 
 func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) error {
-	var actualData any
-
-	err := yaml.Unmarshal(actual, &actualData)
+	actualDocuments, err := parseYAMLDocuments(actual)
 	if err != nil {
 		return writeYAMLFile(path, actual)
 	}
 
 	matcherPositions := expected.extractMatcherPositions()
-	mergedData := restoreYAMLMatchers(actualData, matcherPositions, "$")
+	mergedDocuments := make(yamlDocuments, len(actualDocuments))
 
-	formatted, err := yaml.Marshal(mergedData)
+	for index, document := range actualDocuments {
+		path := yamlMatcherDocumentPath(index)
+		mergedDocuments[index] = restoreYAMLMatchers(document, matcherPositions, path)
+	}
+
+	formatted, err := renderYAMLDocuments(mergedDocuments)
 	if err != nil {
 		return writeYAMLFile(path, actual)
 	}
 
-	content := restoreYAMLTemplateExpressions(string(formatted), matcherPositions)
+	content := restoreYAMLTemplateExpressions(formatted, matcherPositions)
 
 	return writeYAMLFile(path, []byte(content))
 }

@@ -17,8 +17,6 @@ import (
 //	testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", myUser)
 //	testastic.AssertJSON(t, "testdata/user.expected.json", jsonBytes)
-//
-//nolint:dupl // Parallel structure with AssertYAML keeps each format's flow readable.
 func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Option) {
 	tb.Helper()
 

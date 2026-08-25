@@ -5,14 +5,12 @@ import (
 	"os"
 	"regexp"
 	"strings"
-
-	"github.com/goccy/go-yaml"
 )
 
 type expectedYAML struct {
-	Data     any               // Parsed YAML with Matcher objects in place of template expressions
-	Matchers map[string]string // Map of placeholder to original template expression
-	Raw      string            // Original file content for update operations
+	Documents yamlDocuments
+	Matchers  map[string]string
+	Raw       string
 }
 
 const yamlMatcherPlaceholderPrefix = "__TESTASTIC_YAML_MATCHER_"
@@ -33,14 +31,16 @@ func parseExpectedYAMLFile(path string) (*expectedYAML, error) {
 func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 	literalContent := yamlTemplateExprRegex.ReplaceAllString(content, "null")
 
-	var literalData any
-
-	err := yaml.Unmarshal([]byte(literalContent), &literalData)
+	literalDocuments, err := parseYAMLDocuments([]byte(literalContent))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 
-	literalValues := stringValues(literalData)
+	literalValues := make(map[string]struct{})
+	for _, document := range literalDocuments {
+		collectStringValues(document, literalValues)
+	}
+
 	expected := &expectedYAML{
 		Matchers: make(map[string]string),
 		Raw:      content,
@@ -60,21 +60,21 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 		return placeholder
 	})
 
-	var data any
-
-	err = yaml.Unmarshal([]byte(processedContent), &data)
+	documents, err := parseYAMLDocuments([]byte(processedContent))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 
-	normalized := normalizeYAMLData(data)
+	for index, document := range documents {
+		replaced, replaceErr := replaceYAMLPlaceholders(document, expected.Matchers)
+		if replaceErr != nil {
+			return nil, replaceErr
+		}
 
-	replaced, err := replaceYAMLPlaceholders(normalized, expected.Matchers)
-	if err != nil {
-		return nil, err
+		documents[index] = replaced
 	}
 
-	expected.Data = replaced
+	expected.Documents = documents
 
 	return expected, nil
 }
@@ -128,7 +128,10 @@ func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) 
 
 func (e *expectedYAML) extractMatcherPositions() map[string]string {
 	positions := make(map[string]string)
-	extractYAMLMatcherPaths(e.Data, "$", positions)
+
+	for index, document := range e.Documents {
+		extractYAMLMatcherPaths(document, yamlMatcherDocumentPath(index), positions)
+	}
 
 	return positions
 }

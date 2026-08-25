@@ -3,27 +3,41 @@ package testastic
 import (
 	"fmt"
 	"strings"
-
-	"github.com/goccy/go-yaml"
 )
 
 // formatYAMLDiffInline generates a git-style inline diff between expected and actual YAML.
-func formatYAMLDiffInline(expected, actual any, cfg *config) string {
-	expClean := substituteMatchedMatchers(expected, actual, "$", cfg)
-	actClean := cleanMatchersForDisplay(actual)
+func formatYAMLDiffInline(expected, actual yamlDocuments, cfg *config) string {
+	multipleDocuments := len(expected) > 1 || len(actual) > 1
+	expClean := make(yamlDocuments, len(expected))
 
-	expYAML, err := yaml.Marshal(expClean)
+	for index, document := range expected {
+		var actualDocument any
+		if index < len(actual) {
+			actualDocument = actual[index]
+		}
+
+		path := yamlDocumentPath(index, multipleDocuments)
+		documentConfig := configForYAMLDocument(cfg, index, multipleDocuments)
+		expClean[index] = substituteMatchedMatchers(document, actualDocument, path, documentConfig)
+	}
+
+	actClean := make(yamlDocuments, len(actual))
+	for index, document := range actual {
+		actClean[index] = cleanMatchersForDisplay(document)
+	}
+
+	expYAML, err := renderYAMLDocuments(expClean)
 	if err != nil {
 		return fmt.Sprintf("error formatting expected: %v", err)
 	}
 
-	actYAML, err := yaml.Marshal(actClean)
+	actYAML, err := renderYAMLDocuments(actClean)
 	if err != nil {
 		return fmt.Sprintf("error formatting actual: %v", err)
 	}
 
-	expLines := strings.Split(strings.TrimSuffix(string(expYAML), "\n"), "\n")
-	actLines := strings.Split(strings.TrimSuffix(string(actYAML), "\n"), "\n")
+	expLines := strings.Split(strings.TrimSuffix(expYAML, "\n"), "\n")
+	actLines := strings.Split(strings.TrimSuffix(actYAML, "\n"), "\n")
 	diff := computeDiff(expLines, actLines)
 
 	var sb strings.Builder
