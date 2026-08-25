@@ -114,7 +114,7 @@ func handleJSONDiffs(
 	}
 
 	msg := formatAssertionMessage("AssertJSON", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatJSONDiffInline(expected.Data, actualData))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatJSONDiffInline(expected.Data, actualData, cfg))
 
 	return false
 }

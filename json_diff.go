@@ -8,8 +8,8 @@ import (
 
 // formatJSONDiffInline generates a git-style inline diff between expected and actual JSON.
 // Shows the full JSON with - prefix for removed lines and + prefix for added lines.
-func formatJSONDiffInline(expected, actual any) string {
-	expClean := substituteMatchedMatchers(expected, actual)
+func formatJSONDiffInline(expected, actual any, cfg *config) string {
+	expClean := substituteMatchedMatchers(expected, actual, "$", cfg)
 	actClean := cleanMatchersForDisplay(actual)
 
 	expJSON, err := json.MarshalIndent(expClean, "", "  ")
@@ -40,7 +40,7 @@ func formatJSONDiffInline(expected, actual any) string {
 // matcher the corresponding actual value satisfies is replaced by that actual
 // value, so a matched matcher renders identically and is not shown as a
 // spurious difference. Unmatched matchers keep their template string.
-func substituteMatchedMatchers(expected, actual any) any {
+func substituteMatchedMatchers(expected, actual any, path string, cfg *config) any {
 	if m, ok := expected.(Matcher); ok {
 		if m.Match(actual) {
 			return actual
@@ -55,13 +55,18 @@ func substituteMatchedMatchers(expected, actual any) any {
 		result := make(map[string]any, len(exp))
 
 		for key, val := range exp {
-			result[key] = substituteMatchedMatchers(val, actMap[key])
+			childPath := path + "." + key
+			result[key] = substituteMatchedMatchers(val, actMap[key], childPath, cfg)
 		}
 
 		return result
 
 	case []any:
 		actArr, _ := actual.([]any)
+		if cfg.ShouldIgnoreArrayOrder(path) && len(compare(exp, actArr, path, cfg)) == 0 {
+			return cleanMatchersForDisplay(actArr)
+		}
+
 		result := make([]any, len(exp))
 
 		for i, val := range exp {
@@ -70,7 +75,8 @@ func substituteMatchedMatchers(expected, actual any) any {
 				actVal = actArr[i]
 			}
 
-			result[i] = substituteMatchedMatchers(val, actVal)
+			childPath := fmt.Sprintf("%s[%d]", path, i)
+			result[i] = substituteMatchedMatchers(val, actVal, childPath, cfg)
 		}
 
 		return result

@@ -8,8 +8,8 @@ import (
 )
 
 // formatYAMLDiffInline generates a git-style inline diff between expected and actual YAML.
-func formatYAMLDiffInline(expected, actual any) string {
-	expClean := substituteMatchedMatchers(expected, actual)
+func formatYAMLDiffInline(expected, actual any, cfg *config) string {
+	expClean := substituteMatchedMatchers(expected, actual, "$", cfg)
 	actClean := cleanMatchersForDisplay(actual)
 
 	expYAML, err := yaml.Marshal(expClean)

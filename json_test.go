@@ -479,6 +479,47 @@ func TestAssertJSON_MatchedMatcherNotShownAsDiff(t *testing.T) {
 	}
 }
 
+func TestAssertJSON_MatchedUnorderedArrayNotShownAsDiff(t *testing.T) {
+	t.Parallel()
+
+	// given: an unordered array that needs cross-index matcher correspondence
+	expectedFile := filepath.Join(t.TempDir(), "matcher.json")
+
+	err := os.WriteFile(expectedFile,
+		[]byte(`{"items":["a","{{anyString}}"],"status":"expected"}`), 0o644)
+	if err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+
+	// when: only a field outside the successfully matched array differs
+	testastic.AssertJSON(mt, expectedFile, `{"items":["z","a"],"status":"actual"}`,
+		testastic.IgnoreArrayOrderAt("$.items"))
+
+	// then: the failure does not render the unordered array as changed
+	if !mt.failed {
+		t.Fatal("expected a difference for the status field")
+	}
+
+	falseArrayChange := false
+
+	for line := range strings.SplitSeq(mt.message, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "-") && strings.TrimSpace(strings.TrimPrefix(line, "-")) == `"a",` {
+			falseArrayChange = true
+		}
+
+		if strings.HasPrefix(line, "+") && strings.TrimSpace(strings.TrimPrefix(line, "+")) == `"z",` {
+			falseArrayChange = true
+		}
+	}
+
+	if falseArrayChange {
+		t.Errorf("matched unordered array should not appear changed in the diff, got: %s", mt.message)
+	}
+}
+
 func TestAssertJSON_UpdatePreservesRootMatcher(t *testing.T) {
 	t.Parallel()
 

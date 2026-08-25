@@ -609,3 +609,31 @@ func TestAssertYAML_BinaryMatchesByteSlice(t *testing.T) {
 		t.Errorf("expected !!binary to match an equivalent []byte, got: %s", mt.message)
 	}
 }
+
+func TestAssertYAML_MatchedUnorderedArrayNotShownAsDiff(t *testing.T) {
+	t.Parallel()
+
+	// given: an unordered array that needs cross-index matcher correspondence
+	expectedFile := filepath.Join(t.TempDir(), "matcher.yaml")
+
+	err := os.WriteFile(expectedFile,
+		[]byte("items:\n  - a\n  - {{anyString}}\nstatus: expected\n"), 0o644)
+	if err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+
+	// when: only a field outside the successfully matched array differs
+	testastic.AssertYAML(mt, expectedFile, "items:\n  - z\n  - a\nstatus: actual\n",
+		testastic.IgnoreArrayOrderAt("$.items"))
+
+	// then: the failure does not render the unordered array as changed
+	if !mt.failed {
+		t.Fatal("expected a difference for the status field")
+	}
+
+	if strings.Contains(mt.message, "- - a") || strings.Contains(mt.message, "+ - z") {
+		t.Errorf("matched unordered array should not appear changed in the diff, got: %s", mt.message)
+	}
+}

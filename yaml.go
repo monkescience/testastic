@@ -86,7 +86,7 @@ func handleYAMLDiffs(
 	}
 
 	msg := formatAssertionMessage("AssertYAML", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatYAMLDiffInline(expected.Data, actualData))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatYAMLDiffInline(expected.Data, actualData, cfg))
 
 	return false
 }
