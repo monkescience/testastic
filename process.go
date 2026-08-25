@@ -221,8 +221,10 @@ func WithReadyInterval(d time.Duration) ProcessOption {
 	return readyIntervalOption{duration: d}
 }
 
-// WithShutdownTimeout sets how long to wait for graceful shutdown after
-// sending an interrupt signal before sending a kill signal.
+// WithShutdownTimeout sets how long to wait after requesting shutdown before
+// forcing termination and closing inherited output pipes. On Windows, the
+// process is terminated immediately because Go cannot deliver a graceful
+// interrupt.
 // Default: 5 seconds.
 func WithShutdownTimeout(d time.Duration) ProcessOption {
 	return shutdownTimeoutOption{duration: d}
@@ -369,9 +371,9 @@ func (p *Process) CoverDir() string {
 
 // Stop cancels the process context to shut the process down. On Unix it sends
 // SIGTERM and the process has until ShutdownTimeout to exit gracefully, writing
-// coverage data to CoverDir. On Windows, graceful interrupt is not currently
-// delivered, so the process is terminated forcefully once ShutdownTimeout
-// elapses and coverage data may not be flushed.
+// coverage data to CoverDir. On Windows, the process is terminated immediately
+// because Go cannot deliver a graceful interrupt, so coverage data may not be
+// flushed.
 //
 // Stop is idempotent, so calling it multiple times is safe.
 // It is called automatically by the t.Cleanup handler registered by [Binary.Start].

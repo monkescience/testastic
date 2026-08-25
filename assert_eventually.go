@@ -129,7 +129,7 @@ func pollEventuallyWithValue[T any](
 
 	var ticks <-chan time.Time
 
-	currentCheck := launchEventuallyCheck(getValue, results, done)
+	currentCheck := launchEventuallyCheck(getValue, results, done, deadline)
 
 	for {
 		select {
@@ -147,7 +147,7 @@ func pollEventuallyWithValue[T any](
 		case <-ticks:
 			if !checking && time.Now().Before(deadline) {
 				checking = true
-				currentCheck = launchEventuallyCheck(getValue, results, done)
+				currentCheck = launchEventuallyCheck(getValue, results, done, deadline)
 			}
 
 		case <-timer.C:
@@ -171,11 +171,11 @@ func activateEventuallyTicker(ticker *time.Ticker, interval time.Duration) <-cha
 }
 
 func launchEventuallyCheck[T any](
-	getValue func() T, results chan<- eventuallyCheckResult[T], done <-chan struct{},
+	getValue func() T, results chan<- eventuallyCheckResult[T], done <-chan struct{}, deadline time.Time,
 ) *eventuallyCheckState {
 	check := &eventuallyCheckState{}
 
-	go runEventuallyCheck(getValue, results, done, check)
+	go runEventuallyCheck(getValue, results, done, check, deadline)
 
 	return check
 }
@@ -185,8 +185,13 @@ func runEventuallyCheck[T any](
 	results chan<- eventuallyCheckResult[T],
 	done <-chan struct{},
 	check *eventuallyCheckState,
+	deadline time.Time,
 ) {
 	if !check.claim() {
+		return
+	}
+
+	if !time.Now().Before(deadline) {
 		return
 	}
 

@@ -8,9 +8,10 @@ import (
 )
 
 func interruptProcess(p *os.Process) error {
-	err := p.Signal(os.Interrupt)
+	// os.Process.Signal does not support os.Interrupt on Windows.
+	err := p.Kill()
 	if err != nil {
-		return fmt.Errorf("sending interrupt: %w", err)
+		return fmt.Errorf("killing process: %w", err)
 	}
 
 	return nil
