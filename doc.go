@@ -18,6 +18,10 @@
 //   - AssertHTML: string, []byte, io.Reader, or fmt.Stringer
 //   - AssertFile: string, []byte, or io.Reader
 //
+// AssertYAML compares YAML streams document by document, including empty
+// documents. Document order is significant, and option paths are resolved
+// from each document root.
+//
 // Expected files support template matchers for dynamic values:
 //
 //	{

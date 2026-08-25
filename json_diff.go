@@ -63,8 +63,8 @@ func substituteMatchedMatchers(expected, actual any, path string, cfg *config) a
 
 	case []any:
 		actArr, _ := actual.([]any)
-		if cfg.ShouldIgnoreArrayOrder(path) && len(compare(exp, actArr, path, cfg)) == 0 {
-			return cleanMatchersForDisplay(actArr)
+		if cfg.ShouldIgnoreArrayOrder(path) {
+			return substituteUnorderedMatchers(exp, actArr, path, cfg)
 		}
 
 		result := make([]any, len(exp))
@@ -84,6 +84,43 @@ func substituteMatchedMatchers(expected, actual any, path string, cfg *config) a
 	default:
 		return expected
 	}
+}
+
+func substituteUnorderedMatchers(expected, actual []any, path string, cfg *config) []any {
+	matches := findUnorderedMatches(expected, actual, func(expectedIndex int, actualValue any) bool {
+		childPath := fmt.Sprintf("%s[%d]", path, expectedIndex)
+
+		return len(compare(expected[expectedIndex], actualValue, childPath, cfg)) == 0
+	})
+
+	result := make([]any, 0, len(expected))
+	unmatchedIndex := 0
+
+	for actualIndex, expectedIndex := range matches.expectedByActual {
+		if expectedIndex >= 0 {
+			result = append(result, cleanMatchersForDisplay(actual[actualIndex]))
+
+			continue
+		}
+
+		if unmatchedIndex >= len(matches.unmatchedExpected) {
+			continue
+		}
+
+		expectedIndex = matches.unmatchedExpected[unmatchedIndex]
+		unmatchedIndex++
+		childPath := fmt.Sprintf("%s[%d]", path, expectedIndex)
+		result = append(result,
+			substituteMatchedMatchers(expected[expectedIndex], actual[actualIndex], childPath, cfg))
+	}
+
+	for ; unmatchedIndex < len(matches.unmatchedExpected); unmatchedIndex++ {
+		expectedIndex := matches.unmatchedExpected[unmatchedIndex]
+		childPath := fmt.Sprintf("%s[%d]", path, expectedIndex)
+		result = append(result, substituteMatchedMatchers(expected[expectedIndex], nil, childPath, cfg))
+	}
+
+	return result
 }
 
 // cleanMatchersForDisplay converts Matcher objects to their string representation

@@ -11,6 +11,8 @@ import (
 
 // AssertYAML compares actual YAML against an expected YAML file.
 // T can be: []byte, string, io.Reader, or any struct (auto-marshaled).
+// YAML streams are compared document by document, including empty documents.
+// Document order is significant. Option paths are resolved from each document root.
 //
 // Example:
 //
@@ -73,7 +75,7 @@ func handleYAMLDiffs(
 	}
 
 	if cfg.Update {
-		updateErr := updateExpectedYAMLFile(path, actualBytes, expected)
+		updateErr := updateExpectedYAMLFile(path, actualBytes, expected, cfg)
 		if updateErr != nil {
 			tb.Fatalf("testastic: failed to update expected YAML file: %v", updateErr)
 		}
@@ -167,18 +169,24 @@ func createExpectedYAMLFile(path string, actual []byte) error {
 	return writeYAMLFile(path, []byte(formatted))
 }
 
-func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) error {
+func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML, cfg *config) error {
 	actualDocuments, err := parseYAMLDocuments(actual)
 	if err != nil {
 		return writeYAMLFile(path, actual)
 	}
 
-	matcherPositions := expected.extractMatcherPositions()
 	mergedDocuments := make(yamlDocuments, len(actualDocuments))
+	multipleDocuments := len(expected.Documents) > 1 || len(actualDocuments) > 1
 
 	for index, document := range actualDocuments {
-		path := yamlMatcherDocumentPath(index)
-		mergedDocuments[index] = restoreYAMLMatchers(document, matcherPositions, path)
+		var expectedDocument any
+		if index < len(expected.Documents) {
+			expectedDocument = expected.Documents[index]
+		}
+
+		documentPath := yamlDocumentPath(index, multipleDocuments)
+		documentConfig := configForYAMLDocument(cfg, index, multipleDocuments)
+		mergedDocuments[index] = restoreYAMLMatchers(expectedDocument, document, documentPath, documentConfig)
 	}
 
 	formatted, err := renderYAMLDocuments(mergedDocuments)
@@ -186,47 +194,91 @@ func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML) 
 		return writeYAMLFile(path, actual)
 	}
 
-	content := restoreYAMLTemplateExpressions(formatted, matcherPositions)
+	content := restoreYAMLTemplateExpressions(formatted)
 
 	return writeYAMLFile(path, []byte(content))
 }
 
-// restoreYAMLMatchers walks the actual data and restores matcher expressions
-// at positions where the expected file had matchers.
-func restoreYAMLMatchers(data any, matchers map[string]string, path string) any {
-	if expr, ok := matchers[path]; ok {
-		return expr
+// restoreYAMLMatchers walks actual data and restores matchers from the expected tree.
+func restoreYAMLMatchers(expected, actual any, path string, cfg *config) any {
+	if matcher, ok := expected.(Matcher); ok {
+		return matcher.String()
 	}
 
-	switch v := data.(type) {
+	switch actualValue := actual.(type) {
 	case map[string]any:
-		result := make(map[string]any, len(v))
-		for key, val := range v {
+		expectedMap, _ := expected.(map[string]any)
+		result := make(map[string]any, len(actualValue))
+
+		for key, value := range actualValue {
 			childPath := path + "." + key
-			result[key] = restoreYAMLMatchers(val, matchers, childPath)
+			result[key] = restoreYAMLMatchers(expectedMap[key], value, childPath, cfg)
 		}
 
 		return result
 
 	case []any:
-		result := make([]any, len(v))
-		for i, val := range v {
-			childPath := fmt.Sprintf("%s[%d]", path, i)
-			result[i] = restoreYAMLMatchers(val, matchers, childPath)
+		expectedArray, _ := expected.([]any)
+		if cfg.ShouldIgnoreArrayOrder(path) {
+			return restoreUnorderedYAMLMatchers(expectedArray, actualValue, path, cfg)
+		}
+
+		result := make([]any, len(actualValue))
+
+		for index, value := range actualValue {
+			var expectedValue any
+			if index < len(expectedArray) {
+				expectedValue = expectedArray[index]
+			}
+
+			childPath := fmt.Sprintf("%s[%d]", path, index)
+			result[index] = restoreYAMLMatchers(expectedValue, value, childPath, cfg)
 		}
 
 		return result
 
 	default:
-		return v
+		return actualValue
 	}
+}
+
+func restoreUnorderedYAMLMatchers(expected, actual []any, path string, cfg *config) []any {
+	matches := findUnorderedMatches(expected, actual, func(expectedIndex int, actualValue any) bool {
+		childPath := fmt.Sprintf("%s[%d]", path, expectedIndex)
+
+		return len(compare(expected[expectedIndex], actualValue, childPath, cfg)) == 0
+	})
+
+	result := make([]any, len(actual))
+	copy(result, actual)
+
+	for actualIndex, expectedIndex := range matches.expectedByActual {
+		if expectedIndex < 0 {
+			continue
+		}
+
+		childPath := fmt.Sprintf("%s[%d]", path, expectedIndex)
+		result[actualIndex] = restoreYAMLMatchers(expected[expectedIndex], actual[actualIndex], childPath, cfg)
+	}
+
+	for index, expectedIndex := range matches.unmatchedExpected {
+		if index >= len(matches.unusedActual) {
+			break
+		}
+
+		actualIndex := matches.unusedActual[index]
+		childPath := fmt.Sprintf("%s[%d]", path, expectedIndex)
+		result[actualIndex] = restoreYAMLMatchers(expected[expectedIndex], actual[actualIndex], childPath, cfg)
+	}
+
+	return result
 }
 
 // restoreYAMLTemplateExpressions strips YAML-added quotes from template expressions.
 // The YAML marshaler quotes strings containing {{ }} (since {{ starts a YAML flow mapping),
 // producing e.g. "{{anyString}}" or '{{anyString}}'. This function restores the unquoted
 // form so the file reads naturally: name: {{anyString}}.
-func restoreYAMLTemplateExpressions(content string, _ map[string]string) string {
+func restoreYAMLTemplateExpressions(content string) string {
 	re := regexp.MustCompile(`["'](\{\{(?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+\}\})["']`)
 
 	return re.ReplaceAllString(content, "$1")

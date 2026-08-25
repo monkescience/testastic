@@ -233,51 +233,55 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *config) []di
 	return diffs
 }
 
-// findUnorderedMatches finds matching indices between expected and actual slices.
-// Returns unmatched expected indices and unused actual indices.
-func findUnorderedMatches[T any](expected, actual []T, matches func(expIdx int, act T) bool) ([]int, []int) {
-	actualMatch := make([]int, len(actual))
-	for i := range actualMatch {
-		actualMatch[i] = -1
+type unorderedMatchResult struct {
+	expectedByActual  []int
+	unmatchedExpected []int
+	unusedActual      []int
+}
+
+// findUnorderedMatches finds a maximum matching between expected and actual slices.
+func findUnorderedMatches[T any](expected, actual []T, matches func(expIdx int, act T) bool) unorderedMatchResult {
+	result := unorderedMatchResult{
+		expectedByActual: make([]int, len(actual)),
+	}
+
+	for i := range result.expectedByActual {
+		result.expectedByActual[i] = -1
 	}
 
 	for i := range expected {
 		seen := make([]bool, len(actual))
-		_ = assignUnorderedMatch(i, actual, matches, actualMatch, seen)
+		_ = assignUnorderedMatch(i, actual, matches, result.expectedByActual, seen)
 	}
 
 	expectedMatched := make([]bool, len(expected))
 
-	for _, expIdx := range actualMatch {
+	for _, expIdx := range result.expectedByActual {
 		if expIdx >= 0 {
 			expectedMatched[expIdx] = true
 		}
 	}
 
-	var unmatchedExp []int
-
 	for i, matched := range expectedMatched {
 		if !matched {
-			unmatchedExp = append(unmatchedExp, i)
+			result.unmatchedExpected = append(result.unmatchedExpected, i)
 		}
 	}
 
-	var unusedAct []int
-
-	for i, expIdx := range actualMatch {
+	for i, expIdx := range result.expectedByActual {
 		if expIdx < 0 {
-			unusedAct = append(unusedAct, i)
+			result.unusedActual = append(result.unusedActual, i)
 		}
 	}
 
-	return unmatchedExp, unusedAct
+	return result
 }
 
 func assignUnorderedMatch[T any](
 	expIdx int,
 	actual []T,
 	matches func(expIdx int, act T) bool,
-	actualMatch []int,
+	expectedByActual []int,
 	seen []bool,
 ) bool {
 	for j, act := range actual {
@@ -287,8 +291,9 @@ func assignUnorderedMatch[T any](
 
 		seen[j] = true
 
-		if actualMatch[j] < 0 || assignUnorderedMatch(actualMatch[j], actual, matches, actualMatch, seen) {
-			actualMatch[j] = expIdx
+		if expectedByActual[j] < 0 ||
+			assignUnorderedMatch(expectedByActual[j], actual, matches, expectedByActual, seen) {
+			expectedByActual[j] = expIdx
 
 			return true
 		}
@@ -307,24 +312,24 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config) []
 		}}
 	}
 
-	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(expIdx int, act any) bool {
+	matches := findUnorderedMatches(expected, actual, func(expIdx int, act any) bool {
 		childPath := fmt.Sprintf("%s[%d]", path, expIdx)
 
 		return len(compare(expected[expIdx], act, childPath, cfg)) == 0
 	})
 
-	if len(unmatched) == 0 {
+	if len(matches.unmatchedExpected) == 0 {
 		return nil
 	}
 
 	var diffs []difference
 
-	for i, idx := range unmatched {
+	for i, idx := range matches.unmatchedExpected {
 		childPath := fmt.Sprintf("%s[%d]", path, idx)
 
 		var actualVal any
-		if i < len(unusedActual) {
-			actualVal = actual[unusedActual[i]]
+		if i < len(matches.unusedActual) {
+			actualVal = actual[matches.unusedActual[i]]
 		}
 
 		diffs = append(diffs, difference{

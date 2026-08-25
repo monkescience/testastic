@@ -262,24 +262,24 @@ func compareChildrenUnordered(expected, actual []*htmlNode, path string, cfg *co
 		}}
 	}
 
-	unmatched, unusedActual := findUnorderedMatches(expected, actual, func(expIdx int, act *htmlNode) bool {
+	matches := findUnorderedMatches(expected, actual, func(expIdx int, act *htmlNode) bool {
 		childPath := buildChildPath(path, expected[expIdx], expIdx)
 
 		return len(comparehtmlNodes(expected[expIdx], act, childPath, cfg)) == 0
 	})
 
-	if len(unmatched) == 0 {
+	if len(matches.unmatchedExpected) == 0 {
 		return nil
 	}
 
 	var diffs []htmlDifference
 
-	for i, idx := range unmatched {
+	for i, idx := range matches.unmatchedExpected {
 		childPath := buildChildPath(path, expected[idx], idx)
 
 		var actualDesc any
-		if i < len(unusedActual) {
-			actualDesc = describeNode(actual[unusedActual[i]])
+		if i < len(matches.unusedActual) {
+			actualDesc = describeNode(actual[matches.unusedActual[i]])
 		}
 
 		diffs = append(diffs, htmlDifference{

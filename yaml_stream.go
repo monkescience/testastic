@@ -2,29 +2,38 @@ package testastic
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
-	"io"
 	"strings"
 
 	"github.com/goccy/go-yaml"
+	"github.com/goccy/go-yaml/lexer"
+	"github.com/goccy/go-yaml/parser"
+	"github.com/goccy/go-yaml/token"
 )
 
 type yamlDocuments []any
 
 func parseYAMLDocuments(data []byte) (yamlDocuments, error) {
-	decoder := yaml.NewDecoder(bytes.NewReader(data))
+	tokens := preserveEmptyYAMLDocumentTokens(lexer.Tokenize(string(data)))
 
-	var documents yamlDocuments
+	file, err := parser.Parse(tokens, 0)
+	if err != nil {
+		return nil, fmt.Errorf("decode YAML: %w", err)
+	}
 
-	for {
-		var document any
+	documents := make(yamlDocuments, 0, len(file.Docs))
+	decoder := yaml.NewDecoder(bytes.NewReader(nil))
 
-		err := decoder.Decode(&document)
-		if errors.Is(err, io.EOF) {
-			break
+	for _, documentNode := range file.Docs {
+		if documentNode.Body == nil {
+			documents = append(documents, nil)
+
+			continue
 		}
 
+		var document any
+
+		err = decoder.DecodeFromNode(documentNode.Body, &document)
 		if err != nil {
 			return nil, fmt.Errorf("decode YAML: %w", err)
 		}
@@ -37,6 +46,37 @@ func parseYAMLDocuments(data []byte) (yamlDocuments, error) {
 	}
 
 	return documents, nil
+}
+
+func preserveEmptyYAMLDocumentTokens(tokens token.Tokens) token.Tokens {
+	var preserved token.Tokens
+
+	for index, current := range tokens {
+		preserved.Add(current)
+
+		if current.Type != token.DocumentHeaderType || !emptyYAMLDocumentFollows(tokens[index+1:]) {
+			continue
+		}
+
+		// The upstream parser stops grouping at adjacent empty documents.
+		position := *current.Position
+		position.Line++
+		preserved.Add(token.New("null", "null", &position))
+	}
+
+	return preserved
+}
+
+func emptyYAMLDocumentFollows(tokens token.Tokens) bool {
+	for _, current := range tokens {
+		if current.Type == token.CommentType {
+			continue
+		}
+
+		return current.Type == token.DocumentHeaderType || current.Type == token.DocumentEndType
+	}
+
+	return true
 }
 
 func compareYAMLDocuments(expected, actual yamlDocuments, cfg *config) []difference {
@@ -76,10 +116,6 @@ func yamlDocumentPath(index int, multipleDocuments bool) string {
 		return "$"
 	}
 
-	return fmt.Sprintf("$[%d]", index)
-}
-
-func yamlMatcherDocumentPath(index int) string {
 	return fmt.Sprintf("$[%d]", index)
 }
 

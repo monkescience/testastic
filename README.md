@@ -24,6 +24,23 @@ testastic.AssertJSON(t, "testdata/user.expected.json", resp.Body)
 testastic.AssertYAML(t, "testdata/config.expected.yaml", configBytes)
 ```
 
+Expected files may contain YAML document streams:
+
+```yaml
+kind: ConfigMap
+metadata:
+  name: settings
+---
+kind: Deployment
+metadata:
+  name: api
+```
+
+Streams are compared document by document, including empty documents, and
+document order remains significant. Paths passed to `IgnoreFields` or
+`IgnoreArrayOrderAt` are relative to each document root, so `$.metadata.name`
+applies independently in every document.
+
 ### HTML
 
 ```go

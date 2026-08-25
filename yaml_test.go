@@ -32,6 +32,69 @@ func TestAssertYAML(t *testing.T) {
 		}
 	})
 
+	t.Run("detects documents after an empty document", func(t *testing.T) {
+		t.Parallel()
+
+		// given: an expected stream with an empty document before a later document
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile, []byte("a: 1\n---\n---\nb: 2\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting a stream that stops before the empty and later documents
+		testastic.AssertYAML(mt, expectedFile, "a: 1\n")
+
+		// then: the later document is reported as missing
+		if !mt.failed || mt.fatal {
+			t.Errorf("expected a nonfatal missing-document mismatch, got: %s", mt.message)
+		}
+
+		if !strings.Contains(mt.message, "b: 2") {
+			t.Errorf("expected the document after the empty document in the diff, got: %s", mt.message)
+		}
+	})
+
+	t.Run("distinguishes repeated empty documents from one null document", func(t *testing.T) {
+		t.Parallel()
+
+		// given: an expected stream containing two explicit empty documents
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile, []byte("---\n---\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting a stream containing only one null document
+		testastic.AssertYAML(mt, expectedFile, "null\n")
+
+		// then: the document-count difference is reported
+		if !mt.failed || mt.fatal {
+			t.Errorf("expected a nonfatal document-count mismatch, got: %s", mt.message)
+		}
+	})
+
+	t.Run("keeps document markers inside block scalars", func(t *testing.T) {
+		t.Parallel()
+
+		// given: a block scalar containing a line that resembles a document marker
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile,
+			[]byte("value: |\n  before\n  ---\n  after\n---\nname: second\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		// when: asserting the same scalar through quoted YAML syntax
+		testastic.AssertYAML(mt, expectedFile,
+			"value: \"before\\n---\\nafter\\n\"\n---\nname: second\n")
+
+		// then: only the root-level marker separates documents
+		if mt.failed {
+			t.Errorf("expected the block-scalar marker to remain content, got: %s", mt.message)
+		}
+	})
+
 	t.Run("detects an extra actual YAML document", func(t *testing.T) {
 		t.Parallel()
 
@@ -826,6 +889,42 @@ func TestAssertYAML_UpdatePreservesMatchersAcrossDocuments(t *testing.T) {
 
 	if check.failed {
 		t.Errorf("expected updated stream to match, got: %s", check.message)
+	}
+}
+
+func TestAssertYAML_UpdatePreservesMatchersInUnorderedArraysAcrossDocuments(t *testing.T) {
+	t.Parallel()
+
+	// given: a matcher in an unordered array in the second document
+	expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+	expected := "kind: first\n---\nitems: [a, {{anyInt}}]\nstatus: old\n"
+	err := os.WriteFile(expectedFile, []byte(expected), 0o644)
+	testastic.NoError(t, err)
+
+	actual := "kind: first\n---\nitems: [1, a]\nstatus: new\n"
+	mt := &mockT{}
+
+	// when: updating after the array elements move and another field changes
+	testastic.AssertYAML(mt, expectedFile, actual,
+		testastic.IgnoreArrayOrderAt("$.items"), testastic.Update())
+
+	// then: the matcher follows its matched value and the updated stream still matches
+	if mt.failed {
+		t.Errorf("expected multi-document update to succeed, got: %s", mt.message)
+	}
+
+	content, readErr := os.ReadFile(expectedFile)
+	testastic.NoError(t, readErr)
+
+	if !strings.Contains(string(content), "{{anyInt}}") || !strings.Contains(string(content), "- a") {
+		t.Errorf("expected the matcher and literal array value to be preserved, got:\n%s", content)
+	}
+
+	check := &mockT{}
+	testastic.AssertYAML(check, expectedFile, actual, testastic.IgnoreArrayOrderAt("$.items"))
+
+	if check.failed {
+		t.Errorf("expected updated unordered stream to match, got: %s", check.message)
 	}
 }
 

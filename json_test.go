@@ -520,6 +520,51 @@ func TestAssertJSON_MatchedUnorderedArrayNotShownAsDiff(t *testing.T) {
 	}
 }
 
+func TestAssertJSON_PartialUnorderedArrayDiffUsesMatchedElements(t *testing.T) {
+	t.Parallel()
+
+	// given: an unordered array with two matches and one changed element
+	expectedFile := filepath.Join(t.TempDir(), "matcher.json")
+
+	err := os.WriteFile(expectedFile,
+		[]byte(`{"items":["a","{{anyString}}","b"]}`), 0o644)
+	if err != nil {
+		t.Fatalf("write expected file: %v", err)
+	}
+
+	mt := &mockT{}
+
+	// when: matched elements move while the remaining element changes
+	testastic.AssertJSON(mt, expectedFile, `{"items":["z","a","c"]}`,
+		testastic.IgnoreArrayOrderAt("$.items"))
+
+	// then: only the unmatched element pair appears changed
+	if !mt.failed {
+		t.Fatal("expected an unordered array difference")
+	}
+
+	falseArrayChange := false
+
+	for line := range strings.SplitSeq(mt.message, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "-") && strings.TrimSpace(strings.TrimPrefix(line, "-")) == `"a",` {
+			falseArrayChange = true
+		}
+
+		if strings.HasPrefix(line, "+") && strings.TrimSpace(strings.TrimPrefix(line, "+")) == `"z",` {
+			falseArrayChange = true
+		}
+	}
+
+	if falseArrayChange {
+		t.Errorf("matched unordered elements should not appear changed, got: %s", mt.message)
+	}
+
+	if !strings.Contains(mt.message, `"b"`) || !strings.Contains(mt.message, `"c"`) {
+		t.Errorf("expected the unmatched element pair in the diff, got: %s", mt.message)
+	}
+}
+
 func TestAssertJSON_UpdatePreservesRootMatcher(t *testing.T) {
 	t.Parallel()
 
