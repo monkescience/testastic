@@ -48,14 +48,14 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 	expectedLines := splitLines(string(expectedContent))
 	actualLines := splitLines(actualStr)
 
-	diffs, err := compareFileLinesWithMatchers(expectedLines, actualLines)
+	comparison, err := compareFileLinesWithMatcherReport(expectedLines, actualLines)
 	if err != nil {
 		tb.Fatalf("testastic: invalid expected file %s: %v", expectedFile, err)
 
 		return
 	}
 
-	if len(diffs) == 0 {
+	if len(comparison.differences) == 0 {
 		return
 	}
 
@@ -74,7 +74,7 @@ func AssertFile[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 
 	msg := formatAssertionMessage("AssertFile", expectedFile, cfg.Message)
 	tb.Errorf("testastic: assertion failed\n\n  %s\n%s",
-		msg, formatFileDiff(expectedLines, actualLines, diffs))
+		msg, formatFileDiffInline(comparison.displayExpected, actualLines))
 }
 
 func fileToString[T any](v T) (string, error) {
@@ -123,13 +123,13 @@ func formatFileDiff(expected, actual []string, diffs []difference) string {
 	matcherAwareExpected := make([]string, len(expected))
 	copy(matcherAwareExpected, expected)
 
-	for idx := range min(len(expected), len(actual)) {
-		parsedLine, err := parseLine(expected[idx])
-		if err != nil || parsedLine.pattern == nil {
-			continue
-		}
+	differencePaths := make(map[string]struct{}, len(diffs))
+	for _, diff := range diffs {
+		differencePaths[diff.Path] = struct{}{}
+	}
 
-		if parsedLine.pattern.MatchString(actual[idx]) {
+	for idx := range min(len(expected), len(actual)) {
+		if _, differs := differencePaths[lineNumberPath(idx+1)]; !differs {
 			matcherAwareExpected[idx] = actual[idx]
 		}
 	}

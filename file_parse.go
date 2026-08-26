@@ -1,6 +1,7 @@
 package testastic
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -11,18 +12,7 @@ type lineMatcher struct {
 	pattern        *regexp.Regexp // nil if no matchers (exact match mode)
 	matchers       []Matcher      // matchers found in this line, in order
 	captureIndexes []int
-}
-
-var matcherTextPatterns = map[string]string{
-	"anyString":   `.+`,
-	"anyInt":      `-?\d+`,
-	"anyFloat":    `-?\d+\.?\d*`,
-	"anyBool":     `(?:true|false)`,
-	"anyUUID":     `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`,
-	"anyDateTime": `\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?`,
-	"anyURL":      `https?://[^\s]+`,
-	"anyValue":    `.+`,
-	"ignore":      `.*`,
+	embedded       *embeddedMatcher
 }
 
 // fileExprRegex matches {{...}} expressions in text (without JSON quote handling).
@@ -32,135 +22,66 @@ var fileExprRegex = regexp.MustCompile(
 	`\{\{((?:[^}` + "`" + `"]+|` + "`" + `[^` + "`" + `]*` + "`" + `|"[^"]*")+)\}\}`,
 )
 
-//nolint:funlen // Sequential pattern builder is clearer as one pass.
+type fileMatcherPreparer struct{}
+
+func (fileMatcherPreparer) prepare(source string) (preparedMatcherSource, error) {
+	return preparedMatcherSource{
+		source: source,
+		sites: matcherSourceSites(
+			source,
+			matcherSourceRules{
+				unclosedBacktickConsumes:    true,
+				unclosedDoubleQuoteConsumes: true,
+			},
+			rawMatcherPlaceholder,
+		),
+		placeholder:      "__TESTASTIC_TEXT_MATCHER_",
+		collides:         func(candidate string) bool { return strings.Contains(source, candidate) },
+		embedded:         true,
+		trimWholeMatcher: false,
+	}, nil
+}
+
 func parseLine(line string) (*lineMatcher, error) {
-	matches := fileExprRegex.FindAllStringSubmatchIndex(line, -1)
-	if len(matches) == 0 {
-		return &lineMatcher{
-			original: line,
-			pattern:  nil,
-			matchers: nil,
-		}, nil
-	}
-
-	var matchers []Matcher
-
-	var captureIndexes []int
-
-	var patternBuilder strings.Builder
-
-	patternBuilder.WriteString("^")
-
-	lastEnd := 0
-	nextCaptureIndex := 1
-
-	for _, match := range matches {
-		// match[0]:match[1] is the full match {{...}}
-		// match[2]:match[3] is the captured group (content inside {{}})
-		start, end := match[0], match[1]
-		exprStart, exprEnd := match[2], match[3]
-
-		if start > lastEnd {
-			patternBuilder.WriteString(regexp.QuoteMeta(line[lastEnd:start]))
-		}
-
-		expr := trimSpace(line[exprStart:exprEnd])
-
-		if expr == "" {
-			// Empty {{ }} is literal text (e.g. documentation about template
-			// syntax), not a matcher directive.
-			patternBuilder.WriteString(regexp.QuoteMeta(line[start:end]))
-			lastEnd = end
-
-			continue
-		}
-
-		matcher, err := parseMatcher(expr)
-		if err != nil {
-			return nil, fmt.Errorf("line %q: %w", line, err)
-		}
-
-		matchers = append(matchers, matcher)
-
-		textPattern := getMatcherTextPattern(expr, matcher)
-
-		captureIndexes = append(captureIndexes, nextCaptureIndex)
-		nextCaptureIndex += 1 + matcherCaptureCount(matcher)
-
-		patternBuilder.WriteString("(" + textPattern + ")")
-
-		lastEnd = end
-	}
-
-	if lastEnd < len(line) {
-		patternBuilder.WriteString(regexp.QuoteMeta(line[lastEnd:]))
-	}
-
-	patternBuilder.WriteString("$")
-
-	pattern, err := regexp.Compile(patternBuilder.String())
+	program, err := compileMatcherProgram(line, fileMatcherPreparer{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to compile pattern for line %q: %w", line, err)
+		compileErr, ok := errors.AsType[*matcherCompileError](err)
+		if ok {
+			return nil, fmt.Errorf("line %q: %w", line, compileErr.cause)
+		}
+
+		return nil, fmt.Errorf("line %q: %w", line, err)
+	}
+
+	if len(program.sites) == 0 {
+		return &lineMatcher{original: line}, nil
+	}
+
+	segments, original := program.embeddedSegments(program.sourceForParser())
+
+	embedded, err := newEmbeddedMatcher(original, segments)
+	if err != nil {
+		return nil, fmt.Errorf("line %q: %w", line, err)
+	}
+
+	matchers := make([]Matcher, 0, len(program.sites))
+	for _, site := range program.sites {
+		matchers = append(matchers, site.matcher)
+	}
+
+	captureIndexes := make([]int, 0, len(program.sites))
+
+	for _, segment := range embedded.segments {
+		if segment.matcher != nil {
+			captureIndexes = append(captureIndexes, segment.captureIndex)
+		}
 	}
 
 	return &lineMatcher{
 		original:       line,
-		pattern:        pattern,
+		pattern:        embedded.pattern,
 		matchers:       matchers,
 		captureIndexes: captureIndexes,
+		embedded:       embedded,
 	}, nil
-}
-
-func matcherCaptureCount(matcher Matcher) int {
-	if regex, ok := matcher.(*regexMatcher); ok {
-		return regex.re.NumSubexp()
-	}
-
-	return 0
-}
-
-func getMatcherTextPattern(expr string, _ Matcher) string {
-	if strings.HasPrefix(expr, "regex ") {
-		pattern := extractBacktickArg(expr[6:])
-		if pattern == "" {
-			pattern = extractQuotedArg(expr[6:])
-		}
-
-		// The whole line is already anchored with ^...$, so a user-supplied
-		// leading ^ or trailing $ would become an impossible mid-line anchor.
-		return stripLineAnchors(pattern)
-	}
-
-	if strings.HasPrefix(expr, "oneOf ") {
-		values := extractQuotedArgs(expr[6:])
-
-		var escaped []string
-
-		for _, v := range values {
-			if s, ok := v.(string); ok {
-				escaped = append(escaped, regexp.QuoteMeta(s))
-			}
-		}
-
-		return "(?:" + strings.Join(escaped, "|") + ")"
-	}
-
-	if p, ok := matcherTextPatterns[expr]; ok {
-		return p
-	}
-
-	return `.+`
-}
-
-// stripLineAnchors removes a single leading ^ and trailing $ from a regex
-// pattern. The text line is anchored as a whole, so embedded anchors would be
-// unsatisfiable. A trailing escaped \$ is a literal dollar and is preserved.
-func stripLineAnchors(pattern string) string {
-	pattern = strings.TrimPrefix(pattern, "^")
-
-	if strings.HasSuffix(pattern, "$") && !strings.HasSuffix(pattern, `\$`) {
-		pattern = pattern[:len(pattern)-1]
-	}
-
-	return pattern
 }

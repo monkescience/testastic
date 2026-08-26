@@ -1,10 +1,10 @@
 package testastic
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
-	"sort"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -30,95 +30,8 @@ type htmlNode struct {
 }
 
 type expectedHTML struct {
-	Root     *htmlNode
-	Matchers map[string]string
-	Raw      string
-}
-
-type templateSegment struct {
-	Literal string  // Literal text (empty if Matcher is set).
-	Matcher Matcher // Matcher (nil if Literal is set).
-}
-
-// templateString represents a string with embedded matchers.
-type templateString struct {
-	Segments []templateSegment
-	Original string         // For display: "border-left: 6px solid {{anyString}}".
-	regex    *regexp.Regexp // Pre-compiled regex for matching.
-}
-
-func (t *templateString) Match(actual string) bool {
-	if t.regex == nil {
-		return false
-	}
-
-	return t.regex.MatchString(actual)
-}
-
-func (t *templateString) String() string {
-	return t.Original
-}
-
-func (t *templateString) buildRegex() error {
-	var pattern strings.Builder
-
-	pattern.WriteString("^")
-
-	for _, seg := range t.Segments {
-		if seg.Matcher != nil {
-			pattern.WriteString(matcherToRegex(seg.Matcher))
-		} else {
-			pattern.WriteString(regexp.QuoteMeta(seg.Literal))
-		}
-	}
-
-	pattern.WriteString("$")
-
-	re, err := regexp.Compile(pattern.String())
-	if err != nil {
-		return fmt.Errorf("failed to compile template regex: %w", err)
-	}
-
-	t.regex = re
-
-	return nil
-}
-
-func matcherToRegex(m Matcher) string {
-	switch v := m.(type) {
-	case anyStringMatcher:
-		return ".*"
-	case anyIntMatcher:
-		return "-?\\d+"
-	case anyFloatMatcher:
-		return "-?\\d+\\.?\\d*"
-	case anyBoolMatcher:
-		return "(true|false)"
-	case anyValueMatcher:
-		return ".*"
-	case ignoreMatcher:
-		return ".*"
-	case *regexMatcher:
-		return v.pattern
-	case *oneOfMatcher:
-		return oneOfToRegex(v.values)
-	default:
-		return ".*"
-	}
-}
-
-func oneOfToRegex(values []any) string {
-	if len(values) == 0 {
-		return "(?!)" // Match nothing.
-	}
-
-	parts := make([]string, 0, len(values))
-
-	for _, v := range values {
-		parts = append(parts, regexp.QuoteMeta(fmt.Sprintf("%v", v)))
-	}
-
-	return "(" + strings.Join(parts, "|") + ")"
+	Root *htmlNode
+	Raw  string
 }
 
 const htmlMatcherPlaceholderPrefix = "__TESTASTIC_HTML_MATCHER_"
@@ -131,6 +44,24 @@ const htmlDocumentTag = "#document"
 // Effective pattern: \{\{((?:[^}`]+|`[^`]*`)+)\}\}.
 var htmlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
 
+type htmlMatcherPreparer struct{}
+
+func (htmlMatcherPreparer) prepare(source string) (preparedMatcherSource, error) {
+	values, err := parseHTMLValues(source)
+	if err != nil {
+		return preparedMatcherSource{}, fmt.Errorf("parse HTML literals: %w", err)
+	}
+
+	return preparedMatcherSource{
+		source:           source,
+		sites:            matcherSourceSites(source, matcherSourceRules{}, rawMatcherPlaceholder),
+		placeholder:      htmlMatcherPlaceholderPrefix,
+		collides:         func(candidate string) bool { return containsHTMLValue(values, candidate) },
+		embedded:         true,
+		trimWholeMatcher: true,
+	}, nil
+}
+
 // parseExpectedHTMLFile reads and parses an expected HTML file, replacing template expressions with matchers.
 func parseExpectedHTMLFile(path string) (*expectedHTML, error) {
 	content, err := os.ReadFile(path) //nolint:gosec // Path is controlled by test code.
@@ -138,47 +69,49 @@ func parseExpectedHTMLFile(path string) (*expectedHTML, error) {
 		return nil, fmt.Errorf("failed to read expected HTML file: %w", err)
 	}
 
-	return parseExpectedHTMLString(string(content))
+	expected, err := parseExpectedHTMLString(string(content))
+	if err != nil {
+		_, isCompileError := errors.AsType[*matcherCompileError](err)
+		if !isCompileError {
+			return nil, err
+		}
+
+		if errors.Is(err, errUnknownMatcher) {
+			return nil, fmt.Errorf(
+				"failed to parse expected HTML file %s: %w, register custom matchers with RegisterMatcher",
+				path,
+				err,
+			)
+		}
+
+		return nil, fmt.Errorf("failed to parse expected HTML file %s: %w", path, err)
+	}
+
+	return expected, nil
 }
 
 func parseExpectedHTMLString(content string) (*expectedHTML, error) {
-	literalValues, err := parseHTMLValues(content)
+	program, err := compileMatcherProgram(content, htmlMatcherPreparer{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse expected HTML: %w", err)
-	}
-
-	expected := &expectedHTML{
-		Matchers: make(map[string]string),
-		Raw:      content,
-	}
-
-	matcherIndex := 0
-	processedContent := htmlTemplateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
-		expr := match
-		expr = strings.TrimPrefix(expr, "{{")
-		expr = strings.TrimSuffix(expr, "}}")
-		expr = trimSpace(expr)
-
-		placeholder := fmt.Sprintf("%s%d__", htmlMatcherPlaceholderPrefix, matcherIndex)
-		for containsHTMLValue(literalValues, placeholder) {
-			matcherIndex++
-			placeholder = fmt.Sprintf("%s%d__", htmlMatcherPlaceholderPrefix, matcherIndex)
+		_, isCompileError := errors.AsType[*matcherCompileError](err)
+		if !isCompileError {
+			return nil, fmt.Errorf("failed to parse expected HTML: %w", err)
 		}
 
-		expected.Matchers[placeholder] = expr
-		matcherIndex++
+		return nil, err
+	}
 
-		return placeholder
-	})
-
-	doc, err := html.Parse(strings.NewReader(processedContent))
+	doc, err := html.Parse(strings.NewReader(program.sourceForParser()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected HTML: %w", err)
 	}
 
-	expected.Root = convertTohtmlNode(doc, expected.Matchers, "")
+	root, err := convertTohtmlNode(doc, &program, "")
+	if err != nil {
+		return nil, err
+	}
 
-	return expected, nil
+	return &expectedHTML{Root: root, Raw: program.original}, nil
 }
 
 func parseHTMLValues(content string) ([]string, error) {
@@ -224,15 +157,15 @@ func parseActualHTMLBytes(data []byte) (*htmlNode, error) {
 		return nil, fmt.Errorf("failed to parse actual HTML: %w", err)
 	}
 
-	return convertTohtmlNode(doc, nil, ""), nil
+	return convertTohtmlNode(doc, nil, "")
 }
 
 // convertTohtmlNode converts an html.Node to an htmlNode tree.
 //
-//nolint:gocognit,funlen // HTML DOM conversion requires handling multiple node types.
-func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath string) *htmlNode {
+//nolint:gocognit,funlen,nilnil // DOM conversion ignores node types with a nil node.
+func convertTohtmlNode(n *html.Node, program *matcherProgram, parentPath string) (*htmlNode, error) {
 	if n == nil {
-		return nil
+		return nil, nil
 	}
 
 	switch n.Type { //nolint:exhaustive // Only handling relevant node types.
@@ -246,48 +179,66 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 		}
 
 		for _, attr := range n.Attr {
-			node.Attributes[attr.Key] = resolveHTMLMatcherInValue(attr.Val, matchers)
+			resolved, err := resolveHTMLValue(attr.Val, program)
+			if err != nil {
+				return nil, err
+			}
+
+			node.Attributes[attr.Key] = resolved
 		}
 
 		childCounts := make(map[string]int)
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			child := convertChildTohtmlNode(c, matchers, path, childCounts)
+			child, err := convertChildTohtmlNode(c, program, path, childCounts)
+			if err != nil {
+				return nil, err
+			}
+
 			if child != nil {
 				node.Children = append(node.Children, child)
 			}
 		}
 
-		return node
+		return node, nil
 
 	case html.TextNode:
 		text := n.Data
-		resolved := resolveHTMLMatcherInValue(text, matchers)
+
+		resolved, err := resolveHTMLValue(text, program)
+		if err != nil {
+			return nil, err
+		}
 
 		return &htmlNode{
 			Type: htmlText,
 			Text: resolved,
 			Path: parentPath + " (text)",
-		}
+		}, nil
 
 	case html.CommentNode:
+		resolved, err := resolveHTMLValue(n.Data, program)
+		if err != nil {
+			return nil, err
+		}
+
 		return &htmlNode{
 			Type: htmlComment,
-			Text: resolveHTMLMatcherInValue(n.Data, matchers),
+			Text: resolved,
 			Path: parentPath + " (comment)",
-		}
+		}, nil
 
 	case html.DoctypeNode:
 		return &htmlNode{
 			Type: htmlDoctype,
 			Tag:  n.Data,
 			Path: "<!DOCTYPE>",
-		}
+		}, nil
 
 	case html.DocumentNode:
 		// For document nodes, find the root element
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
 			if c.Type == html.ElementNode {
-				return convertTohtmlNode(c, matchers, parentPath)
+				return convertTohtmlNode(c, program, parentPath)
 			}
 
 			if c.Type != html.DoctypeNode {
@@ -302,13 +253,17 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 			}
 
 			for child := n.FirstChild; child != nil; child = child.NextSibling {
-				childNode := convertTohtmlNode(child, matchers, "")
+				childNode, err := convertTohtmlNode(child, program, "")
+				if err != nil {
+					return nil, err
+				}
+
 				if childNode != nil {
 					root.Children = append(root.Children, childNode)
 				}
 			}
 
-			return root
+			return root, nil
 		}
 		// No root element found, wrap children
 		root := &htmlNode{
@@ -318,25 +273,31 @@ func convertTohtmlNode(n *html.Node, matchers map[string]string, parentPath stri
 		}
 
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			child := convertTohtmlNode(c, matchers, "")
+			child, err := convertTohtmlNode(c, program, "")
+			if err != nil {
+				return nil, err
+			}
+
 			if child != nil {
 				root.Children = append(root.Children, child)
 			}
 		}
 
-		return root
+		return root, nil
 
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
 // convertChildTohtmlNode handles child node conversion with proper path indexing.
+//
+//nolint:nilnil // DOM conversion ignores child node types with a nil node.
 func convertChildTohtmlNode(
-	n *html.Node, matchers map[string]string, parentPath string, childCounts map[string]int,
-) *htmlNode {
+	n *html.Node, program *matcherProgram, parentPath string, childCounts map[string]int,
+) (*htmlNode, error) {
 	if n == nil {
-		return nil
+		return nil, nil
 	}
 
 	if n.Type == html.ElementNode {
@@ -353,21 +314,30 @@ func convertChildTohtmlNode(
 		}
 
 		for _, attr := range n.Attr {
-			node.Attributes[attr.Key] = resolveHTMLMatcherInValue(attr.Val, matchers)
+			resolved, err := resolveHTMLValue(attr.Val, program)
+			if err != nil {
+				return nil, err
+			}
+
+			node.Attributes[attr.Key] = resolved
 		}
 
 		nestedCounts := make(map[string]int)
 		for c := n.FirstChild; c != nil; c = c.NextSibling {
-			child := convertChildTohtmlNode(c, matchers, path, nestedCounts)
+			child, err := convertChildTohtmlNode(c, program, path, nestedCounts)
+			if err != nil {
+				return nil, err
+			}
+
 			if child != nil {
 				node.Children = append(node.Children, child)
 			}
 		}
 
-		return node
+		return node, nil
 	}
 
-	return convertTohtmlNode(n, matchers, parentPath)
+	return convertTohtmlNode(n, program, parentPath)
 }
 
 func buildElementPath(parentPath, tag string) string {
@@ -395,151 +365,10 @@ func buildElementPathWithIndex(parentPath, tag string, index int) string {
 	return fmt.Sprintf("%s > %s[%d]", parentPath, tag, index)
 }
 
-// resolveHTMLMatcherInValue checks if a string contains a matcher placeholder and returns the Matcher.
-func resolveHTMLMatcherInValue(value string, matchers map[string]string) any {
-	if matchers == nil {
-		return value
+func resolveHTMLValue(value string, program *matcherProgram) (any, error) {
+	if program == nil {
+		return value, nil
 	}
 
-	if m := tryParseSingleMatcher(value, matchers); m != nil {
-		return m
-	}
-
-	hasPlaceholder := false
-
-	for placeholder := range matchers {
-		if !strings.Contains(value, placeholder) {
-			continue
-		}
-
-		hasPlaceholder = true
-
-		// Handle whitespace around placeholder: "  {{anyString}}  " should match as single matcher.
-		if m := tryParseSingleMatcher(strings.TrimSpace(value), matchers); m != nil {
-			return m
-		}
-	}
-
-	if hasPlaceholder {
-		return parsetemplateString(value, matchers)
-	}
-
-	return value
-}
-
-func tryParseSingleMatcher(value string, matchers map[string]string) Matcher {
-	if !strings.HasPrefix(value, htmlMatcherPlaceholderPrefix) || !strings.HasSuffix(value, "__") {
-		return nil
-	}
-
-	expr, ok := matchers[value]
-	if !ok {
-		return nil
-	}
-
-	matcher, err := parseMatcher(expr)
-	if err != nil {
-		return nil
-	}
-
-	return matcher
-}
-
-type placeholderPos struct {
-	start int
-	end   int
-	expr  string
-}
-
-func parsetemplateString(value string, matchers map[string]string) templateString {
-	original := buildOriginalDisplay(value, matchers)
-	positions := findPlaceholderPositions(value, matchers)
-	segments := buildSegments(value, positions)
-
-	ts := templateString{
-		Segments: segments,
-		Original: original,
-	}
-
-	// Pre-compile regex for performance.
-	_ = ts.buildRegex()
-
-	return ts
-}
-
-func buildOriginalDisplay(value string, matchers map[string]string) string {
-	original := value
-	for placeholder, expr := range matchers {
-		original = strings.ReplaceAll(original, placeholder, "{{"+expr+"}}")
-	}
-
-	return original
-}
-
-// findPlaceholderPositions finds all placeholder positions in a value, sorted by start index.
-func findPlaceholderPositions(value string, matchers map[string]string) []placeholderPos {
-	var positions []placeholderPos
-
-	for placeholder, expr := range matchers {
-		idx := 0
-
-		for {
-			pos := strings.Index(value[idx:], placeholder)
-			if pos == -1 {
-				break
-			}
-
-			absPos := idx + pos
-			positions = append(positions, placeholderPos{
-				start: absPos,
-				end:   absPos + len(placeholder),
-				expr:  expr,
-			})
-			idx = absPos + len(placeholder)
-		}
-	}
-
-	sort.Slice(positions, func(i, j int) bool {
-		return positions[i].start < positions[j].start
-	})
-
-	return positions
-}
-
-func buildSegments(value string, positions []placeholderPos) []templateSegment {
-	var segments []templateSegment
-
-	lastEnd := 0
-
-	for _, pos := range positions {
-		if pos.start > lastEnd {
-			segments = append(segments, templateSegment{
-				Literal: value[lastEnd:pos.start],
-			})
-		}
-
-		matcher, err := parseMatcher(pos.expr)
-		if err != nil {
-			// Keep the original {{expr}} as a literal so an unknown or invalid
-			// matcher surfaces as a visible mismatch instead of silently
-			// widening the pattern by dropping the segment.
-			segments = append(segments, templateSegment{
-				Literal: "{{" + pos.expr + "}}",
-			})
-		} else {
-			segments = append(segments, templateSegment{
-				Matcher: matcher,
-			})
-		}
-
-		lastEnd = pos.end
-	}
-
-	if lastEnd < len(value) {
-		segments = append(segments, templateSegment{
-			Literal: value[lastEnd:],
-		})
-	}
-
-	return segments
+	return program.resolve(value)
 }

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -13,6 +14,23 @@ type htmlStringer string
 
 func (s htmlStringer) String() string {
 	return string(s)
+}
+
+type architectureHTMLExactMatcher struct {
+	want  string
+	calls *atomic.Int32
+}
+
+func (m architectureHTMLExactMatcher) Match(actual any) bool {
+	m.calls.Add(1)
+
+	value, ok := actual.(string)
+
+	return ok && value == m.want
+}
+
+func (m architectureHTMLExactMatcher) String() string {
+	return "{{architectureHTMLExact " + m.want + "}}"
 }
 
 func TestAssertHTML(t *testing.T) {
@@ -1054,21 +1072,146 @@ func TestAssertHTML_TemplateTextNormalizesWhitespace(t *testing.T) {
 	}
 }
 
-func TestAssertHTML_UnknownEmbeddedMatcherIsNotSilentlyDropped(t *testing.T) {
+func TestAssertHTML_UnknownEmbeddedMatcherIsFatalAndActionable(t *testing.T) {
 	t.Parallel()
 
-	// given: an attribute template referencing an unregistered matcher name
-	expectedFile := writeHTMLExpected(t, `<div id="id-{{definitelyNotARegisteredMatcher}}"></div>`)
+	expectedFile := writeHTMLExpected(t, "<div>\n  <span id=\"id-{{definitelyNotARegisteredMatcher}}\"></span>\n</div>")
 
 	mt := &mockT{}
 
-	// when: the actual value matches only the surrounding literal (the dropped region)
-	testastic.AssertHTML(mt, expectedFile, `<div id="id-"></div>`)
+	testastic.AssertHTML(mt, expectedFile, `<div><span id="id-value"></span></div>`)
 
-	// then: it fails instead of silently accepting the truncated pattern
-	if !mt.failed {
-		t.Error("expected an unknown embedded matcher to surface as a failure, not be silently dropped")
+	if !mt.fatal {
+		t.Error("expected an unknown embedded matcher to be fatal")
 	}
+
+	for _, part := range []string{
+		expectedFile,
+		"line 2",
+		"column 16",
+		`expression "definitelyNotARegisteredMatcher"`,
+		"RegisterMatcher",
+	} {
+		if !strings.Contains(mt.message, part) {
+			t.Errorf("expected message %q to contain %q", mt.message, part)
+		}
+	}
+}
+
+func TestAssertHTML_InvalidEmbeddedMatcherIsFatalAndActionable(t *testing.T) {
+	t.Parallel()
+
+	expectedFile := writeHTMLExpected(t, "<div>\n  {{regex `[`}}\n</div>")
+
+	mt := &mockT{}
+
+	testastic.AssertHTML(mt, expectedFile, `<div>anything</div>`)
+
+	if !mt.fatal {
+		t.Error("expected an invalid embedded matcher to be fatal")
+	}
+
+	for _, part := range []string{expectedFile, "line 2", "column 3", `expression "regex ` + "`" + `[` + "`" + `"`} {
+		if !strings.Contains(mt.message, part) {
+			t.Errorf("expected message %q to contain %q", mt.message, part)
+		}
+	}
+}
+
+func TestAssertHTML_EmbeddedCustomMatcherUsesSemanticResultOnce(t *testing.T) {
+	t.Parallel()
+
+	calls := &atomic.Int32{}
+
+	testastic.RegisterMatcher("architectureHTMLExact", func(arguments string) (testastic.Matcher, error) {
+		return architectureHTMLExactMatcher{want: arguments, calls: calls}, nil
+	})
+
+	expectedFile := writeHTMLExpected(t, `<div id="id-{{architectureHTMLExact ORD-123}}"></div>`)
+
+	rejected := &mockT{}
+	testastic.AssertHTML(rejected, expectedFile, `<div id="id-garbage"></div>`)
+
+	if !rejected.failed || rejected.fatal {
+		t.Errorf("expected a nonfatal semantic mismatch, got: %s", rejected.message)
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Errorf("Matcher.Match calls = %d, want 1", got)
+	}
+
+	calls.Store(0)
+
+	accepted := &mockT{}
+	testastic.AssertHTML(accepted, expectedFile, `<div id="id-ORD-123"></div>`)
+
+	if accepted.failed {
+		t.Errorf("expected the semantic matcher to accept, got: %s", accepted.message)
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Errorf("Matcher.Match calls = %d, want 1", got)
+	}
+}
+
+func TestAssertHTML_EmbeddedMatcherApprovedCorrections(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty capture follows matcher semantics", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeHTMLExpected(t, `<p>pre{{anyString}}post</p>`)
+
+		mt := &mockT{}
+
+		testastic.AssertHTML(mt, expectedFile, `<p>prepost</p>`)
+
+		if mt.failed {
+			t.Errorf("expected empty anyString capture to match, got: %s", mt.message)
+		}
+	})
+
+	t.Run("anchors apply to the captured value", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeHTMLExpected(t, "<p>pre{{regex `^abc$`}}post</p>")
+
+		mt := &mockT{}
+
+		testastic.AssertHTML(mt, expectedFile, `<p>preabcpost</p>`)
+
+		if mt.failed {
+			t.Errorf("expected capture-relative anchors to match, got: %s", mt.message)
+		}
+	})
+
+	t.Run("whitespace directive is fatal", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeHTMLExpected(t, `<p>{{ }}</p>`)
+
+		mt := &mockT{}
+
+		testastic.AssertHTML(mt, expectedFile, `<p>{{ }}</p>`)
+
+		if !mt.fatal {
+			t.Errorf("expected whitespace-only directive to be fatal, got: %s", mt.message)
+		}
+	})
+
+	t.Run("unclosed backtick directive is fatal", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeHTMLExpected(t, "<p>{{regex `unterminated}}</p>")
+
+		mt := &mockT{}
+
+		testastic.AssertHTML(mt, expectedFile, `<p>anything</p>`)
+
+		if !mt.fatal {
+			t.Errorf("expected unclosed backtick directive to be fatal, got: %s", mt.message)
+		}
+	})
 }
 
 func TestAssertHTML_MatcherInsideCommentIsResolved(t *testing.T) {

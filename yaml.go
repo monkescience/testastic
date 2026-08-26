@@ -176,7 +176,7 @@ func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML, 
 	}
 
 	mergedDocuments := make(yamlDocuments, len(actualDocuments))
-	multipleDocuments := len(expected.Documents) > 1 || len(actualDocuments) > 1
+	stream := newYAMLStreamContext(len(expected.Documents), len(actualDocuments), cfg)
 
 	for index, document := range actualDocuments {
 		var expectedDocument any
@@ -184,9 +184,13 @@ func updateExpectedYAMLFile(path string, actual []byte, expected *expectedYAML, 
 			expectedDocument = expected.Documents[index]
 		}
 
-		documentPath := yamlDocumentPath(index, multipleDocuments)
-		documentConfig := configForYAMLDocument(cfg, index, multipleDocuments)
-		mergedDocuments[index] = restoreYAMLMatchers(expectedDocument, document, documentPath, documentConfig)
+		documentContext := stream.document(index)
+		mergedDocuments[index] = restoreYAMLMatchers(
+			expectedDocument,
+			document,
+			documentContext.path,
+			documentContext.config,
+		)
 	}
 
 	formatted, err := renderYAMLDocuments(mergedDocuments)

@@ -1,15 +1,14 @@
 package testastic
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
-	"strings"
 )
 
 type expectedYAML struct {
 	Documents yamlDocuments
-	Matchers  map[string]string
 	Raw       string
 }
 
@@ -17,6 +16,38 @@ const yamlMatcherPlaceholderPrefix = "__TESTASTIC_YAML_MATCHER_"
 
 // yamlTemplateExprRegex matches {{...}} expressions in YAML.
 var yamlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
+
+type yamlMatcherPreparer struct{}
+
+func (yamlMatcherPreparer) prepare(source string) (preparedMatcherSource, error) {
+	sites := matcherSourceSites(
+		source,
+		matcherSourceRules{unclosedBacktickConsumes: true},
+		rawMatcherPlaceholder,
+	)
+	literalSource := substituteMatcherSourceSites(source, sites, "null")
+
+	documents, err := parseYAMLDocuments([]byte(literalSource))
+	if err != nil {
+		return preparedMatcherSource{}, err
+	}
+
+	literalValues := make(map[string]struct{})
+	for _, document := range documents {
+		collectStringValues(document, literalValues)
+	}
+
+	return preparedMatcherSource{
+		source:      source,
+		sites:       sites,
+		placeholder: yamlMatcherPlaceholderPrefix,
+		collides: func(candidate string) bool {
+			_, exists := literalValues[candidate]
+
+			return exists
+		},
+	}, nil
+}
 
 // parseExpectedYAMLFile reads and parses an expected YAML file, replacing template expressions with matchers.
 func parseExpectedYAMLFile(path string) (*expectedYAML, error) {
@@ -29,46 +60,27 @@ func parseExpectedYAMLFile(path string) (*expectedYAML, error) {
 }
 
 func parseExpectedYAMLString(content string) (*expectedYAML, error) {
-	literalContent := yamlTemplateExprRegex.ReplaceAllString(content, "null")
-
-	literalDocuments, err := parseYAMLDocuments([]byte(literalContent))
+	program, err := compileMatcherProgram(content, yamlMatcherPreparer{})
 	if err != nil {
+		compileErr, ok := errors.AsType[*matcherCompileError](err)
+		if ok {
+			return nil, fmt.Errorf("failed to parse matcher %q: %w", compileErr.expression, compileErr.cause)
+		}
+
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 
-	literalValues := make(map[string]struct{})
-	for _, document := range literalDocuments {
-		collectStringValues(document, literalValues)
-	}
+	expected := &expectedYAML{Raw: program.original}
 
-	expected := &expectedYAML{
-		Matchers: make(map[string]string),
-		Raw:      content,
-	}
-
-	matcherIndex := 0
-	processedContent := yamlTemplateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
-		expr := match
-		expr = strings.TrimPrefix(expr, "{{")
-		expr = strings.TrimSuffix(expr, "}}")
-		expr = trimSpace(expr)
-
-		placeholder, nextIndex := matcherPlaceholder(yamlMatcherPlaceholderPrefix, matcherIndex, literalValues)
-		matcherIndex = nextIndex
-		expected.Matchers[placeholder] = expr
-
-		return placeholder
-	})
-
-	documents, err := parseYAMLDocuments([]byte(processedContent))
+	documents, err := parseYAMLDocuments([]byte(program.sourceForParser()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected YAML: %w", err)
 	}
 
 	for index, document := range documents {
-		replaced, replaceErr := replaceYAMLPlaceholders(document, expected.Matchers)
-		if replaceErr != nil {
-			return nil, replaceErr
+		replaced, resolveErr := program.resolve(document)
+		if resolveErr != nil {
+			return nil, resolveErr
 		}
 
 		documents[index] = replaced
@@ -77,51 +89,4 @@ func parseExpectedYAMLString(content string) (*expectedYAML, error) {
 	expected.Documents = documents
 
 	return expected, nil
-}
-
-// replaceYAMLPlaceholders walks the parsed YAML and replaces placeholder strings with Matcher objects.
-func replaceYAMLPlaceholders(data any, matchers map[string]string) (any, error) {
-	switch v := data.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(v))
-		for key, val := range v {
-			replaced, err := replaceYAMLPlaceholders(val, matchers)
-			if err != nil {
-				return nil, err
-			}
-
-			result[key] = replaced
-		}
-
-		return result, nil
-
-	case []any:
-		result := make([]any, len(v))
-		for i, val := range v {
-			replaced, err := replaceYAMLPlaceholders(val, matchers)
-			if err != nil {
-				return nil, err
-			}
-
-			result[i] = replaced
-		}
-
-		return result, nil
-
-	case string:
-		expr, ok := matchers[v]
-		if !ok {
-			return v, nil
-		}
-
-		matcher, err := parseMatcher(expr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
-		}
-
-		return matcher, nil
-
-	default:
-		return v, nil
-	}
 }

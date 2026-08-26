@@ -94,18 +94,36 @@ func itoa(i int) string {
 // matchers. It returns an error if an expected line contains an invalid or
 // unknown matcher, which is caller misuse rather than a comparison result.
 func compareFileLinesWithMatchers(expected, actual []string) ([]difference, error) {
+	comparison, err := compareFileLinesWithMatcherReport(expected, actual)
+	if err != nil {
+		return nil, err
+	}
+
+	return comparison.differences, nil
+}
+
+type fileComparison struct {
+	differences     []difference
+	displayExpected []string
+}
+
+func compareFileLinesWithMatcherReport(expected, actual []string) (fileComparison, error) {
 	parsedLines := make([]*lineMatcher, len(expected))
 
 	for i, line := range expected {
 		parsed, err := parseLine(line)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", lineNumberPath(i+1), err)
+			return fileComparison{}, fmt.Errorf("%s: %w", lineNumberPath(i+1), err)
 		}
 
 		parsedLines[i] = parsed
 	}
 
 	var diffs []difference
+
+	displayExpected := make([]string, len(expected))
+
+	copy(displayExpected, expected)
 
 	maxLines := max(len(expected), len(actual))
 
@@ -126,11 +144,28 @@ func compareFileLinesWithMatchers(expected, actual []string) ([]difference, erro
 				Type:     diffRemoved,
 			})
 		default:
-			diffs = appendLineDiff(diffs, parsedLines[i], actual[i], i+1)
+			line := parsedLines[i]
+			if line.pattern == nil {
+				diffs = appendLineDiff(diffs, line, actual[i], i+1)
+
+				continue
+			}
+
+			verdict := line.embedded.match(actual[i])
+			displayExpected[i] = line.embedded.display(actual[i], verdict)
+
+			if !verdict.matched {
+				diffs = append(diffs, difference{
+					Path:     lineNumberPath(i + 1),
+					Expected: line.original,
+					Actual:   actual[i],
+					Type:     diffMatcherFailed,
+				})
+			}
 		}
 	}
 
-	return diffs, nil
+	return fileComparison{differences: diffs, displayExpected: displayExpected}, nil
 }
 
 func appendLineDiff(diffs []difference, expLine *lineMatcher, actLine string, lineNum int) []difference {
@@ -164,21 +199,9 @@ func appendLineDiff(diffs []difference, expLine *lineMatcher, actLine string, li
 // Running Match (not just the approximating regex) is what makes custom and
 // strict matchers actually validate the captured value.
 func lineMatches(line *lineMatcher, actLine string) bool {
-	submatches := line.pattern.FindStringSubmatch(actLine)
-	if submatches == nil {
+	if line.embedded == nil {
 		return false
 	}
 
-	if len(line.captureIndexes) != len(line.matchers) {
-		return false
-	}
-
-	for i, m := range line.matchers {
-		captureIndex := line.captureIndexes[i]
-		if captureIndex >= len(submatches) || !matchStringMatcher(m, submatches[captureIndex]) {
-			return false
-		}
-	}
-
-	return true
+	return line.embedded.match(actLine).matched
 }

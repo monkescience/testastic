@@ -7,7 +7,7 @@ import (
 
 // formatYAMLDiffInline generates a git-style inline diff between expected and actual YAML.
 func formatYAMLDiffInline(expected, actual yamlDocuments, cfg *config) string {
-	multipleDocuments := len(expected) > 1 || len(actual) > 1
+	stream := newYAMLStreamContext(len(expected), len(actual), cfg)
 	expClean := make(yamlDocuments, len(expected))
 
 	for index, document := range expected {
@@ -16,9 +16,13 @@ func formatYAMLDiffInline(expected, actual yamlDocuments, cfg *config) string {
 			actualDocument = actual[index]
 		}
 
-		path := yamlDocumentPath(index, multipleDocuments)
-		documentConfig := configForYAMLDocument(cfg, index, multipleDocuments)
-		expClean[index] = substituteMatchedMatchers(document, actualDocument, path, documentConfig)
+		documentContext := stream.document(index)
+		expClean[index] = substituteMatchedMatchers(
+			document,
+			actualDocument,
+			documentContext.path,
+			documentContext.config,
+		)
 	}
 
 	actClean := make(yamlDocuments, len(actual))

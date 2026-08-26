@@ -13,6 +13,39 @@ import (
 
 type yamlDocuments []any
 
+type yamlStreamContext struct {
+	multipleDocuments bool
+	base              *config
+}
+
+type yamlDocumentContext struct {
+	path   string
+	config *config
+}
+
+func newYAMLStreamContext(expectedCount, actualCount int, base *config) yamlStreamContext {
+	return yamlStreamContext{
+		multipleDocuments: expectedCount > 1 || actualCount > 1,
+		base:              base,
+	}
+}
+
+func (c yamlStreamContext) document(index int) yamlDocumentContext {
+	if !c.multipleDocuments {
+		return yamlDocumentContext{path: "$", config: c.base}
+	}
+
+	documentConfig := *c.base
+	documentPath := yamlDocumentPath(index, true)
+	documentConfig.IgnoreArrayOrderPaths = qualifyYAMLDocumentPaths(
+		c.base.IgnoreArrayOrderPaths,
+		documentPath,
+	)
+	documentConfig.IgnoredFields = qualifyYAMLDocumentPaths(c.base.IgnoredFields, documentPath)
+
+	return yamlDocumentContext{path: documentPath, config: &documentConfig}
+}
+
 func parseYAMLDocuments(data []byte) (yamlDocuments, error) {
 	tokens := preserveEmptyYAMLDocumentTokens(lexer.Tokenize(string(data)))
 
@@ -80,31 +113,33 @@ func emptyYAMLDocumentFollows(tokens token.Tokens) bool {
 }
 
 func compareYAMLDocuments(expected, actual yamlDocuments, cfg *config) []difference {
-	multipleDocuments := len(expected) > 1 || len(actual) > 1
+	stream := newYAMLStreamContext(len(expected), len(actual), cfg)
 
 	var diffs []difference
 
 	for index := range max(len(expected), len(actual)) {
-		path := yamlDocumentPath(index, multipleDocuments)
-		documentConfig := configForYAMLDocument(cfg, index, multipleDocuments)
+		document := stream.document(index)
 
 		switch {
 		case index >= len(expected):
 			diffs = append(diffs, difference{
-				Path:     path,
+				Path:     document.path,
 				Expected: nil,
 				Actual:   actual[index],
 				Type:     diffAdded,
 			})
 		case index >= len(actual):
 			diffs = append(diffs, difference{
-				Path:     path,
+				Path:     document.path,
 				Expected: expected[index],
 				Actual:   nil,
 				Type:     diffRemoved,
 			})
 		default:
-			diffs = append(diffs, compare(expected[index], actual[index], path, documentConfig)...)
+			diffs = append(
+				diffs,
+				compare(expected[index], actual[index], document.path, document.config)...,
+			)
 		}
 	}
 
@@ -117,19 +152,6 @@ func yamlDocumentPath(index int, multipleDocuments bool) string {
 	}
 
 	return fmt.Sprintf("$[%d]", index)
-}
-
-func configForYAMLDocument(cfg *config, index int, multipleDocuments bool) *config {
-	if !multipleDocuments {
-		return cfg
-	}
-
-	documentConfig := *cfg
-	documentPath := yamlDocumentPath(index, true)
-	documentConfig.IgnoreArrayOrderPaths = qualifyYAMLDocumentPaths(cfg.IgnoreArrayOrderPaths, documentPath)
-	documentConfig.IgnoredFields = qualifyYAMLDocumentPaths(cfg.IgnoredFields, documentPath)
-
-	return &documentConfig
 }
 
 func qualifyYAMLDocumentPaths(paths []string, documentPath string) []string {

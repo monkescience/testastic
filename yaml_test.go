@@ -400,6 +400,22 @@ data:
 		}
 	})
 
+	t.Run("whitespace-only matcher directive is fatal", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := filepath.Join(t.TempDir(), "expected.yaml")
+		err := os.WriteFile(expectedFile, []byte("value: {{ }}\n"), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		testastic.AssertYAML(mt, expectedFile, "value: anything\n")
+
+		if !mt.fatal {
+			t.Errorf("expected whitespace-only directive to be fatal, got: %s", mt.message)
+		}
+	})
+
 	t.Run("with regex matcher", func(t *testing.T) {
 		t.Parallel()
 

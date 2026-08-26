@@ -2,20 +2,13 @@ package testastic
 
 import (
 	"fmt"
-	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 )
 
 const maxTextDisplayLen = 30
 
 const nilDisplay = "(nil)"
-
-var (
-	htmlAnyIntRegex   = regexp.MustCompile(`^-?\d+$`)
-	htmlAnyFloatRegex = regexp.MustCompile(`^-?\d+\.?\d*$`)
-)
 
 type htmlDifference struct {
 	Path     string
@@ -156,20 +149,6 @@ func compareHTMLAttributes(expected, actual map[string]any, path string, cfg *co
 				diffs = append(diffs, htmlDifference{
 					Path:     attrPath,
 					Expected: m.String(),
-					Actual:   actStr,
-					Type:     diffMatcherFailed,
-				})
-			}
-
-			continue
-		}
-
-		if ts, ok := expVal.(templateString); ok {
-			actStr := getString(actVal)
-			if !ts.Match(actStr) {
-				diffs = append(diffs, htmlDifference{
-					Path:     attrPath,
-					Expected: ts.String(),
 					Actual:   actStr,
 					Type:     diffMatcherFailed,
 				})
@@ -397,10 +376,6 @@ func getTextContent(node *htmlNode) string {
 		return m.String()
 	}
 
-	if ts, ok := node.Text.(templateString); ok {
-		return ts.String()
-	}
-
 	return ""
 }
 
@@ -417,17 +392,13 @@ func getString(v any) string {
 		return m.String()
 	}
 
-	if ts, ok := v.(templateString); ok {
-		return ts.String()
-	}
-
 	return fmt.Sprintf("%v", v)
 }
 
-// compareHTMLTextMatcher handles an expected text node whose content is a
-// matcher or template. It returns handled=false when the expected node is not
-// a text matcher so the caller falls through to literal comparison. A text
-// matcher only applies to an actual text node, otherwise it is a type mismatch.
+// compareHTMLTextMatcher handles an expected text node whose content is a matcher.
+// It returns handled=false when the expected node is not a matcher so the caller
+// falls through to literal comparison. A text matcher only applies to an actual
+// text node, otherwise it is a type mismatch.
 func compareHTMLTextMatcher(expected, actual *htmlNode, path string, cfg *config) ([]htmlDifference, bool) {
 	if expected.Type != htmlText {
 		return nil, false
@@ -450,24 +421,11 @@ func compareHTMLTextMatcher(expected, actual *htmlNode, path string, cfg *config
 		return nil, true
 	}
 
-	if ts, ok := expected.Text.(templateString); ok {
-		if actual.Type != htmlText {
-			return htmlTypeMismatch(path, expected, actual), true
-		}
-
-		actualText := htmlActualText(actual, cfg)
-		if !ts.Match(actualText) {
-			return matcherFailedDiff(path, ts.String(), actualText), true
-		}
-
-		return nil, true
-	}
-
 	return nil, false
 }
 
-// compareHTMLCommentNode compares two comment nodes, resolving any matcher or
-// template embedded in the expected comment.
+// compareHTMLCommentNode compares two comment nodes, resolving any matcher embedded
+// in the expected comment.
 func compareHTMLCommentNode(expected, actual *htmlNode, path string, cfg *config) []htmlDifference {
 	if cfg.IgnoreComments {
 		return nil
@@ -481,15 +439,6 @@ func compareHTMLCommentNode(expected, actual *htmlNode, path string, cfg *config
 		actComment := getString(actual.Text)
 		if !matchStringMatcher(m, actComment) {
 			return matcherFailedDiff(path, m.String(), actComment)
-		}
-
-		return nil
-	}
-
-	if ts, ok := expected.Text.(templateString); ok {
-		actComment := getString(actual.Text)
-		if !ts.Match(actComment) {
-			return matcherFailedDiff(path, ts.String(), actComment)
 		}
 
 		return nil
@@ -539,23 +488,6 @@ func htmlActualText(node *htmlNode, cfg *config) string {
 	}
 
 	return text
-}
-
-func matchStringMatcher(m Matcher, actual string) bool {
-	if m.Match(actual) {
-		return true
-	}
-
-	switch m.(type) {
-	case anyIntMatcher:
-		return htmlAnyIntRegex.MatchString(actual)
-	case anyFloatMatcher:
-		return htmlAnyFloatRegex.MatchString(actual)
-	case anyBoolMatcher:
-		return actual == strconv.FormatBool(true) || actual == strconv.FormatBool(false)
-	default:
-		return false
-	}
 }
 
 func formatAttrValue(v any) string {

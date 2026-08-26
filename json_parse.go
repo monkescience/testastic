@@ -8,16 +8,15 @@ import (
 	"io"
 	"os"
 	"regexp"
-	"strings"
+	"strconv"
 )
 
 // errJSONTrailingContent is returned when JSON contains more than one top-level value.
 var errJSONTrailingContent = errors.New("trailing content after top-level JSON value")
 
 type expectedJSON struct {
-	Data     any               // Parsed JSON with Matcher objects in place of template expressions
-	Matchers map[string]string // Map of placeholder to original template expression
-	Raw      string            // Original file content for update operations
+	Data any    // Parsed JSON with Matcher objects in place of template expressions
+	Raw  string // Original file content for update operations
 }
 
 const jsonMatcherPlaceholderPrefix = "__TESTASTIC_MATCHER_"
@@ -26,6 +25,36 @@ const jsonMatcherPlaceholderPrefix = "__TESTASTIC_MATCHER_"
 var jsonTemplateExprRegex = regexp.MustCompile(
 	`"?\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}"?`,
 )
+
+type jsonMatcherPreparer struct{}
+
+func (jsonMatcherPreparer) prepare(source string) (preparedMatcherSource, error) {
+	sites := matcherSourceSites(source, matcherSourceRules{
+		includeWholeQuotes:       true,
+		unclosedBacktickConsumes: true,
+	}, strconv.Quote)
+	literalSource := substituteMatcherSourceSites(source, sites, "null")
+
+	var literalData any
+
+	err := decodeJSON([]byte(literalSource), &literalData)
+	if err != nil {
+		return preparedMatcherSource{}, err
+	}
+
+	literalValues := stringValues(literalData)
+
+	return preparedMatcherSource{
+		source:      source,
+		sites:       sites,
+		placeholder: jsonMatcherPlaceholderPrefix,
+		collides: func(candidate string) bool {
+			_, exists := literalValues[candidate]
+
+			return exists
+		},
+	}, nil
+}
 
 // parseExpectedJSONFile reads and parses an expected file, replacing template expressions with matchers.
 func parseExpectedJSONFile(path string) (*expectedJSON, error) {
@@ -38,53 +67,26 @@ func parseExpectedJSONFile(path string) (*expectedJSON, error) {
 }
 
 func parseExpectedJSONString(content string) (*expectedJSON, error) {
-	literalContent := jsonTemplateExprRegex.ReplaceAllString(content, "null")
-
-	var literalData any
-
-	err := decodeJSON([]byte(literalContent), &literalData)
+	program, err := compileMatcherProgram(content, jsonMatcherPreparer{})
 	if err != nil {
+		compileErr, ok := errors.AsType[*matcherCompileError](err)
+		if ok {
+			return nil, fmt.Errorf("failed to parse matcher %q: %w", compileErr.expression, compileErr.cause)
+		}
+
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
 
-	literalValues := stringValues(literalData)
-	expected := &expectedJSON{
-		Matchers: make(map[string]string),
-		Raw:      content,
-	}
-
-	matcherIndex := 0
-	processedContent := jsonTemplateExprRegex.ReplaceAllStringFunc(content, func(match string) string {
-		expr := match
-
-		// Strip surrounding quotes if the expression was quoted in JSON.
-		if strings.HasPrefix(expr, `"{{`) {
-			expr = strings.TrimPrefix(expr, `"`)
-		}
-
-		if strings.HasSuffix(expr, `}}"`) {
-			expr = strings.TrimSuffix(expr, `"`)
-		}
-
-		expr = strings.TrimPrefix(expr, "{{")
-		expr = strings.TrimSuffix(expr, "}}")
-		expr = trimSpace(expr)
-
-		placeholder, nextIndex := matcherPlaceholder(jsonMatcherPlaceholderPrefix, matcherIndex, literalValues)
-		matcherIndex = nextIndex
-		expected.Matchers[placeholder] = expr
-
-		return fmt.Sprintf(`"%s"`, placeholder)
-	})
+	expected := &expectedJSON{Raw: program.original}
 
 	var data any
 
-	err = decodeJSON([]byte(processedContent), &data)
+	err = decodeJSON([]byte(program.sourceForParser()), &data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse expected file as JSON: %w", err)
 	}
 
-	replaced, err := replaceJSONPlaceholders(data, expected.Matchers)
+	replaced, err := program.resolve(data)
 	if err != nil {
 		return nil, err
 	}
@@ -115,53 +117,6 @@ func decodeJSON(data []byte, target *any) error {
 	}
 
 	return errJSONTrailingContent
-}
-
-// replaceJSONPlaceholders walks the parsed JSON and replaces placeholder strings with Matcher objects.
-func replaceJSONPlaceholders(data any, matchers map[string]string) (any, error) {
-	switch v := data.(type) {
-	case map[string]any:
-		result := make(map[string]any, len(v))
-		for key, val := range v {
-			replaced, err := replaceJSONPlaceholders(val, matchers)
-			if err != nil {
-				return nil, err
-			}
-
-			result[key] = replaced
-		}
-
-		return result, nil
-
-	case []any:
-		result := make([]any, len(v))
-		for i, val := range v {
-			replaced, err := replaceJSONPlaceholders(val, matchers)
-			if err != nil {
-				return nil, err
-			}
-
-			result[i] = replaced
-		}
-
-		return result, nil
-
-	case string:
-		expr, ok := matchers[v]
-		if !ok {
-			return v, nil
-		}
-
-		matcher, err := parseMatcher(expr)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse matcher %q: %w", expr, err)
-		}
-
-		return matcher, nil
-
-	default:
-		return v, nil
-	}
 }
 
 // extractMatcherPositions returns a map of JSON paths to their original template expressions.

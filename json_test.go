@@ -142,6 +142,22 @@ func TestAssertJSON(t *testing.T) {
 		}
 	})
 
+	t.Run("whitespace-only matcher directive is fatal", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := filepath.Join(t.TempDir(), "expected.json")
+		err := os.WriteFile(expectedFile, []byte(`{"value":"{{ }}"}`), 0o600)
+		testastic.NoError(t, err)
+
+		mt := &mockT{}
+
+		testastic.AssertJSON(mt, expectedFile, `{"value":"anything"}`)
+
+		if !mt.fatal {
+			t.Errorf("expected whitespace-only directive to be fatal, got: %s", mt.message)
+		}
+	})
+
 	t.Run("with anyInt matcher", func(t *testing.T) {
 		t.Parallel()
 

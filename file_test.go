@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/monkescience/testastic"
@@ -260,6 +261,20 @@ func (auditOrderIDMatcher) Match(actual any) bool {
 
 func (auditOrderIDMatcher) String() string { return "{{auditOrderID}}" }
 
+type architectureRejectTextMatcher struct {
+	calls *atomic.Int32
+}
+
+func (m architectureRejectTextMatcher) Match(any) bool {
+	m.calls.Add(1)
+
+	return false
+}
+
+func (architectureRejectTextMatcher) String() string {
+	return "{{architectureRejectText}}"
+}
+
 func writeFileExpected(t *testing.T, content string) string {
 	t.Helper()
 
@@ -364,22 +379,93 @@ func TestAssertFile_QuotedRegexWithBraceQuantifier(t *testing.T) {
 	}
 }
 
-func TestAssertFile_WhitespaceOnlyDirectiveIsLiteral(t *testing.T) {
+func TestAssertFile_WhitespaceOnlyDirectiveIsFatal(t *testing.T) {
 	t.Parallel()
 
-	// given: a line that literally contains empty braces
 	line := "Template uses {{ }} for interpolation"
 	expectedFile := writeFileExpected(t, line)
 
 	mt := &mockT{}
 
-	// when: comparing against the identical line
 	testastic.AssertFile(mt, expectedFile, line)
 
-	// then: the empty braces are treated as literal text, not a failed matcher
-	if mt.failed {
-		t.Errorf("expected empty braces to compare literally, got: %s", mt.message)
+	if !mt.fatal {
+		t.Errorf("expected whitespace-only directive to be fatal, got: %s", mt.message)
 	}
+}
+
+func TestAssertFile_FailureDisplayReusesSemanticVerdict(t *testing.T) {
+	t.Parallel()
+
+	calls := &atomic.Int32{}
+
+	testastic.RegisterMatcher("architectureRejectText", func(string) (testastic.Matcher, error) {
+		return architectureRejectTextMatcher{calls: calls}, nil
+	})
+
+	expectedFile := writeFileExpected(t, "id: {{architectureRejectText}}")
+
+	mt := &mockT{}
+
+	testastic.AssertFile(mt, expectedFile, "id: garbage")
+
+	if !mt.failed || mt.fatal {
+		t.Errorf("expected a nonfatal semantic mismatch, got: %s", mt.message)
+	}
+
+	if !strings.Contains(mt.message, "{{architectureRejectText}}") {
+		t.Errorf("expected matcher evidence in failure display, got: %s", mt.message)
+	}
+
+	if got := calls.Load(); got != 1 {
+		t.Errorf("Matcher.Match calls = %d, want 1", got)
+	}
+}
+
+func TestAssertFile_EmbeddedMatcherApprovedCorrections(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty capture follows matcher semantics", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeFileExpected(t, "pre{{anyString}}post")
+
+		mt := &mockT{}
+
+		testastic.AssertFile(mt, expectedFile, "prepost")
+
+		if mt.failed {
+			t.Errorf("expected empty anyString capture to match, got: %s", mt.message)
+		}
+	})
+
+	t.Run("empty regex round trips", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeFileExpected(t, "pre{{regex ``}}post")
+
+		mt := &mockT{}
+
+		testastic.AssertFile(mt, expectedFile, "prepost")
+
+		if mt.failed {
+			t.Errorf("expected empty regex to round trip, got: %s", mt.message)
+		}
+	})
+
+	t.Run("anchored regex matches literal template braces", func(t *testing.T) {
+		t.Parallel()
+
+		expectedFile := writeFileExpected(t, `{{regex `+"`"+`^\{\{ \}\}$`+"`"+`}}`)
+
+		mt := &mockT{}
+
+		testastic.AssertFile(mt, expectedFile, "{{ }}")
+
+		if mt.failed {
+			t.Errorf("expected anchored regex to match literal braces, got: %s", mt.message)
+		}
+	})
 }
 
 func TestAssertFile_InvalidMatcherIsFatalWithMessage(t *testing.T) {

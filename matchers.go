@@ -474,13 +474,13 @@ func parseMatcher(expr string) (Matcher, error) {
 	}
 
 	if len(expr) > 6 && expr[:6] == "regex " {
-		pattern := extractBacktickArg(expr[6:])
-		if pattern != "" {
+		pattern, ok := extractBacktickArgValue(expr[6:])
+		if ok {
 			return Regex(pattern)
 		}
 
-		pattern = extractQuotedArg(expr[6:])
-		if pattern != "" {
+		pattern, ok = extractQuotedArgValue(expr[6:])
+		if ok {
 			return Regex(pattern)
 		}
 
@@ -499,33 +499,33 @@ func parseMatcher(expr string) (Matcher, error) {
 	return nil, fmt.Errorf("unknown matcher expression %q: %w", expr, errUnknownMatcher)
 }
 
-func extractBacktickArg(s string) string {
+func extractBacktickArgValue(s string) (string, bool) {
 	s = trimSpace(s)
 	if len(s) >= 2 && s[0] == '`' {
 		end := indexOf(s[1:], '`')
 		if end >= 0 {
-			return s[1 : end+1]
+			return s[1 : end+1], true
 		}
 	}
 
-	return ""
+	return "", false
 }
 
-func extractQuotedArg(s string) string {
-	s = trimSpace(s)
+func extractQuotedArgValue(s string) (string, bool) {
+	s = normalizeQuotedMatcherSyntax(s)
 	if len(s) >= 2 && s[0] == '"' {
-		end := indexOf(s[1:], '"')
+		end := quotedMatcherEnd(s)
 		if end >= 0 {
-			unquoted, err := strconv.Unquote(s[:end+2])
+			unquoted, err := strconv.Unquote(s[:end+1])
 			if err == nil {
-				return unquoted
+				return unquoted, true
 			}
 
-			return s[1 : end+1]
+			return s[1:end], true
 		}
 	}
 
-	return ""
+	return "", false
 }
 
 // extractQuotedArgs extracts multiple quoted strings.
@@ -533,31 +533,56 @@ func extractQuotedArg(s string) string {
 func extractQuotedArgs(s string) []any {
 	var result []any
 
-	s = trimSpace(s)
-
-	// Handle JSON-escaped quotes: \" or \\"
-	if strings.Contains(s, `\"`) || strings.Contains(s, `\\"`) {
-		s = strings.ReplaceAll(s, `\\"`, `"`)
-		s = strings.ReplaceAll(s, `\"`, `"`)
-	}
+	s = normalizeQuotedMatcherSyntax(s)
 
 	for len(s) > 0 && s[0] == '"' {
-		end := indexOf(s[1:], '"')
+		end := quotedMatcherEnd(s)
 		if end < 0 {
 			break
 		}
 
-		unquoted, err := strconv.Unquote(s[:end+2])
+		unquoted, err := strconv.Unquote(s[:end+1])
 		if err == nil {
 			result = append(result, unquoted)
 		} else {
-			result = append(result, s[1:end+1])
+			result = append(result, s[1:end])
 		}
 
-		s = trimSpace(s[end+2:])
+		s = trimSpace(s[end+1:])
 	}
 
 	return result
+}
+
+func normalizeQuotedMatcherSyntax(s string) string {
+	s = trimSpace(s)
+	if !strings.HasPrefix(s, `\"`) {
+		return s
+	}
+
+	unquoted, err := strconv.Unquote(`"` + s + `"`)
+	if err != nil {
+		return s
+	}
+
+	return unquoted
+}
+
+func quotedMatcherEnd(s string) int {
+	escaped := false
+
+	for index := 1; index < len(s); index++ {
+		switch {
+		case escaped:
+			escaped = false
+		case s[index] == '\\':
+			escaped = true
+		case s[index] == '"':
+			return index
+		}
+	}
+
+	return -1
 }
 
 func trimSpace(s string) string {
