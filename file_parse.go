@@ -15,13 +15,6 @@ type lineMatcher struct {
 	embedded       *embeddedMatcher
 }
 
-// fileExprRegex matches {{...}} expressions in text (without JSON quote handling).
-// The backtick and double-quote alternatives let a quoted/backticked argument
-// contain } (e.g. a {n} regex quantifier) without prematurely closing the {{}}.
-var fileExprRegex = regexp.MustCompile(
-	`\{\{((?:[^}` + "`" + `"]+|` + "`" + `[^` + "`" + `]*` + "`" + `|"[^"]*")+)\}\}`,
-)
-
 type fileMatcherPreparer struct{}
 
 func (fileMatcherPreparer) prepare(source string) (preparedMatcherSource, error) {

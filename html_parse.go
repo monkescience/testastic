@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 
 	"golang.org/x/net/html"
@@ -38,11 +37,6 @@ const htmlMatcherPlaceholderPrefix = "__TESTASTIC_HTML_MATCHER_"
 
 // htmlDocumentTag is the synthetic tag for the document root node.
 const htmlDocumentTag = "#document"
-
-// htmlTemplateExprRegex matches {{...}} expressions in HTML.
-// Handles backtick-quoted content that may contain } characters.
-// Effective pattern: \{\{((?:[^}`]+|`[^`]*`)+)\}\}.
-var htmlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
 
 type htmlMatcherPreparer struct{}
 

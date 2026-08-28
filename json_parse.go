@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
 	"strconv"
 )
 
@@ -20,11 +19,6 @@ type expectedJSON struct {
 }
 
 const jsonMatcherPlaceholderPrefix = "__TESTASTIC_MATCHER_"
-
-// jsonTemplateExprRegex matches {{...}} expressions.
-var jsonTemplateExprRegex = regexp.MustCompile(
-	`"?\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}"?`,
-)
 
 type jsonMatcherPreparer struct{}
 

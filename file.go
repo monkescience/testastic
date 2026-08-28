@@ -114,25 +114,3 @@ func splitLines(content string) []string {
 
 	return strings.Split(content, "\n")
 }
-
-func formatFileDiff(expected, actual []string, diffs []difference) string {
-	if len(diffs) == 0 {
-		return ""
-	}
-
-	matcherAwareExpected := make([]string, len(expected))
-	copy(matcherAwareExpected, expected)
-
-	differencePaths := make(map[string]struct{}, len(diffs))
-	for _, diff := range diffs {
-		differencePaths[diff.Path] = struct{}{}
-	}
-
-	for idx := range min(len(expected), len(actual)) {
-		if _, differs := differencePaths[lineNumberPath(idx+1)]; !differs {
-			matcherAwareExpected[idx] = actual[idx]
-		}
-	}
-
-	return formatFileDiffInline(matcherAwareExpected, actual)
-}

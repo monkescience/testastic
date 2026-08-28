@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"regexp"
 )
 
 type expectedYAML struct {
@@ -13,9 +12,6 @@ type expectedYAML struct {
 }
 
 const yamlMatcherPlaceholderPrefix = "__TESTASTIC_YAML_MATCHER_"
-
-// yamlTemplateExprRegex matches {{...}} expressions in YAML.
-var yamlTemplateExprRegex = regexp.MustCompile(`\{\{((?:[^}` + "`" + `]+|` + "`" + `[^` + "`" + `]*` + "`" + `)+)\}\}`)
 
 type yamlMatcherPreparer struct{}
 
