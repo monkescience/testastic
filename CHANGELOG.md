@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.4.5](https://github.com/monkescience/testastic/compare/v0.4.4...v0.4.5) (2026-08-28)
+
+### Bug Fixes
+
+- remove obsolete matcher code ([b009ad1](https://github.com/monkescience/testastic/commit/b009ad12d3f6b215e0e22d615620526a28aab1a2))
+
 ## [v0.4.4](https://github.com/monkescience/testastic/compare/v0.4.3...v0.4.4) (2026-08-25)
 
 ### Bug Fixes
