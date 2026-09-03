@@ -7,6 +7,7 @@ import (
 	"math/big"
 	"reflect"
 	"regexp"
+	"slices"
 	"strconv"
 )
 
@@ -242,28 +243,45 @@ type unorderedMatchResult struct {
 // findUnorderedMatches finds a maximum matching between expected and actual slices.
 func findUnorderedMatches[T any](expected, actual []T, matches func(expIdx int, act T) bool) unorderedMatchResult {
 	result := unorderedMatchResult{
-		expectedByActual: make([]int, len(actual)),
+		expectedByActual: newUnmatchedIndices(len(actual)),
+	}
+	expectedMatch := newUnmatchedIndices(len(expected))
+	distance := make([]int, len(expected))
+	nextActual := make([]int, len(expected))
+	queue := make([]int, 0, len(expected))
+	stack := make([]int, 0, len(expected))
+	isMatch := func(expIdx, actIdx int) bool {
+		return matches(expIdx, actual[actIdx])
 	}
 
-	for i := range result.expectedByActual {
-		result.expectedByActual[i] = -1
-	}
+	for {
+		shortestPath := findUnorderedMatchDistances(
+			expectedMatch, result.expectedByActual, distance, &queue, isMatch,
+		)
+		if shortestPath < 0 {
+			break
+		}
 
-	for i := range expected {
-		seen := make([]bool, len(actual))
-		_ = assignUnorderedMatch(i, actual, matches, result.expectedByActual, seen)
-	}
+		clear(nextActual)
 
-	expectedMatched := make([]bool, len(expected))
-
-	for _, expIdx := range result.expectedByActual {
-		if expIdx >= 0 {
-			expectedMatched[expIdx] = true
+		for expIdx, actIdx := range expectedMatch {
+			if actIdx < 0 {
+				assignUnorderedMatch(
+					expIdx,
+					shortestPath,
+					expectedMatch,
+					result.expectedByActual,
+					distance,
+					nextActual,
+					&stack,
+					isMatch,
+				)
+			}
 		}
 	}
 
-	for i, matched := range expectedMatched {
-		if !matched {
+	for i, actIdx := range expectedMatch {
+		if actIdx < 0 {
 			result.unmatchedExpected = append(result.unmatchedExpected, i)
 		}
 	}
@@ -277,29 +295,116 @@ func findUnorderedMatches[T any](expected, actual []T, matches func(expIdx int, 
 	return result
 }
 
-func assignUnorderedMatch[T any](
-	expIdx int,
-	actual []T,
-	matches func(expIdx int, act T) bool,
-	expectedByActual []int,
-	seen []bool,
-) bool {
-	for j, act := range actual {
-		if seen[j] || !matches(expIdx, act) {
-			continue
-		}
+func newUnmatchedIndices(size int) []int {
+	indices := make([]int, size)
+	for i := range indices {
+		indices[i] = -1
+	}
 
-		seen[j] = true
+	return indices
+}
 
-		if expectedByActual[j] < 0 ||
-			assignUnorderedMatch(expectedByActual[j], actual, matches, expectedByActual, seen) {
-			expectedByActual[j] = expIdx
+func findUnorderedMatchDistances(
+	expectedMatch, expectedByActual, distance []int,
+	queue *[]int,
+	matches func(expIdx, actIdx int) bool,
+) int {
+	*queue = (*queue)[:0]
 
-			return true
+	for expIdx, actIdx := range expectedMatch {
+		distance[expIdx] = -1
+		if actIdx < 0 {
+			distance[expIdx] = 0
+			*queue = append(*queue, expIdx)
 		}
 	}
 
-	return false
+	shortestPath := -1
+
+	//nolint:intrange // The queue grows during traversal.
+	for head := 0; head < len(*queue); head++ {
+		expIdx := (*queue)[head]
+		nextDistance := distance[expIdx] + 1
+
+		for actIdx := range expectedByActual {
+			if !matches(expIdx, actIdx) {
+				continue
+			}
+
+			matchedExpIdx := expectedByActual[actIdx]
+			if matchedExpIdx < 0 {
+				if shortestPath < 0 {
+					shortestPath = nextDistance
+				}
+
+				continue
+			}
+
+			if shortestPath >= 0 && nextDistance >= shortestPath {
+				continue
+			}
+
+			if distance[matchedExpIdx] < 0 {
+				distance[matchedExpIdx] = nextDistance
+				*queue = append(*queue, matchedExpIdx)
+			}
+		}
+	}
+
+	return shortestPath
+}
+
+func assignUnorderedMatch(
+	root, shortestPath int,
+	expectedMatch, expectedByActual, distance, nextActual []int,
+	stack *[]int,
+	matches func(expIdx, actIdx int) bool,
+) {
+	*stack = append((*stack)[:0], root)
+
+	for len(*stack) > 0 {
+		expIdx := (*stack)[len(*stack)-1]
+		advanced := false
+
+		for nextActual[expIdx] < len(expectedByActual) {
+			actIdx := nextActual[expIdx]
+			nextActual[expIdx]++
+
+			if !matches(expIdx, actIdx) {
+				continue
+			}
+
+			matchedExpIdx := expectedByActual[actIdx]
+			if matchedExpIdx < 0 {
+				if distance[expIdx]+1 != shortestPath {
+					continue
+				}
+
+				for _, pathExpIdx := range slices.Backward(*stack) {
+					previousActIdx := expectedMatch[pathExpIdx]
+					expectedMatch[pathExpIdx] = actIdx
+					expectedByActual[actIdx] = pathExpIdx
+					actIdx = previousActIdx
+				}
+
+				return
+			}
+
+			if distance[matchedExpIdx] != distance[expIdx]+1 {
+				continue
+			}
+
+			*stack = append(*stack, matchedExpIdx)
+			advanced = true
+
+			break
+		}
+
+		if !advanced {
+			distance[expIdx] = -1
+			*stack = (*stack)[:len(*stack)-1]
+		}
+	}
 }
 
 func compareArraysUnordered(expected, actual []any, path string, cfg *config) []difference {
