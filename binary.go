@@ -14,11 +14,7 @@ import (
 	"time"
 )
 
-const (
-	defaultRunTimeout      = 30 * time.Second
-	maxRunOutputBytes      = 1 << 20
-	runOutputTruncatedMark = "\n...[output truncated after 1048576 bytes]"
-)
+const defaultRunTimeout = 30 * time.Second
 
 var errBuildBinaryRequiresImportPath = errors.New("BuildBinary requires importPath")
 
@@ -39,35 +35,6 @@ type RunResult struct {
 	Stdout   string
 	Stderr   string
 	ExitCode int
-}
-
-type runOutput struct {
-	buf       strings.Builder
-	truncated bool
-}
-
-var _ io.Writer = (*runOutput)(nil)
-
-func (o *runOutput) Write(p []byte) (int, error) {
-	if o.truncated {
-		return len(p), nil
-	}
-
-	remaining := maxRunOutputBytes - o.buf.Len()
-	if remaining > 0 {
-		_, _ = o.buf.Write(p[:min(len(p), remaining)])
-	}
-
-	if len(p) > remaining {
-		_, _ = o.buf.WriteString(runOutputTruncatedMark)
-		o.truncated = true
-	}
-
-	return len(p), nil
-}
-
-func (o *runOutput) String() string {
-	return o.buf.String()
 }
 
 // RunOption configures optional behavior for a single [Binary.Run] invocation.
@@ -173,6 +140,8 @@ func (b *Binary) Cleanup() {
 }
 
 // Start launches the binary as a long-running process and waits for readiness.
+// It captures up to 1 MiB each of stdout and stderr for failure diagnostics.
+// Output beyond that limit is replaced with a truncation marker.
 func (b *Binary) Start(
 	ctx context.Context, tb testing.TB,
 	readyCheck ReadyChecker, opts ...ProcessOption,
@@ -223,8 +192,8 @@ func (b *Binary) RunWithOptions(tb testing.TB, args []string, opts ...RunOption)
 	ctx, cancel := context.WithTimeout(baseCtx, cfg.timeout)
 	defer cancel()
 
-	stdout := &runOutput{}
-	stderr := &runOutput{}
+	stdout := &capturedOutput{}
+	stderr := &capturedOutput{}
 	coverDir := setupCoverDir(tb, "")
 
 	cmd := exec.CommandContext(ctx, b.path, args...) //nolint:gosec // args are from test config

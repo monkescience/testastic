@@ -6,10 +6,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -82,6 +85,18 @@ func main() {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	})
+	mux.HandleFunc("GET /emit", func(w http.ResponseWriter, _ *http.Request) {
+		outputBytes, err := strconv.Atoi(os.Getenv("OUTPUT_BYTES"))
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+
+			return
+		}
+
+		writeOutput(os.Stdout, outputBytes)
+		writeOutput(os.Stderr, outputBytes)
+		w.WriteHeader(http.StatusNoContent)
+	})
 
 	server := &http.Server{
 		Addr:              net.JoinHostPort("127.0.0.1", port),
@@ -108,5 +123,15 @@ func main() {
 	err := server.Shutdown(shutdownCtx)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "shutdown error: %v\n", err)
+	}
+}
+
+func writeOutput(w io.Writer, size int) {
+	const chunkSize = 4096
+
+	chunk := strings.Repeat("x", chunkSize)
+	for size > 0 {
+		written, _ := io.WriteString(w, chunk[:min(size, chunkSize)])
+		size -= written
 	}
 }

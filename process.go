@@ -1,10 +1,8 @@
 package testastic
 
 import (
-	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -23,37 +21,6 @@ const (
 	defaultShutdownTimeout = 5 * time.Second
 	httpCheckTimeout       = 1 * time.Second
 )
-
-// syncBuffer is a thread-safe wrapper around bytes.Buffer that implements
-// io.Writer. It allows os/exec pipe goroutines to write concurrently while
-// other goroutines read via String().
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-var _ io.Writer = (*syncBuffer)(nil)
-
-func (b *syncBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.buf.Write(p) //nolint:wrapcheck // internal type, wrapping adds no value
-}
-
-func (b *syncBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.buf.String()
-}
-
-func (b *syncBuffer) Len() int {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	return b.buf.Len()
-}
 
 // ReadyChecker determines whether a process is ready to accept work.
 // Implementations are polled repeatedly by [Binary.Start] until they return
@@ -261,8 +228,8 @@ type Process struct {
 	cancel   context.CancelFunc
 	baseURL  string
 	coverDir string
-	stdout   *syncBuffer
-	stderr   *syncBuffer
+	stdout   *capturedOutput
+	stderr   *capturedOutput
 	exited   chan struct{}
 	mu       sync.Mutex
 	stopped  bool
@@ -316,8 +283,8 @@ func startProcess(ctx context.Context, tb testing.TB, cfg *processConfig) *Proce
 		cancel:   cancel,
 		baseURL:  formatBaseURL(cfg.port),
 		coverDir: coverDir,
-		stdout:   &syncBuffer{},
-		stderr:   &syncBuffer{},
+		stdout:   &capturedOutput{},
+		stderr:   &capturedOutput{},
 		exited:   make(chan struct{}),
 	}
 

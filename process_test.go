@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -28,6 +29,7 @@ type processMockT struct {
 	failed   bool
 	fatal    bool
 	message  string
+	logs     []string
 	cleanups []func()
 	tempDirs []string
 }
@@ -59,7 +61,12 @@ func (m *processMockT) Errorf(format string, args ...any) {
 	m.message = fmt.Sprintf(format, args...)
 }
 
-func (m *processMockT) Logf(string, ...any) {}
+func (m *processMockT) Logf(format string, args ...any) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	m.logs = append(m.logs, fmt.Sprintf(format, args...))
+}
 
 func (m *processMockT) Log(...any) {}
 
@@ -112,6 +119,13 @@ func (m *processMockT) result() (bool, string) {
 	defer m.mu.Unlock()
 
 	return m.fatal, m.message
+}
+
+func (m *processMockT) loggedOutput() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	return strings.Join(m.logs, "\n")
 }
 
 // runExpectingFatal runs fn in a separate goroutine so that runtime.Goexit
@@ -176,6 +190,37 @@ func TestBinaryStart(t *testing.T) {
 		// then: the response matches the expected JSON
 		testastic.Equal(t, http.StatusOK, resp.StatusCode)
 		testastic.AssertJSON(t, "testdata/service_data.expected.json", resp.Body)
+	})
+
+	t.Run("bounds stdout and stderr captured after readiness", func(t *testing.T) {
+		// given: a running service configured to emit more than the per-stream capture limit
+		const (
+			captureBytes     = 1 << 20
+			truncationMarker = "\n...[output truncated after 1048576 bytes]"
+		)
+
+		port := nextPort()
+		binary := testastic.BuildBinary(t, "./testdata/testservice")
+
+		mt := newProcessMockT()
+		defer mt.cleanup()
+
+		proc := binary.Start(t.Context(), mt,
+			testastic.HTTPCheck(port, "/health"),
+			testastic.WithPort(port),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "OUTPUT_BYTES=2097152"),
+		)
+
+		// when: the ready service emits large output and failed-test cleanup logs it
+		resp := doGet(t, proc.URL()+"/emit")
+		resp.Body.Close() //nolint:errcheck // test cleanup
+		mt.Errorf("force process output logging")
+		proc.Stop()
+
+		// then: both captured streams are bounded and report truncation
+		output := mt.loggedOutput()
+		testastic.Equal(t, 2, strings.Count(output, truncationMarker))
+		testastic.True(t, len(output) < 2*(captureBytes+len(truncationMarker))+256)
 	})
 
 	t.Run("collects coverage data", func(t *testing.T) {
