@@ -51,6 +51,24 @@ func TestBinaryRun(t *testing.T) {
 		testastic.Equal(t, "binary failure output", result.Stderr)
 	})
 
+	t.Run("truncates large stdout and stderr", func(t *testing.T) {
+		// given: a CLI command that writes more than the per-stream capture limit
+		const (
+			captureBytes     = 1 << 20
+			truncationMarker = "\n...[output truncated after 1048576 bytes]"
+		)
+
+		// when: running the command successfully
+		result := testCLI.Run(t, "large-output", "both", "2097152")
+
+		// then: each captured stream is bounded and reports truncation
+		testastic.Equal(t, 0, result.ExitCode)
+		testastic.Equal(t, captureBytes+len(truncationMarker), len(result.Stdout))
+		testastic.Equal(t, captureBytes+len(truncationMarker), len(result.Stderr))
+		testastic.HasSuffix(t, result.Stdout, truncationMarker)
+		testastic.HasSuffix(t, result.Stderr, truncationMarker)
+	})
+
 	t.Run("passes stdin to the process", func(t *testing.T) {
 		// given: a CLI command that reads from stdin
 		input := strings.NewReader("stdin payload")

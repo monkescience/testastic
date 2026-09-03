@@ -27,6 +27,31 @@ func main() {
 
 		fmt.Fprint(os.Stderr, os.Args[3])
 		os.Exit(exitCode)
+	case "large-output":
+		count, err := strconv.Atoi(os.Args[3])
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "invalid byte count: %v", err)
+			os.Exit(2)
+		}
+
+		output := io.Discard
+		switch os.Args[2] {
+		case "stdout":
+			output = os.Stdout
+		case "stderr":
+			output = os.Stderr
+		case "both":
+			output = io.MultiWriter(os.Stdout, os.Stderr)
+		default:
+			fmt.Fprintf(os.Stderr, "invalid output stream: %s", os.Args[2])
+			os.Exit(2)
+		}
+
+		_, err = io.CopyN(output, zeroReader{}, int64(count))
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "write output: %v", err)
+			os.Exit(1)
+		}
 	case "stdin":
 		_, err := io.Copy(os.Stdout, os.Stdin)
 		if err != nil {
@@ -85,4 +110,14 @@ func main() {
 		fmt.Fprintf(os.Stderr, "unknown command: %s", os.Args[1])
 		os.Exit(2)
 	}
+}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 'x'
+	}
+
+	return len(p), nil
 }
