@@ -1,5 +1,14 @@
 # Changelog
 
+## [v0.4.6](https://github.com/monkescience/testastic/compare/v0.4.5...v0.4.6) (2026-09-03)
+
+### Bug Fixes
+
+- bound process output capture ([2528163](https://github.com/monkescience/testastic/commit/2528163e4b276c0f640505be56625f1a164d72e6))
+- bound binary run output ([9e15357](https://github.com/monkescience/testastic/commit/9e15357835aadc9e72a030eeee9a173bac6de671))
+- avoid cubic unordered matching ([fd71fef](https://github.com/monkescience/testastic/commit/fd71fefd4b991e682b7c5461ff281feb389db27a))
+- prevent fixture environment disclosure ([9baa399](https://github.com/monkescience/testastic/commit/9baa399827798d144b598cecf9ccf0bda5933f94))
+
 ## [v0.4.5](https://github.com/monkescience/testastic/compare/v0.4.4...v0.4.5) (2026-08-28)
 
 ### Bug Fixes
