@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,16 +42,9 @@ func main() {
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
-	mux.HandleFunc("GET /env", func(w http.ResponseWriter, r *http.Request) {
-		key := r.URL.Query().Get("key")
-		if key == "" {
-			http.Error(w, "missing key parameter", http.StatusBadRequest)
-
-			return
-		}
-
+	mux.HandleFunc("GET /env", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
-		fmt.Fprint(w, os.Getenv(key))
+		fmt.Fprint(w, os.Getenv("TESTASTIC_TEST_VALUE"))
 	})
 	mux.HandleFunc("GET /args", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -90,7 +84,7 @@ func main() {
 	})
 
 	server := &http.Server{
-		Addr:              ":" + port,
+		Addr:              net.JoinHostPort("127.0.0.1", port),
 		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}

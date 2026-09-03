@@ -393,26 +393,28 @@ func TestBinaryStart(t *testing.T) {
 		testastic.True(t, len(entries) > 0)
 	})
 
-	t.Run("custom env passed to process", func(t *testing.T) {
-		// given: a config with a custom environment variable
+	t.Run("only exposes the fixture test environment variable", func(t *testing.T) {
+		// given: a process with a fixed fixture value and an inherited secret
+		t.Setenv("TESTASTIC_PARENT_SECRET", "parent-only-secret")
+
 		port := nextPort()
 		binary := testastic.BuildBinary(t, "./testdata/testservice")
 
 		proc := binary.Start(t.Context(), t,
 			testastic.HTTPCheck(port, "/health"),
 			testastic.WithPort(port),
-			testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "MY_TEST_VAR=hello-from-test"),
+			testastic.WithEnv(fmt.Sprintf("PORT=%d", port), "TESTASTIC_TEST_VALUE=hello-from-test"),
 			testastic.WithReadyTimeout(10*time.Second),
 		)
 
-		// when: querying the process for the env var value
-		resp := doGet(t, proc.URL()+"/env?key=MY_TEST_VAR")
+		// when: trying to select the inherited secret through the fixture endpoint
+		resp := doGet(t, proc.URL()+"/env?key=TESTASTIC_PARENT_SECRET")
 		defer resp.Body.Close() //nolint:errcheck // test cleanup
 
 		body, err := io.ReadAll(resp.Body)
 		testastic.NoError(t, err)
 
-		// then: the process sees the custom env var
+		// then: only the fixed fixture value is exposed
 		testastic.Equal(t, http.StatusOK, resp.StatusCode)
 		testastic.Equal(t, "hello-from-test", string(body))
 	})
