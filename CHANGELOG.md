@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.4.7](https://github.com/monkescience/testastic/compare/v0.4.6...v0.4.7) (2026-09-05)
+
+### Performance Improvements
+
+- short-circuit simple object matching and skip redundant tree copies ([70abf1a](https://github.com/monkescience/testastic/commit/70abf1a22508ca41b97bc332c1d6bedb13395442))
+- reduce unordered comparison and template parsing allocations ([88d1cc9](https://github.com/monkescience/testastic/commit/88d1cc9693ac8448eb7c65abd84f06b81688d1c6))
+
 ## [v0.4.6](https://github.com/monkescience/testastic/compare/v0.4.5...v0.4.6) (2026-09-03)
 
 ### Bug Fixes
