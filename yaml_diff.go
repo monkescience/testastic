@@ -6,36 +6,13 @@ import (
 )
 
 // formatYAMLDiffInline generates a git-style inline diff between expected and actual YAML.
-func formatYAMLDiffInline(expected, actual yamlDocuments, cfg *config) string {
-	stream := newYAMLStreamContext(len(expected), len(actual), cfg)
-	expClean := make(yamlDocuments, len(expected))
-
-	for index, document := range expected {
-		var actualDocument any
-		if index < len(actual) {
-			actualDocument = actual[index]
-		}
-
-		documentContext := stream.document(index)
-		expClean[index] = substituteMatchedMatchers(
-			document,
-			actualDocument,
-			documentContext.path,
-			documentContext.config,
-		)
-	}
-
-	actClean := make(yamlDocuments, len(actual))
-	for index, document := range actual {
-		actClean[index] = cleanMatchersForDisplay(document)
-	}
-
-	expYAML, err := renderYAMLDocuments(expClean)
+func formatYAMLDiffInline(expected, actual yamlDocuments) string {
+	expYAML, err := renderYAMLDocuments(expected)
 	if err != nil {
 		return fmt.Sprintf("error formatting expected: %v", err)
 	}
 
-	actYAML, err := renderYAMLDocuments(actClean)
+	actYAML, err := renderYAMLDocuments(actual)
 	if err != nil {
 		return fmt.Sprintf("error formatting actual: %v", err)
 	}

@@ -55,9 +55,9 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	diffs := compareYAMLDocuments(expected.Documents, actualDocuments, cfg)
+	comparison := compareYAMLDocuments(expected.Documents, actualDocuments, cfg)
 
-	if handleYAMLDiffs(tb, expectedFile, actualBytes, expected, actualDocuments, diffs, cfg) {
+	if handleYAMLDiffs(tb, expectedFile, actualBytes, expected, comparison, cfg) {
 		return
 	}
 }
@@ -66,11 +66,11 @@ func AssertYAML[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 // Returns true if the assertion should stop.
 func handleYAMLDiffs(
 	tb testing.TB, path string, actualBytes []byte, expected *expectedYAML,
-	actualDocuments yamlDocuments, diffs []difference, cfg *config,
+	comparison yamlComparison, cfg *config,
 ) bool {
 	tb.Helper()
 
-	if len(diffs) == 0 {
+	if len(comparison.differences) == 0 {
 		return false
 	}
 
@@ -87,7 +87,7 @@ func handleYAMLDiffs(
 
 	msg := formatAssertionMessage("AssertYAML", path, cfg.Message)
 	tb.Errorf("testastic: assertion failed\n\n  %s\n%s",
-		msg, formatYAMLDiffInline(expected.Documents, actualDocuments, cfg))
+		msg, formatYAMLDiffInline(comparison.diagnostic()))
 
 	return false
 }

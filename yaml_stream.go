@@ -112,38 +112,52 @@ func emptyYAMLDocumentFollows(tokens token.Tokens) bool {
 	return true
 }
 
-func compareYAMLDocuments(expected, actual yamlDocuments, cfg *config) []difference {
-	stream := newYAMLStreamContext(len(expected), len(actual), cfg)
+type yamlComparison struct {
+	differences []difference
+	documents   []treeComparison
+	actual      yamlDocuments
+}
 
-	var diffs []difference
+func compareYAMLDocuments(expected, actual yamlDocuments, cfg *config) yamlComparison {
+	stream := newYAMLStreamContext(len(expected), len(actual), cfg)
+	result := yamlComparison{documents: make([]treeComparison, len(expected)), actual: actual}
 
 	for index := range max(len(expected), len(actual)) {
 		document := stream.document(index)
-
 		switch {
 		case index >= len(expected):
-			diffs = append(diffs, difference{
-				Path:     document.path,
-				Expected: nil,
-				Actual:   actual[index],
-				Type:     diffAdded,
+			result.differences = append(result.differences, difference{
+				Path: document.path, Expected: nil, Actual: actual[index], Type: diffAdded,
 			})
 		case index >= len(actual):
-			diffs = append(diffs, difference{
-				Path:     document.path,
-				Expected: expected[index],
-				Actual:   nil,
-				Type:     diffRemoved,
+			result.differences = append(result.differences, difference{
+				Path: document.path, Expected: expected[index], Actual: nil, Type: diffRemoved,
 			})
+			result.documents[index] = treeComparison{
+				expected: expected[index], path: document.path, config: document.config,
+			}
 		default:
-			diffs = append(
-				diffs,
-				compare(expected[index], actual[index], document.path, document.config)...,
-			)
+			comparison := compareTree(expected[index], actual[index], document.path, document.config)
+			result.differences = append(result.differences, comparison.differences...)
+			result.documents[index] = comparison
 		}
 	}
 
-	return diffs
+	return result
+}
+
+func (c yamlComparison) diagnostic() (yamlDocuments, yamlDocuments) {
+	expected := make(yamlDocuments, len(c.documents))
+	for index, document := range c.documents {
+		expected[index] = document.diagnostic().expected
+	}
+
+	actual := make(yamlDocuments, len(c.actual))
+	for index, document := range c.actual {
+		actual[index] = cleanMatchersForDisplay(document)
+	}
+
+	return expected, actual
 }
 
 func yamlDocumentPath(index int, multipleDocuments bool) string {

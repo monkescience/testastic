@@ -53,9 +53,9 @@ func AssertJSON[T any](tb testing.TB, expectedFile string, actual T, opts ...Opt
 		return
 	}
 
-	diffs := compare(expected.Data, actualData, "$", cfg)
+	comparison := compareTree(expected.Data, actualData, "$", cfg)
 
-	if handleJSONDiffs(tb, expectedFile, actualBytes, expected, actualData, diffs, cfg) {
+	if handleJSONDiffs(tb, expectedFile, actualBytes, expected, comparison, cfg) {
 		return
 	}
 }
@@ -92,11 +92,11 @@ func handleMissingExpectedFile(
 // Returns true if the assertion should stop.
 func handleJSONDiffs(
 	tb testing.TB, path string, actualBytes []byte, expected *expectedJSON,
-	actualData any, diffs []difference, cfg *config,
+	comparison treeComparison, cfg *config,
 ) bool {
 	tb.Helper()
 
-	if len(diffs) == 0 {
+	if len(comparison.differences) == 0 {
 		return false
 	}
 
@@ -112,7 +112,7 @@ func handleJSONDiffs(
 	}
 
 	msg := formatAssertionMessage("AssertJSON", path, cfg.Message)
-	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatJSONDiffInline(expected.Data, actualData, cfg))
+	tb.Errorf("testastic: assertion failed\n\n  %s\n%s", msg, formatJSONDiffInline(comparison.diagnostic()))
 
 	return false
 }

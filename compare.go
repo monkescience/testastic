@@ -16,11 +16,8 @@ import (
 // "1_000" that no JSON or YAML decoder can produce.
 var jsonNumberPattern = regexp.MustCompile(`^-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?$`)
 
-// compare compares expected (from expected file) with actual JSON data.
-// Returns a list of differences found.
-//
 //nolint:funlen // Complex type dispatch is clearer in one function.
-func compare(expected, actual any, path string, cfg *config) []difference {
+func compareWithTrace(expected, actual any, path string, cfg *config, trace *comparisonTrace) []difference {
 	if cfg.IsFieldIgnored(path) {
 		return nil
 	}
@@ -30,7 +27,14 @@ func compare(expected, actual any, path string, cfg *config) []difference {
 			return nil
 		}
 
-		if !m.Match(actual) {
+		matched := m.Match(actual)
+
+		if trace != nil {
+			trace.matcherChecked = true
+			trace.matched = matched
+		}
+
+		if !matched {
 			return []difference{{
 				Path:     path,
 				Expected: m.String(),
@@ -66,10 +70,10 @@ func compare(expected, actual any, path string, cfg *config) []difference {
 
 	switch exp := expected.(type) {
 	case map[string]any:
-		return compareObjects(exp, actual, path, cfg)
+		return compareObjects(exp, actual, path, cfg, trace)
 
 	case []any:
-		return compareArrays(exp, actual, path, cfg)
+		return compareArrays(exp, actual, path, cfg, trace)
 
 	case string:
 		if act, ok := actual.(string); ok {
@@ -132,7 +136,9 @@ func compare(expected, actual any, path string, cfg *config) []difference {
 	}
 }
 
-func compareObjects(expected map[string]any, actual any, path string, cfg *config) []difference {
+func compareObjects(
+	expected map[string]any, actual any, path string, cfg *config, trace *comparisonTrace,
+) []difference {
 	actMap, ok := actual.(map[string]any)
 	if !ok {
 		return []difference{{
@@ -164,7 +170,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *confi
 				Type:     diffRemoved,
 			})
 		} else {
-			diffs = append(diffs, compare(expVal, actVal, childPath, cfg)...)
+			diffs = append(diffs, compareChild(expVal, actVal, childPath, cfg, trace, key)...)
 		}
 	}
 
@@ -187,7 +193,7 @@ func compareObjects(expected map[string]any, actual any, path string, cfg *confi
 	return diffs
 }
 
-func compareArrays(expected []any, actual any, path string, cfg *config) []difference {
+func compareArrays(expected []any, actual any, path string, cfg *config, trace *comparisonTrace) []difference {
 	actArr, ok := actual.([]any)
 	if !ok {
 		return []difference{{
@@ -199,13 +205,13 @@ func compareArrays(expected []any, actual any, path string, cfg *config) []diffe
 	}
 
 	if cfg.ShouldIgnoreArrayOrder(path) {
-		return compareArraysUnordered(expected, actArr, path, cfg)
+		return compareArraysUnordered(expected, actArr, path, cfg, trace)
 	}
 
-	return compareArraysOrdered(expected, actArr, path, cfg)
+	return compareArraysOrdered(expected, actArr, path, cfg, trace)
 }
 
-func compareArraysOrdered(expected, actual []any, path string, cfg *config) []difference {
+func compareArraysOrdered(expected, actual []any, path string, cfg *config, trace *comparisonTrace) []difference {
 	var diffs []difference
 
 	for i := range max(len(expected), len(actual)) {
@@ -227,7 +233,7 @@ func compareArraysOrdered(expected, actual []any, path string, cfg *config) []di
 				Type:     diffRemoved,
 			})
 		default:
-			diffs = append(diffs, compare(expected[i], actual[i], childPath, cfg)...)
+			diffs = append(diffs, compareChild(expected[i], actual[i], childPath, cfg, trace, childPath)...)
 		}
 	}
 
@@ -407,7 +413,7 @@ func assignUnorderedMatch(
 	}
 }
 
-func compareArraysUnordered(expected, actual []any, path string, cfg *config) []difference {
+func compareArraysUnordered(expected, actual []any, path string, cfg *config, trace *comparisonTrace) []difference {
 	if len(expected) != len(actual) {
 		return []difference{{
 			Path:     path,
@@ -422,6 +428,10 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config) []
 
 		return len(compare(expected[expIdx], act, childPath, cfg)) == 0
 	})
+
+	if trace != nil {
+		trace.alignment = &matches
+	}
 
 	if len(matches.unmatchedExpected) == 0 {
 		return nil
