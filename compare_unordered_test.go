@@ -1,7 +1,11 @@
 //nolint:testpackage // The private matching algorithm is the intended test surface.
 package testastic
 
-import "testing"
+import (
+	"encoding/json"
+	"math"
+	"testing"
+)
 
 func TestFindUnorderedMatchesFindsMaximumMatching(t *testing.T) {
 	t.Parallel()
@@ -97,5 +101,37 @@ func BenchmarkFindUnorderedMatchesAmbiguous(b *testing.B) {
 		findUnorderedMatches(values, values, func(_ int, _ int) bool {
 			return true
 		})
+	}
+}
+
+func TestUnorderedCandidatesPreserveComparisonSemantics(t *testing.T) {
+	t.Parallel()
+
+	values := []any{
+		nil, true, false, "1", "value", 1, -1, uint64(math.MaxUint64),
+		float64(1), float32(1.5), math.Inf(1), math.Inf(-1), math.NaN(),
+		json.Number("1"), json.Number("1.0"), json.Number("1e0"),
+		json.Number("0.5"), json.Number("1.50"), json.Number("15e-1"),
+		json.Number("-0"), json.Number("0"), json.Number("9007199254740993"),
+		json.Number("18446744073709551615"), json.Number("18446744073709551616"),
+		json.Number("01"), json.Number("invalid"),
+		anyStringMatcher{},
+		map[string]any{"id": "a"},
+		map[string]any{"id": "b"},
+		[]any{1, "a"},
+	}
+	candidates := prepareUnorderedCandidates(values)
+
+	for _, cfg := range []*config{{}, {IgnoredFields: []string{"$[0]"}}, {IgnoredFields: []string{"id"}}} {
+		for expectedIndex, expected := range candidates {
+			for actualIndex, actual := range candidates {
+				want := len(compare(expected.value, actual.value, "$[0]", cfg)) == 0
+				got := expected.matches(actual, "$[0]", cfg)
+
+				if got != want {
+					t.Fatalf("candidate %d versus %d: got %v, want %v", expectedIndex, actualIndex, got, want)
+				}
+			}
+		}
 	}
 }

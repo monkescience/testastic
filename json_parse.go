@@ -27,6 +27,10 @@ func (jsonMatcherPreparer) prepare(source string) (preparedMatcherSource, error)
 		includeWholeQuotes:       true,
 		unclosedBacktickConsumes: true,
 	}, strconv.Quote)
+	if len(sites) == 0 {
+		return preparedMatcherSource{source: source}, nil
+	}
+
 	literalSource := substituteMatcherSourceSites(source, sites, "null")
 
 	var literalData any

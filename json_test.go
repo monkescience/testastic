@@ -607,3 +607,30 @@ func TestAssertJSON_UpdatePreservesRootMatcher(t *testing.T) {
 		t.Errorf("expected root matcher to be preserved on update, got: %s", content)
 	}
 }
+
+func TestAssertJSONUnorderedNumericRepresentations(t *testing.T) {
+	t.Parallel()
+
+	for _, scenario := range []struct {
+		name     string
+		actual   string
+		wantFail bool
+	}{
+		{"equivalent spellings", `[1e0,9007199254740993,-0,1.0,-2]`, false},
+		{"different duplicate counts", `[1,9007199254740993,0,-2,-2]`, true},
+		{"different large integer", `[1,9007199254740992,0,1,-2]`, true},
+		{"string is not a number", `[1,9007199254740993,0,"1",-2]`, true},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "expected.json")
+			err := os.WriteFile(path, []byte(`[0,1,1,-2,9007199254740993]`), 0o600)
+			testastic.NoError(t, err)
+
+			mt := &mockT{}
+			testastic.AssertJSON(mt, path, scenario.actual, testastic.IgnoreArrayOrder())
+			testastic.Equal(t, scenario.wantFail, mt.failed)
+		})
+	}
+}

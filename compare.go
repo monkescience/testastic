@@ -423,10 +423,16 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config, tr
 		}}
 	}
 
-	matches := findUnorderedMatches(expected, actual, func(expIdx int, act any) bool {
-		childPath := fmt.Sprintf("%s[%d]", path, expIdx)
+	expectedCandidates := prepareUnorderedCandidates(expected)
+	actualCandidates := prepareUnorderedCandidates(actual)
+	paths := make([]string, len(expected))
 
-		return len(compare(expected[expIdx], act, childPath, cfg)) == 0
+	for index := range paths {
+		paths[index] = fmt.Sprintf("%s[%d]", path, index)
+	}
+
+	matches := findUnorderedMatches(expectedCandidates, actualCandidates, func(expIdx int, act unorderedCandidate) bool {
+		return expectedCandidates[expIdx].matches(act, paths[expIdx], cfg)
 	})
 
 	if trace != nil {
@@ -456,6 +462,45 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config, tr
 	}
 
 	return diffs
+}
+
+type unorderedCandidate struct {
+	value  any
+	number *big.Rat
+}
+
+func prepareUnorderedCandidates(values []any) []unorderedCandidate {
+	candidates := make([]unorderedCandidate, len(values))
+
+	for index, value := range values {
+		number, _ := numberToRat(value)
+		candidates[index] = unorderedCandidate{value: value, number: number}
+	}
+
+	return candidates
+}
+
+func (c unorderedCandidate) matches(actual unorderedCandidate, path string, cfg *config) bool {
+	if cfg.IsFieldIgnored(path) {
+		return true
+	}
+
+	if c.number != nil && actual.number != nil {
+		return c.number.Num().Cmp(actual.number.Num()) == 0 && c.number.Denom().Cmp(actual.number.Denom()) == 0
+	}
+
+	switch expected := c.value.(type) {
+	case string:
+		value, ok := actual.value.(string)
+
+		return ok && expected == value
+	case bool:
+		value, ok := actual.value.(bool)
+
+		return ok && expected == value
+	default:
+		return len(compare(c.value, actual.value, path, cfg)) == 0
+	}
 }
 
 func compareNumbers(expected, actual any, path string) []difference {

@@ -21,6 +21,10 @@ func (yamlMatcherPreparer) prepare(source string) (preparedMatcherSource, error)
 		matcherSourceRules{unclosedBacktickConsumes: true},
 		rawMatcherPlaceholder,
 	)
+	if len(sites) == 0 {
+		return preparedMatcherSource{source: source}, nil
+	}
+
 	literalSource := substituteMatcherSourceSites(source, sites, "null")
 
 	documents, err := parseYAMLDocuments([]byte(literalSource))
