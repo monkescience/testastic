@@ -423,17 +423,7 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config, tr
 		}}
 	}
 
-	expectedCandidates := prepareUnorderedCandidates(expected)
-	actualCandidates := prepareUnorderedCandidates(actual)
-	paths := make([]string, len(expected))
-
-	for index := range paths {
-		paths[index] = fmt.Sprintf("%s[%d]", path, index)
-	}
-
-	matches := findUnorderedMatches(expectedCandidates, actualCandidates, func(expIdx int, act unorderedCandidate) bool {
-		return expectedCandidates[expIdx].matches(act, paths[expIdx], cfg)
-	})
+	matches := matchUnorderedValues(expected, actual, path, cfg)
 
 	if trace != nil {
 		trace.alignment = &matches
@@ -462,6 +452,44 @@ func compareArraysUnordered(expected, actual []any, path string, cfg *config, tr
 	}
 
 	return diffs
+}
+
+func matchUnorderedValues(expected, actual []any, path string, cfg *config) unorderedMatchResult {
+	expectedCandidates := prepareUnorderedCandidates(expected)
+	actualCandidates := prepareUnorderedCandidates(actual)
+	paths := make([]string, len(expected))
+
+	var simpleObjects []map[string]any
+
+	for index := range paths {
+		paths[index] = fmt.Sprintf("%s[%d]", path, index)
+
+		if object, ok := expected[index].(map[string]any); ok && isStringBoolObject(object) {
+			if simpleObjects == nil {
+				simpleObjects = make([]map[string]any, len(expected))
+			}
+
+			simpleObjects[index] = object
+		}
+	}
+
+	matches := func(expIdx int, act unorderedCandidate) bool {
+		return expectedCandidates[expIdx].matches(act, paths[expIdx], cfg)
+	}
+
+	if simpleObjects != nil {
+		matches = func(expIdx int, act unorderedCandidate) bool {
+			if simpleObjects[expIdx] != nil {
+				if actualObject, ok := act.value.(map[string]any); ok {
+					return matchesStringBoolObject(simpleObjects[expIdx], actualObject, paths[expIdx], cfg)
+				}
+			}
+
+			return expectedCandidates[expIdx].matches(act, paths[expIdx], cfg)
+		}
+	}
+
+	return findUnorderedMatches(expectedCandidates, actualCandidates, matches)
 }
 
 type unorderedCandidate struct {
@@ -501,6 +529,44 @@ func (c unorderedCandidate) matches(actual unorderedCandidate, path string, cfg 
 	default:
 		return len(compare(c.value, actual.value, path, cfg)) == 0
 	}
+}
+
+func isStringBoolObject(value map[string]any) bool {
+	for _, child := range value {
+		switch child.(type) {
+		case string, bool:
+		default:
+			return false
+		}
+	}
+
+	return true
+}
+
+func matchesStringBoolObject(expected, actual map[string]any, path string, cfg *config) bool {
+	if cfg.IsFieldIgnored(path) {
+		return true
+	}
+
+	for key, value := range expected {
+		childPath := path + "." + key
+		if cfg.IsFieldIgnored(childPath) {
+			continue
+		}
+
+		actualValue, ok := actual[key]
+		if !ok || !(unorderedCandidate{value: value}).matches(unorderedCandidate{value: actualValue}, childPath, cfg) {
+			return false
+		}
+	}
+
+	for key := range actual {
+		if _, ok := expected[key]; !ok && !cfg.IsFieldIgnored(path+"."+key) {
+			return false
+		}
+	}
+
+	return true
 }
 
 func compareNumbers(expected, actual any, path string) []difference {

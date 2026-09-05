@@ -420,6 +420,10 @@ func (p matcherProgram) sourceForParser() string {
 }
 
 func (p matcherProgram) resolve(value any) (any, error) {
+	if len(p.sites) == 0 {
+		return value, nil
+	}
+
 	switch typed := value.(type) {
 	case map[string]any:
 		return p.resolveMap(typed)

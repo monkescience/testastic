@@ -118,11 +118,26 @@ func TestUnorderedCandidatesPreserveComparisonSemantics(t *testing.T) {
 		anyStringMatcher{},
 		map[string]any{"id": "a"},
 		map[string]any{"id": "b"},
+		map[string]any{},
+		map[string]any{"id": "a", "active": true},
+		map[string]any{"id": "a", "active": false},
+		map[string]any{"id": "a", "active": "true"},
+		map[string]any{"id": "a", "extra": true},
+		map[string]any{"id": json.Number("1")},
+		map[string]any{"id": map[string]any{"value": "a"}},
+		map[string]any{"id": anyStringMatcher{}},
 		[]any{1, "a"},
 	}
 	candidates := prepareUnorderedCandidates(values)
 
-	for _, cfg := range []*config{{}, {IgnoredFields: []string{"$[0]"}}, {IgnoredFields: []string{"id"}}} {
+	configs := []*config{
+		{},
+		{IgnoredFields: []string{"$[0]"}},
+		{IgnoredFields: []string{"id"}},
+		{IgnoredFields: []string{"$[0].active", "extra"}},
+	}
+
+	for _, cfg := range configs {
 		for expectedIndex, expected := range candidates {
 			for actualIndex, actual := range candidates {
 				want := len(compare(expected.value, actual.value, "$[0]", cfg)) == 0

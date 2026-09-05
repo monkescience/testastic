@@ -103,7 +103,7 @@ func benchmarkYAMLDocuments(b *testing.B, expected, actual any) (yamlDocuments, 
 }
 
 func BenchmarkComparisonScaling(b *testing.B) {
-	for _, kind := range []string{"strings", "numbers", "objects"} {
+	for _, kind := range []string{"strings", "numbers", "objects", "numericObjects", "nestedObjects", "matcherObjects"} {
 		b.Run(kind, func(b *testing.B) {
 			for _, unordered := range []bool{false, true} {
 				b.Run("unordered="+strconv.FormatBool(unordered), func(b *testing.B) {
@@ -137,6 +137,15 @@ func benchmarkComparisonScaling(b *testing.B, kind string, unordered bool, size 
 		case "objects":
 			expected[index] = map[string]any{"id": value, "active": true}
 			actual[index] = map[string]any{"id": value, "active": true}
+		case "numericObjects":
+			expected[index] = map[string]any{"id": json.Number(value)}
+			actual[index] = map[string]any{"id": json.Number(value)}
+		case "nestedObjects":
+			expected[index] = map[string]any{"item": map[string]any{"id": value}}
+			actual[index] = map[string]any{"item": map[string]any{"id": value}}
+		case "matcherObjects":
+			expected[index] = map[string]any{"id": anyStringMatcher{}}
+			actual[index] = map[string]any{"id": value}
 		}
 	}
 

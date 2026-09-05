@@ -397,3 +397,81 @@ func TestStructuredDiagnosticUnequalArrays(t *testing.T) {
 		})
 	}
 }
+
+func TestUnorderedObjectAssertions(t *testing.T) {
+	t.Parallel()
+
+	formats := []struct {
+		name   string
+		assert func(testing.TB, string, string, ...testastic.Option)
+	}{
+		{"JSON", testastic.AssertJSON[string]},
+		{"YAML", testastic.AssertYAML[string]},
+	}
+
+	for _, format := range formats {
+		t.Run(format.name, func(t *testing.T) {
+			t.Parallel()
+
+			for _, scenario := range []struct {
+				name     string
+				actual   string
+				ignored  string
+				wantFail bool
+			}{
+				{"reordered", `[{"id":"b","active":false},{"id":"a","active":true}]`, "", false},
+				{"duplicates", `[{"id":"b","active":false},{"id":"b","active":false}]`, "", true},
+				{"ignored object", `[{"id":"b","active":false},{"id":"changed"}]`, "$[0]", false},
+				{"missing field", `[{"id":"b"},{"id":"a","active":true}]`, "", true},
+				{"ignored missing field", `[{"id":"b"},{"id":"a"}]`, "active", false},
+				{"extra field", `[{"id":"b","active":false,"extra":true},{"id":"a","active":true}]`, "", true},
+				{"ignored extra field", `[{"id":"b","active":false,"extra":true},{"id":"a","active":true}]`, "extra", false},
+				{"boolean type mismatch", `[{"id":"b","active":"false"},{"id":"a","active":true}]`, "", true},
+			} {
+				t.Run(scenario.name, func(t *testing.T) {
+					t.Parallel()
+
+					path := filepath.Join(t.TempDir(), "expected")
+					expected := `[{"id":"a","active":true},{"id":"b","active":false}]`
+					err := os.WriteFile(path, []byte(expected), 0o600)
+					testastic.NoError(t, err)
+
+					opts := []testastic.Option{testastic.IgnoreArrayOrder()}
+					if scenario.ignored != "" {
+						opts = append(opts, testastic.IgnoreFields(scenario.ignored))
+					}
+
+					mt := &mockT{}
+					format.assert(mt, path, scenario.actual, opts...)
+					testastic.Equal(t, scenario.wantFail, mt.failed)
+				})
+			}
+		})
+	}
+}
+
+func TestUnorderedMixedObjectAssertions(t *testing.T) {
+	t.Parallel()
+
+	formats := []struct {
+		name   string
+		assert func(testing.TB, string, string, ...testastic.Option)
+	}{
+		{"JSON", testastic.AssertJSON[string]},
+		{"YAML", testastic.AssertYAML[string]},
+	}
+
+	for _, format := range formats {
+		t.Run(format.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "expected")
+			expected := `[{"id":"a"},{"id":"{{anyString}}"},{"nested":{"id":"x"}},"tail",1]`
+			actual := `[1.0,"tail",{"id":"b"},{"nested":{"id":"x"}},{"id":"a"}]`
+			err := os.WriteFile(path, []byte(expected), 0o600)
+			testastic.NoError(t, err)
+
+			format.assert(t, path, actual, testastic.IgnoreArrayOrder())
+		})
+	}
+}
