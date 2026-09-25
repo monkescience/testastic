@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.4.8](https://github.com/monkescience/testastic/compare/v0.4.7...v0.4.8) (2026-09-25)
+
+### Bug Fixes
+
+- **deps:** update module golang.org/x/net to v0.59.0 (#112) ([64a30db](https://github.com/monkescience/testastic/commit/64a30db67cc1016661dc37034909d5d328163f56))
+
 ## [v0.4.7](https://github.com/monkescience/testastic/compare/v0.4.6...v0.4.7) (2026-09-05)
 
 ### Performance Improvements
