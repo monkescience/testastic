@@ -6,8 +6,8 @@ toolchain go1.27.2
 
 require (
 	github.com/goccy/go-yaml v1.19.2
-	golang.org/x/net v0.60.0
-	golang.org/x/term v0.46.0
+	golang.org/x/net v0.61.0
+	golang.org/x/term v0.47.0
 )
 
-require golang.org/x/sys v0.48.0 // indirect
+require golang.org/x/sys v0.49.0 // indirect
